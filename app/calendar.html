@@ -7,16 +7,35 @@
   <link rel="stylesheet" href="../css/theme.css">
   <link rel="stylesheet" href="../css/main.css">
   <style>
-    .calendar-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 15px;
+    /* Сетка для разделения на 2 колонки */
+    .calendar-layout {
+      display: flex;
+      gap: 30px;
+      align-items: flex-start;
       margin-top: 25px;
     }
+    @media (max-width: 768px) {
+      .calendar-layout { flex-direction: column; }
+    }
+    .upcoming-section {
+      flex: 0 0 300px;
+      width: 100%;
+    }
+    .grid-section {
+      flex: 1;
+      width: 100%;
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 15px;
+    }
+    
+    /* Стили ячеек календаря */
     .day-cell {
       background: var(--color-surface);
       border: 1px solid var(--color-border);
-      padding: 20px 15px;
+      padding: 20px 10px;
       border-radius: var(--radius-sm);
       text-align: center;
       cursor: pointer;
@@ -30,16 +49,34 @@
       transform: translateY(-3px);
       box-shadow: 0 8px 15px rgba(0,0,0,0.05);
     }
-    /* Индикатор свободного дня (зеленая полоска) */
-    .day-cell.free::before {
+    /* Полоска по умолчанию - серая */
+    .day-cell::before {
       content: '';
       position: absolute;
       top: 0; left: 0; right: 0;
       height: 4px;
+      background-color: #cbd5e1; 
+      transition: background-color 0.3s;
+    }
+    /* Если в этот день есть запись - зеленая */
+    .day-cell.booked::before {
       background-color: #10b981; 
     }
     .date-text { font-size: 18px; font-weight: 700; color: var(--color-text-main); }
     .day-text { font-size: 14px; font-weight: 500; color: var(--color-text-muted); margin-top: 4px; }
+    
+    /* Стили для карточек ближайших записей */
+    .booking-item {
+      padding: 15px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 12px;
+      border-left: 4px solid var(--color-primary);
+      background: #fff;
+    }
+    .booking-item:last-child { margin-bottom: 0; }
+    .booking-date { font-weight: 600; color: var(--color-text-main); font-size: 15px; }
+    .booking-time { font-size: 14px; color: var(--color-text-muted); margin-top: 4px; }
   </style>
 </head>
 <body class="app-body">
@@ -56,9 +93,25 @@
   </header>
   
   <main class="container mt-4">
-    <h1 class="page-title">Выбор даты (ближайшие 30 дней)</h1>
-    <!-- Сюда сгенерируются карточки дней -->
-    <div class="calendar-grid" id="calendarGrid" oncontextmenu="return false;"></div>
+    <div class="calendar-layout">
+      
+      <!-- Левая колонка: Ближайшие записи -->
+      <div class="upcoming-section">
+        <div class="auth-card" style="padding: 25px; margin-top: 0;">
+          <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 18px; color: var(--color-text-main);">Мои записи</h3>
+          <div id="upcomingBookingsList">
+            <div class="text-center" style="color: var(--color-text-muted); font-size: 14px;">Загрузка...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Правая колонка: Календарь -->
+      <div class="grid-section">
+        <h1 class="page-title" style="margin-top: 0; margin-bottom: 20px;">Выберите дату</h1>
+        <div class="calendar-grid" id="calendarGrid" oncontextmenu="return false;"></div>
+      </div>
+
+    </div>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
