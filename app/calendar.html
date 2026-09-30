@@ -7,20 +7,18 @@
   <link rel="stylesheet" href="../css/theme.css">
   <link rel="stylesheet" href="../css/main.css">
   <style>
-    /* Убираем отступ сверху у шапки и тень */
     .app-header {
       margin-top: 0;
       box-shadow: none; 
       border-bottom: none;
-      padding-bottom: 15px; /* Немного отступа до полосы */
+      padding-bottom: 15px; 
     }
     
-    /* Градиентная полоса на всю ширину под шапкой */
     .top-gradient-bar {
       width: 100%;
       height: 4.8px; 
       background: linear-gradient(90deg, var(--color-gradient-start), var(--color-gradient-end));
-      margin-bottom: 20px; /* Отступ от полосы до контента */
+      margin-bottom: 20px; 
     }
 
     .calendar-layout {
@@ -36,8 +34,9 @@
       padding-right: 30px;
     }
     
+    /* Ширина уменьшена на 33% (было 430px, стало 290px) */
     .upcoming-section {
-      flex: 0 0 430px; 
+      flex: 0 0 290px; 
       width: 100%;
     }
 
@@ -47,14 +46,13 @@
       .upcoming-section { flex: auto; }
     }
     
-    /* Унифицированные заголовки для выравнивания */
     .section-title {
       margin: 0 0 25px 0;
       font-size: 24px;
       line-height: 1.2;
       font-weight: 700;
       color: var(--color-text-main);
-      height: 28px; /* Фиксируем высоту заголовка */
+      height: 28px; 
     }
 
     /* Сетка календаря */
@@ -74,9 +72,10 @@
       display: grid;
       grid-template-columns: repeat(7, 1fr);
       gap: 12px; 
+      /* Жестко фиксируем высоту строк сетки для идеального выравнивания */
+      grid-auto-rows: 75px; 
     }
     
-    /* Стили ячеек календаря */
     .day-cell {
       background: var(--color-surface);
       border: 1px solid var(--color-border);
@@ -99,7 +98,6 @@
       box-shadow: 0 8px 15px rgba(0,0,0,0.05);
     }
     
-    /* Полоска свободных дней (зеленая, прозрачность 80%) */
     .day-cell::before {
       content: '';
       position: absolute;
@@ -107,12 +105,10 @@
       height: 4px;
       background-color: rgba(16, 185, 129, 0.8); 
     }
-    /* Полоска занятых дней (красная) */
     .day-cell.booked::before {
       background-color: var(--color-primary); 
     }
     
-    /* Неактивные дни */
     .day-cell.inactive {
       opacity: 0.4;
       background-color: #f1f5f9;
@@ -130,28 +126,35 @@
     .booking-list {
       display: flex;
       flex-direction: column;
-      gap: 12px; 
-      /* Отступ сверху строго равен высоте шапки дней (20) + отступ (12) */
-      margin-top: 32px; 
+      gap: 12px; /* Идеально совпадает с gap в calendar-grid */
+      margin-top: 32px; /* Идеально компенсирует высоту .weekdays-header (20+12) */
     }
 
-    /* Карточки слотов */
     .booking-item {
       padding: 0 15px;
       border: 1px solid var(--color-border);
-      border-left: 4px solid var(--color-primary); /* Возвращаем красную полосу налево */
+      border-left: 4px solid var(--color-primary); 
       border-radius: var(--radius-sm);
       background: #fff;
-      height: 75px; /* Идеально совпадает с иконкой даты */
+      height: 75px; 
       display: flex;
       flex-direction: row; 
       justify-content: space-between; 
       align-items: center; 
       box-sizing: border-box;
       position: relative;
+      cursor: pointer; /* Показываем, что карточка кликабельна */
+      transition: all 0.2s ease;
     }
     
-    /* Левый блок (дата и время) - не сжимается */
+    /* Эффект при наведении для отмены записи */
+    .booking-item:hover {
+      border-color: var(--color-primary);
+      background-color: #fef2f2; /* Легкий красный оттенок */
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.05);
+    }
+    
     .booking-left { 
       display: flex; 
       flex-direction: column; 
@@ -159,18 +162,16 @@
       flex-shrink: 0; 
     }
     
-    /* Правый блок (тип и док) - занимает оставшееся место, обрезает длинный текст */
     .booking-right { 
       display: flex; 
       flex-direction: column; 
       gap: 4px; 
       text-align: right; 
       flex: 1; 
-      min-width: 0; /* Обязательно для работы ellipsis во flexbox */
-      margin-left: 15px;
+      min-width: 0; 
+      margin-left: 10px;
     }
     
-    /* Класс для обрезки длинного текста с многоточием */
     .truncate-text {
       white-space: nowrap;
       overflow: hidden;
@@ -179,7 +180,7 @@
     }
     
     .booking-date { font-weight: 600; color: var(--color-text-main); font-size: 15px; }
-    .booking-time { font-size: 14px; color: var(--color-text-muted); }
+    .booking-time { font-size: 13px; color: var(--color-text-muted); }
   </style>
 </head>
 <body class="app-body">
@@ -194,13 +195,11 @@
     </div>
   </header>
   
-  <!-- Градиентная полоса вынесена под шапку -->
   <div class="top-gradient-bar"></div>
   
   <main class="container">
     <div class="calendar-layout">
       
-      <!-- Левая колонка: Календарь -->
       <div class="grid-section">
         <h2 class="section-title">Календарь</h2>
         
@@ -210,7 +209,6 @@
         <div class="calendar-grid" id="calendarGrid" oncontextmenu="return false;"></div>
       </div>
 
-      <!-- Правая колонка: Ближайшие слоты -->
       <div class="upcoming-section">
         <h2 class="section-title">Мои слоты</h2>
         <div id="upcomingBookingsList" class="booking-list">
