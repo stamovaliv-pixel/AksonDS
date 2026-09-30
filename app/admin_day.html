@@ -2,49 +2,132 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Управление днем - AKSon Logistics</title>
   <link rel="stylesheet" href="../css/theme.css">
   <link rel="stylesheet" href="../css/main.css">
   <style>
+    .app-header { margin-top: 0; box-shadow: none; border-bottom: none; padding-bottom: 15px; }
     .top-gradient-bar { width: 100%; height: 2px; background: linear-gradient(90deg, var(--color-gradient-start), var(--color-gradient-end)); margin-bottom: 20px; }
+    .header-nav { display: flex; gap: 20px; align-items: center; }
+    .nav-icon { padding: 5px; text-decoration: none; display: flex; align-items: center; gap: 8px; color: #3b82f6; font-weight: 500; font-size: 15px; }
+    
     .hour-block { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 15px; padding: 15px; }
-    .hour-header { font-size: 18px; font-weight: 700; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 5px; }
+    .hour-header { display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: 700; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
     
-    .cards-container { display: flex; flex-wrap: wrap; gap: 10px; }
-    .booking-card { background: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #3b82f6; border-radius: var(--radius-sm); padding: 10px; cursor: pointer; flex: 1; min-width: 200px; font-size: 14px; transition: 0.2s; }
-    .booking-card:hover { border-color: #3b82f6; transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .cards-container { display: flex; flex-direction: column; gap: 10px; }
     
-    .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-    .modal-content { background: #fff; padding: 25px; border-radius: var(--radius-md); width: 400px; }
-    .btn-red { background: #ef4444; color: #fff; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px;}
-    .btn-save { background: #10b981; color: #fff; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 10px;}
+    /* Занятый слот (красный) */
+    .booking-card { background: #fef2f2; border: 1px solid #fca5a5; border-left: 4px solid #ef4444; border-radius: var(--radius-sm); padding: 12px; cursor: pointer; font-size: 14px; transition: 0.2s; position: relative; }
+    .booking-card:hover { border-color: #ef4444; transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    
+    /* Кнопка добавления (синяя) */
+    .btn-add-slot { background: #f0f9ff; border: 1px dashed #3b82f6; color: #3b82f6; border-radius: var(--radius-sm); padding: 10px; cursor: pointer; text-align: center; font-weight: 600; transition: 0.2s; }
+    .btn-add-slot:hover { background: #e0f2fe; }
+
+    /* Модальные окна */
+    .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
+    .modal-content { background: #fff; padding: 25px; border-radius: var(--radius-md); width: 100%; max-width: 450px; position: relative; max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--color-border); padding-bottom: 10px; }
+    
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 5px; color: var(--color-text-muted); }
+    .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 4px; box-sizing: border-box; font-size: 14px; }
+    
+    /* Блок с копированием */
+    .copy-box { display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0; }
+    .copy-text { flex: 1; word-break: break-word; font-size: 14px; font-weight: 500; }
+    .btn-copy { background: none; border: none; cursor: pointer; color: #64748b; padding: 5px; border-radius: 4px; transition: 0.2s; }
+    .btn-copy:hover { background: #e2e8f0; color: #3b82f6; }
+
+    .btn-red { background: #ef4444; color: #fff; border: none; padding: 12px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600; margin-top: 10px; }
+    .btn-save { background: #10b981; color: #fff; border: none; padding: 12px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600; margin-top: 20px; }
+
+    /* Адаптив */
+    @media (max-width: 768px) {
+      .hour-header { font-size: 16px; flex-direction: column; align-items: flex-start; gap: 5px; }
+      .modal-content { padding: 15px; }
+    }
   </style>
 </head>
 <body class="app-body">
+  <header class="app-header">
+    <div class="header-logo"><img src="../assets/logistic-logo.svg" alt="АКСОН Логистика" class="app-logo"></div>
+    <div class="header-nav">
+      <a href="admin_calendar.html" class="nav-icon">Календарь (Сотрудник)</a>
+      <a href="#" id="logoutBtn" class="nav-icon" style="color: #ef4444;">Выйти</a>
+    </div>
+  </header>
   <div class="top-gradient-bar"></div>
-  <main class="container mt-4">
-    <a href="admin_calendar.html" style="color: #3b82f6; text-decoration: none;">&larr; Назад в календарь</a>
-    <h2 style="margin: 20px 0;">Расписание на: <span id="dateDisplay"></span></h2>
-    <div id="hoursContainer"></div>
+  
+  <main class="container" style="max-width: 800px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <a href="admin_calendar.html" style="color: #3b82f6; text-decoration: none; font-weight: 500;">&larr; Назад в календарь</a>
+      <h2 style="margin: 0; font-size: 20px;">Слоты на: <span id="dateDisplay" style="color: var(--color-primary);">...</span></h2>
+    </div>
+    <div id="hoursContainer">
+      <div style="padding: 40px; text-align: center; color: var(--color-text-muted);">Загрузка расписания...</div>
+    </div>
   </main>
 
-  <!-- Модальное окно редактирования -->
+  <!-- Модальное окно РЕДАКТИРОВАНИЯ записи -->
   <div class="modal-overlay" id="editModal">
     <div class="modal-content">
-      <div style="display:flex; justify-content:space-between; margin-bottom: 15px;">
-        <h3 style="margin:0;">Редактирование</h3>
-        <button id="closeModal" style="border:none; background:none; font-size:20px; cursor:pointer;">&times;</button>
+      <div class="modal-header">
+        <h3 style="margin:0; font-size: 18px;">Детали записи</h3>
+        <button id="closeEditModal" style="border:none; background:none; font-size:24px; cursor:pointer; color: #64748b;">&times;</button>
       </div>
-      <p><strong>Компания:</strong> <span id="mCompany"></span></p>
+      
       <input type="hidden" id="mId">
       
-      <div style="margin-bottom: 10px;">
-        <label style="display:block; font-size:12px;">Время слота (Час)</label>
-        <input type="number" id="mHour" min="9" max="17" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:4px;">
+      <div class="form-group">
+        <label>Поставщик (Организация и ИНН)</label>
+        <div class="copy-box">
+          <span class="copy-text" id="mCompany"></span>
+          <button class="btn-copy" title="Копировать" onclick="copyText('mCompany')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          </button>
+        </div>
       </div>
-      <div style="margin-bottom: 10px;">
-        <label style="display:block; font-size:12px;">Документ</label>
-        <input type="text" id="mDoc" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:4px;">
+      
+      <div class="form-group">
+        <label>Номер документа</label>
+        <div class="copy-box" style="background: #fff; padding: 0; border: none;">
+          <input type="text" id="mDoc" style="border-radius: 4px 0 0 4px;">
+          <button class="btn-copy" style="background: #f1f5f9; border: 1px solid var(--color-border); border-left: none; padding: 10px; border-radius: 0 4px 4px 0;" title="Копировать" onclick="copyInput('mDoc')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          </button>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <div class="form-group" style="flex: 1;">
+          <label>Тип поставки</label>
+          <select id="mSupplyType">
+            <option value="orders_im">Заказы ИМ</option>
+            <option value="mix">МИКС</option>
+            <option value="return">Возврат</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>Тип документа</label>
+          <select id="mOrderType">
+            <option value="order">Заказ</option>
+            <option value="upd">УПД</option>
+            <option value="etrn">ЭТрН</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Время слота (Час начала)</label>
+        <select id="mHour">
+          <option value="9">9:00 - 10:00</option><option value="10">10:00 - 11:00</option>
+          <option value="11">11:00 - 12:00</option><option value="12">12:00 - 13:00</option>
+          <option value="13">13:00 - 14:00</option><option value="14">14:00 - 15:00</option>
+          <option value="15">15:00 - 16:00</option><option value="16">16:00 - 17:00</option>
+          <option value="17">17:00 - 18:00</option>
+        </select>
       </div>
 
       <button class="btn-save" id="btnUpdate">Сохранить изменения</button>
@@ -52,8 +135,66 @@
     </div>
   </div>
 
+  <!-- Модальное окно СОЗДАНИЯ записи админом -->
+  <div class="modal-overlay" id="createModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="margin:0; font-size: 18px;">Добавить запись</h3>
+        <button id="closeCreateModal" style="border:none; background:none; font-size:24px; cursor:pointer; color: #64748b;">&times;</button>
+      </div>
+      
+      <form id="createForm">
+        <input type="hidden" id="cHour">
+        
+        <div class="form-group">
+          <label>Поставщик (Начните вводить название или ИНН)</label>
+          <input type="text" id="cSupplierSearch" list="suppliersList" required placeholder="Поиск поставщика..." autocomplete="off">
+          <datalist id="suppliersList"></datalist>
+          <input type="hidden" id="cProfileId" required>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+          <div class="form-group" style="flex: 1;">
+            <label>Тип поставки</label>
+            <select id="cSupplyType" required>
+              <option value="orders_im">Заказы ИМ</option>
+              <option value="mix">МИКС</option>
+              <option value="return">Возврат</option>
+            </select>
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label>Тип документа</label>
+            <select id="cOrderType" required>
+              <option value="order">Заказ</option>
+              <option value="upd">УПД</option>
+              <option value="etrn">ЭТрН</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Номер документа</label>
+          <input type="text" id="cDoc" required placeholder="Например: 12345678">
+        </div>
+
+        <button type="submit" class="btn-save" id="btnCreate">Записать поставщика</button>
+      </form>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js"></script>
+  <script>
+    // Функции копирования в буфер обмена
+    function copyText(elementId) {
+      const text = document.getElementById(elementId).innerText;
+      navigator.clipboard.writeText(text).then(() => alert('Скопировано: ' + text));
+    }
+    function copyInput(elementId) {
+      const text = document.getElementById(elementId).value;
+      navigator.clipboard.writeText(text).then(() => alert('Скопировано: ' + text));
+    }
+  </script>
   <script src="../js/admin_day.js"></script>
 </body>
 </html>
