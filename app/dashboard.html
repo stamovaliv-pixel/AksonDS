@@ -16,6 +16,7 @@
     <div class="header-nav">
       <a href="dashboard.html" class="active">Личный кабинет</a>
       <a href="calendar.html">Календарь</a>
+      <a href="#" id="logoutBtn" style="color: var(--color-primary);">Выйти</a>
     </div>
   </header>
   
@@ -23,8 +24,16 @@
     <h1 class="page-title">Личный кабинет</h1>
     <div class="auth-card w-100 mt-3" style="max-width: none;">
       <h3 class="card-title">Организация</h3>
-      <p class="card-text"><strong>ИНН:</strong> <span id="orgInn">Загрузка...</span></p>
+      <p class="card-text">
+        <strong>ИНН:</strong> <span id="orgInn">Загрузка...</span><br><br>
+        <strong>Наименование:</strong> <span id="orgName">Загрузка...</span>
+      </p>
     </div>
   </main>
+
+  <!-- Подключение скриптов -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supabase-client.js"></script>
+  <script src="../js/dashboard.js"></script>
 </body>
 </html>
