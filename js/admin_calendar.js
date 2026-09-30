@@ -36,7 +36,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       .select('id, slot_date, slot_hour, order_number, order_type, supply_type, profiles!inner(company_name, inn)')
       .eq('status', 'active');
     
-    // Применение фильтров к запросу
     if (filterDoc) query = query.ilike('order_number', `%${filterDoc}%`);
     if (filterSupply) query = query.eq('supply_type', filterSupply);
     if (filterOrder) query = query.eq('order_type', filterOrder);
@@ -81,29 +80,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     const listContainer = document.getElementById('upcomingBookingsList');
     listContainer.innerHTML = '';
     
-    // Если поиск не активен, показываем 7 пустых серых слотов (заглушек)
+    // Показываем 14 пустых серых слотов если фильтр не применен
     if (!isSearchActive) {
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < 14; i++) {
         listContainer.innerHTML += `
           <div class="booking-item empty">
             <div style="color: #94a3b8; font-size: 13px; font-weight: 500;">Нет данных</div>
           </div>
         `;
       }
-      return; // Завершаем выполнение, карточки не рисуем
+      return; 
     }
 
-    // Оставляем только записи от сегодня и в будущее (максимум 7)
+    // Оставляем только записи от сегодня и в будущее (максимум 14)
     const upcoming = (bookings || [])
       .filter(b => new Date(b.slot_date) >= today)
       .sort((a, b) => new Date(a.slot_date) - new Date(b.slot_date) || a.slot_hour - b.slot_hour)
-      .slice(0, 7);
+      .slice(0, 14);
 
-    // Если поиск активен, но ничего не найдено
     if (upcoming.length === 0) {
       listContainer.innerHTML = `<div style="grid-column: 1 / -1; color: var(--color-text-muted); font-size: 14px; text-align: center; padding: 20px;">По вашему запросу ничего не найдено.</div>`;
     } else {
-      // Отрисовка найденных карточек
       upcoming.forEach(b => {
         const dStr = new Date(b.slot_date).toLocaleDateString('ru-RU');
         const item = document.createElement('div');
@@ -145,7 +142,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     editModal.style.display = 'flex';
   }
 
-  // Обновление
   document.getElementById('btnUpdate').onclick = async () => {
     if (!confirm('Подтверждаете изменение записи?')) return;
     const id = document.getElementById('mId').value;
@@ -162,7 +158,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     else { editModal.style.display = 'none'; renderCalendar(); }
   };
 
-  // Удаление
   document.getElementById('btnDelete').onclick = async () => {
     if (!confirm('ВНИМАНИЕ! Вы точно хотите удалить эту запись поставщика?')) return;
     const id = document.getElementById('mId').value;
@@ -172,7 +167,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     else { editModal.style.display = 'none'; renderCalendar(); }
   };
 
-  // Слушатели фильтров
   document.getElementById('applyFiltersBtn').onclick = renderCalendar;
   document.getElementById('resetFiltersBtn').onclick = () => {
     document.getElementById('filterSupplier').value = '';
