@@ -21,11 +21,25 @@
     .booking-card { background: #fef2f2; border: 1px solid #fca5a5; border-left: 4px solid #ef4444; border-radius: var(--radius-sm); padding: 12px; font-size: 14px; position: relative; transition: 0.2s; }
     .booking-card:hover { border-color: #ef4444; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
     
-    /* Внутренние поля слота (Ворота, Прибыл, Убыл) */
+    /* Внутренние поля слота (Прибыл, Убыл, Ворота) */
     .card-actions { display: flex; gap: 8px; margin-top: 12px; border-top: 1px dashed #fca5a5; padding-top: 10px; }
     .inline-input-group { display: flex; flex-direction: column; flex: 1; gap: 4px; }
     .inline-input-group label { font-size: 11px; font-weight: 600; color: #ef4444; text-transform: uppercase; }
-    .inline-input-group input { width: 100%; padding: 6px 4px; border: 1px solid #fca5a5; border-radius: 4px; font-size: 13px; text-align: center; background: #fff; transition: 0.2s; outline: none; }
+    
+    /* Узкие поля одинаковой высоты */
+    .inline-input-group input { 
+      width: 100%; 
+      height: 24px; 
+      padding: 0 4px; 
+      border: 1px solid #fca5a5; 
+      border-radius: 4px; 
+      font-size: 12px; 
+      text-align: center; 
+      background: #fff; 
+      transition: 0.2s; 
+      outline: none; 
+      box-sizing: border-box; 
+    }
     .inline-input-group input:focus { border-color: #3b82f6; }
     
     /* Кнопка подробностей (три точки) */
@@ -56,7 +70,6 @@
     @media (max-width: 768px) {
       .hour-header { font-size: 16px; flex-direction: column; align-items: flex-start; gap: 5px; }
       .modal-content { padding: 15px; }
-      .inline-input-group input { font-size: 12px; padding: 6px 2px; }
     }
   </style>
 </head>
@@ -82,7 +95,7 @@
     </div>
   </main>
 
-  <!-- Модальное окно ПОДРОБНОСТЕЙ / РЕДАКТИРОВАНИЯ (Открывается по трем точкам) -->
+  <!-- Модальное окно ПОДРОБНОСТЕЙ -->
   <div class="modal-overlay" id="editModal">
     <div class="modal-content">
       <div class="modal-header">
