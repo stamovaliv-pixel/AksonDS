@@ -16,7 +16,7 @@
     .form-group { margin-bottom: 15px; }
     .form-group label { display: block; margin-bottom: 5px; font-weight: 500; color: var(--color-text-main); font-size: 14px; }
     
-    /* Стили для строки ввода с кнопкой редактирования */
+    /* Единый стиль для всех строк ввода */
     .input-row {
       display: flex;
       align-items: center;
@@ -24,11 +24,13 @@
     }
     .input-row input {
       flex: 1;
+      width: 100%;
       padding: 10px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
       font-size: 15px;
       background-color: #f8fafc;
+      box-sizing: border-box;
     }
     .input-row input:not(:disabled) {
       background-color: #fff;
@@ -46,9 +48,16 @@
       justify-content: center;
       border-radius: var(--radius-sm);
       transition: background-color 0.2s;
+      flex-shrink: 0;
     }
     .action-btn:hover { background-color: #f1f5f9; }
-    .save-btn { color: #10b981; display: none; } /* Галочка скрыта до начала редактирования */
+    .save-btn { color: #10b981; display: none; }
+    
+    /* Невидимый элемент-пустышка для точного выравнивания почты с остальными полями */
+    .action-placeholder {
+      width: 30px;
+      flex-shrink: 0;
+    }
   </style>
 </head>
 <body class="app-body">
@@ -122,11 +131,12 @@
         </div>
       </div>
       
-      <!-- Почта (только чтение) -->
+      <!-- Почта (добавлен пустой блок-заглушка для сохранения одинаковой ширины инпута) -->
       <div class="form-group" style="margin-bottom: 0;">
         <label>Почта</label>
         <div class="input-row">
           <input type="email" id="profileEmail" disabled value="Загрузка...">
+          <div class="action-placeholder"></div>
         </div>
       </div>
       
