@@ -7,22 +7,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   const dateObj = new Date(selectedDate);
   document.getElementById('dateDisplay').innerText = dateObj.toLocaleDateString('ru-RU');
 
-  // Словари для перевода на русский (как у пользователя)
+  // Словари перевода
   const supplyTypes = { 'orders_im': 'Заказы ИМ', 'mix': 'МИКС', 'return': 'Возврат' };
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
 
-  // 1. Загружаем все бронирования на этот день
+  // 1. Загружаем все бронирования (Включая новые поля: arrival_time, departure_time, gate_number)
   const { data: bookings, error } = await sb
     .from('bookings')
-    .select('id, slot_hour, order_number, order_type, supply_type, profiles(company_name, inn)')
+    .select('id, slot_hour, order_number, order_type, supply_type, arrival_time, departure_time, gate_number, profiles(company_name, inn)')
     .eq('slot_date', selectedDate)
     .eq('status', 'active');
 
-  // 2. Загружаем список всех поставщиков для выпадающего списка при создании
+  // 2. Загружаем список поставщиков для создания новых записей
   let allProfiles = [];
   const { data: profilesData } = await sb.from('profiles').select('id, company_name, inn').eq('role', 'supplier');
   if (profilesData) {
-    allProfiles = profilesData;
     const dataList = document.getElementById('suppliersList');
     profilesData.forEach(p => {
       const option = document.createElement('option');
@@ -32,7 +31,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Привязка выбранного поставщика к скрытому полю ID
   document.getElementById('cSupplierSearch').addEventListener('input', function() {
     const val = this.value;
     const option = document.querySelector(`#suppliersList option[value="${val}"]`);
@@ -42,34 +40,52 @@ document.addEventListener('DOMContentLoaded', async () => {
   const container = document.getElementById('hoursContainer');
   container.innerHTML = '';
   
-  // 3. Отрисовка сетки часов (с 9 до 17)
+  // 3. Отрисовка сетки часов с внутренними полями
   for (let hour = 9; hour <= 17; hour++) {
     const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
     const block = document.createElement('div');
     block.className = 'hour-block';
     
-    // Генерируем красные карточки для занятых слотов
     let cardsHtml = hourBookings.map(b => {
       const sType = supplyTypes[b.supply_type] || b.supply_type;
       const oType = orderTypes[b.order_type] || b.order_type;
       const compName = b.profiles?.company_name || 'Неизвестно';
-      const inn = b.profiles?.inn || '';
       
-      // JSON прячем в атрибут, чтобы легко достать при клике
+      const arrTime = b.arrival_time ? b.arrival_time.substring(0,5) : '';
+      const depTime = b.departure_time ? b.departure_time.substring(0,5) : '';
+      const gate = b.gate_number || '';
+
       const dataStr = encodeURIComponent(JSON.stringify({
         id: b.id, hour: b.slot_hour, doc: b.order_number, sTypeRaw: b.supply_type, oTypeRaw: b.order_type,
-        fullCompany: `${compName} (ИНН: ${inn})`
+        fullCompany: `${compName} (ИНН: ${b.profiles?.inn || ''})`
       }));
 
       return `
         <div class="booking-card" data-info="${dataStr}">
-          <strong style="display:block; margin-bottom:4px; color:#1f2937;">${compName}</strong>
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <strong style="color:#1f2937; margin-bottom:4px;">${compName}</strong>
+            <button class="btn-dots" title="Подробнее">⋮</button>
+          </div>
           <div style="color:#64748b; font-size:13px;">${oType} №${b.order_number} • ${sType}</div>
+          
+          <div class="card-actions" data-id="${b.id}">
+            <div class="inline-input-group">
+              <label>Ворота</label>
+              <input type="text" class="inline-gate" value="${gate}" placeholder="№">
+            </div>
+            <div class="inline-input-group">
+              <label>Прибыл</label>
+              <input type="time" class="inline-time inline-arr" value="${arrTime}">
+            </div>
+            <div class="inline-input-group">
+              <label>Убыл</label>
+              <input type="time" class="inline-time inline-dep" value="${depTime}">
+            </div>
+          </div>
         </div>
       `;
     }).join('');
 
-    // Если мест меньше 5, добавляем синюю кнопку "Создать запись"
     if (hourBookings.length < 5) {
       cardsHtml += `<div class="btn-add-slot" data-hour="${hour}">+ Добавить запись (${5 - hourBookings.length} мест)</div>`;
     }
@@ -84,25 +100,73 @@ document.addEventListener('DOMContentLoaded', async () => {
     container.appendChild(block);
   }
 
-  // --- Логика модальных окон ---
+  // --- ЛОГИКА МГНОВЕННОГО СОХРАНЕНИЯ (Inline Editing) ---
+  
+  // Автозаполнение времени при клике (если поле пустое)
+  container.addEventListener('focusin', (e) => {
+    if (e.target.classList.contains('inline-time') && !e.target.value) {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      e.target.value = `${hh}:${mm}`;
+      saveInlineField(e.target); // Сразу сохраняем
+    }
+  });
+
+  // Сохранение при ручном изменении/выходе из поля
+  container.addEventListener('change', (e) => {
+    if (e.target.classList.contains('inline-gate') || e.target.classList.contains('inline-time')) {
+      saveInlineField(e.target);
+    }
+  });
+
+  async function saveInlineField(inputEl) {
+    const cardActions = inputEl.closest('.card-actions');
+    const id = cardActions.dataset.id;
+    
+    let fieldName = '';
+    if (inputEl.classList.contains('inline-gate')) fieldName = 'gate_number';
+    else if (inputEl.classList.contains('inline-arr')) fieldName = 'arrival_time';
+    else if (inputEl.classList.contains('inline-dep')) fieldName = 'departure_time';
+
+    let val = inputEl.value;
+    // База Supabase (тип time) требует формата с секундами HH:MM:SS
+    if (inputEl.type === 'time' && val) val = val + ':00'; 
+
+    inputEl.style.borderColor = '#3b82f6'; // Индикатор процесса
+    
+    const { error } = await sb.from('bookings').update({ [fieldName]: val || null }).eq('id', id);
+    
+    if (error) {
+      inputEl.style.borderColor = '#ef4444';
+      alert('Ошибка автосохранения: ' + error.message);
+    } else {
+      inputEl.style.borderColor = '#10b981'; // Зеленый при успехе
+      setTimeout(() => inputEl.style.borderColor = '#fca5a5', 1000); // Возврат к стандартному
+    }
+  }
+
+  // --- Логика модальных окон (Три точки и Создание) ---
   const editModal = document.getElementById('editModal');
   const createModal = document.getElementById('createModal');
   
   document.getElementById('closeEditModal').onclick = () => editModal.style.display = 'none';
   document.getElementById('closeCreateModal').onclick = () => createModal.style.display = 'none';
 
-  // Делегирование кликов по карточкам и кнопкам добавления
   container.addEventListener('click', (e) => {
-    // Открытие окна РЕДАКТИРОВАНИЯ
-    const card = e.target.closest('.booking-card');
-    if (card) {
+    // Открытие окна РЕДАКТИРОВАНИЯ только по трем точкам
+    const dotsBtn = e.target.closest('.btn-dots');
+    if (dotsBtn) {
+      const card = dotsBtn.closest('.booking-card');
       const data = JSON.parse(decodeURIComponent(card.dataset.info));
+      
       document.getElementById('mId').value = data.id;
       document.getElementById('mHour').value = data.hour;
       document.getElementById('mDoc').value = data.doc;
       document.getElementById('mSupplyType').value = data.sTypeRaw;
       document.getElementById('mOrderType').value = data.oTypeRaw;
       document.getElementById('mCompany').innerText = data.fullCompany;
+      
       editModal.style.display = 'flex';
       return;
     }
@@ -115,7 +179,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Обновление слота админом
+  // Сохранение изменений в модалке подробностей
   document.getElementById('btnUpdate').onclick = async () => {
     if (!confirm('Подтверждаете изменение записи?')) return;
     const id = document.getElementById('mId').value;
@@ -131,7 +195,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     else window.location.reload();
   };
 
-  // Удаление слота админом
   document.getElementById('btnDelete').onclick = async () => {
     if (!confirm('ВНИМАНИЕ! Вы точно хотите удалить эту запись поставщика?')) return;
     const id = document.getElementById('mId').value;
