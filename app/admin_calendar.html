@@ -46,7 +46,6 @@
     .booking-date { font-weight: 700; color: var(--color-text-main); font-size: 14px; margin-bottom: 4px; }
     .booking-time { font-size: 13px; color: var(--color-text-muted); }
     
-    /* Стили для пустых слотов с серой полоской */
     .booking-item.empty { border-left-color: #cbd5e1; background: #f8fafc; cursor: default; }
     .booking-item.empty:hover { border-color: var(--color-border); transform: none; box-shadow: none; }
 
@@ -110,11 +109,20 @@
       <label for="showPastBtn" style="color: var(--color-text-main); font-weight: 500;">Показать прошедшие 30 дней</label>
     </div>
 
-    <!-- Обновленный блок фильтров с выбором типов -->
+    <!-- Изменен порядок фильтров -->
     <div class="filters-card">
       <div class="filter-group">
         <label>Поставщик (ИНН/Название)</label>
         <input type="text" id="filterSupplier" placeholder="Например: Ромашка">
+      </div>
+      <div class="filter-group">
+        <label>Тип документа</label>
+        <select id="filterOrderType">
+          <option value="">Все документы</option>
+          <option value="order">Заказ</option>
+          <option value="upd">УПД</option>
+          <option value="etrn">ЭТрН</option>
+        </select>
       </div>
       <div class="filter-group">
         <label>Номер документа</label>
@@ -127,15 +135,6 @@
           <option value="orders_im">Заказы ИМ</option>
           <option value="mix">МИКС</option>
           <option value="return">Возврат</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label>Тип документа</label>
-        <select id="filterOrderType">
-          <option value="">Все документы</option>
-          <option value="order">Заказ</option>
-          <option value="upd">УПД</option>
-          <option value="etrn">ЭТрН</option>
         </select>
       </div>
       <button class="btn-search" id="applyFiltersBtn">Найти</button>
