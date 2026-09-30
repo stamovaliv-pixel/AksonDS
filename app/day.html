@@ -1,58 +1,106 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Запись на слот - AKSon Logistics</title>
+  <title>Слоты - AKSon Logistics</title>
   <link rel="stylesheet" href="../css/theme.css">
   <link rel="stylesheet" href="../css/main.css">
   <style>
-    .slot-row {
+    .app-header { margin-top: 0; box-shadow: none; border-bottom: none; padding-bottom: 15px; }
+    .top-gradient-bar { width: 100%; height: 4.8px; background: linear-gradient(90deg, var(--color-gradient-start), var(--color-gradient-end)); margin-bottom: 20px; }
+    
+    .day-container { max-width: 900px; margin: 0 auto; }
+    
+    /* Стили для групп времени (Утро, День, Вечер) */
+    .time-group { margin-bottom: 35px; }
+    .time-group-title { font-size: 20px; font-weight: 700; color: var(--color-text-main); margin-bottom: 15px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; }
+    
+    /* Сетка карточек-слотов */
+    .slot-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 15px;
+    }
+    
+    .slot-card {
+      background: #fff;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      padding: 20px;
+      text-align: center;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
       display: flex;
+      flex-direction: column;
       justify-content: space-between;
-      align-items: center;
-      padding: 16px 24px;
-      border-bottom: 1px solid var(--color-border);
+    }
+    
+    .slot-card:hover:not(.inactive) {
+      transform: translateY(-3px);
+      border-color: #3b82f6;
+      box-shadow: 0 8px 15px rgba(0,0,0,0.08);
+    }
+    
+    /* Неактивный слот (нет мест или прошло время) */
+    .slot-card.inactive {
+      background-color: #f8fafc;
+      opacity: 0.6;
+      box-shadow: none;
+      border-color: #e2e8f0;
+    }
+    
+    .slot-time { font-size: 22px; font-weight: 700; color: var(--color-text-main); margin-bottom: 8px; }
+    .slot-status { font-size: 15px; font-weight: 600; margin-bottom: 15px; }
+    
+    /* Стили кнопок */
+    .btn-book, .btn-cancel, .btn-disabled {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
       transition: background-color 0.2s;
     }
-    .slot-row:last-child { border-bottom: none; }
-    .slot-row:hover { background-color: #f8fafc; }
-    .slot-time { font-size: 18px; font-weight: 600; color: var(--color-text-main); }
-    .slot-status { font-size: 14px; font-weight: 500; color: #10b981; }
-    .slot-status.full { color: var(--color-primary); }
-    .slot-row.full-row { background-color: #f1f5f9; opacity: 0.8; }
     
+    .btn-book { background-color: #3b82f6; color: white; } /* Синяя */
+    .btn-book:hover { background-color: #2563eb; }
+    
+    .btn-cancel { background-color: #ef4444; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; } /* Красная */
+    .btn-cancel:hover { background-color: #dc2626; }
+    
+    .btn-disabled { background-color: #cbd5e1; color: #64748b; cursor: not-allowed; } /* Серая */
+
     /* Модальное окно */
     .modal-overlay {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;
     }
-    .modal-content { background: #fff; padding: 30px; border-radius: var(--radius-md); width: 100%; max-width: 450px; }
+    .modal-content { background: #fff; padding: 25px 30px; border-radius: var(--radius-md); width: 100%; max-width: 400px; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--color-text-muted); }
+    .close-btn { background: none; border: none; font-size: 28px; line-height: 1; cursor: pointer; color: var(--color-text-muted); }
   </style>
 </head>
 <body class="app-body">
-  <div class="top-gradient-bar"></div>
   <header class="app-header">
     <div class="header-logo">
       <img src="../assets/logistic-logo.svg" alt="АКСОН Логистика" class="app-logo">
     </div>
     <div class="header-nav">
       <a href="dashboard.html">Личный кабинет</a>
-      <a href="calendar.html" class="active">Календарь</a>
+      <a href="calendar.html">Календарь</a>
     </div>
   </header>
+  <div class="top-gradient-bar"></div>
   
-  <main class="container mt-4">
-    <a href="calendar.html" class="link-action" style="display: inline-block; margin-bottom: 15px;">&larr; Назад к календарю</a>
-    <h1 class="page-title">Запись на: <span id="currentDateDisplay" style="color: var(--color-primary);">...</span></h1>
+  <main class="container mt-4 day-container">
+    <a href="calendar.html" class="link-action" style="display: inline-block; margin-bottom: 20px; font-weight: 500;">&larr; Назад к графику</a>
+    <h1 class="page-title" style="margin-bottom: 30px;">Слоты на: <span id="currentDateDisplay" style="color: var(--color-primary);">...</span></h1>
     
-    <div class="auth-card w-100 mt-3" style="max-width: 800px; padding: 0; overflow: hidden;">
-      <div id="slotsContainer">
-        <!-- Слоты сгенерируются через JS -->
-        <div style="padding: 20px; text-align: center;">Загрузка расписания...</div>
-      </div>
+    <div id="slotsContainer">
+      <div style="padding: 40px; text-align: center; color: var(--color-text-muted);">Загрузка расписания...</div>
     </div>
   </main>
 
@@ -60,32 +108,32 @@
   <div class="modal-overlay" id="bookingModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 style="margin: 0;">Оформление записи</h3>
+        <h3 style="margin: 0; font-size: 20px; color: var(--color-text-main);">Оформление записи</h3>
         <button class="close-btn" id="closeModalBtn">&times;</button>
       </div>
       <form id="bookingForm">
         <input type="hidden" id="selectedHour">
-        <div class="form-group">
-          <label>Тип поставки</label>
-          <select id="supplyType" required style="width:100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 500; color: var(--color-text-main);">Тип поставки</label>
+          <select id="supplyType" required style="width:100%; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
             <option value="orders_im">Заказы ИМ</option>
             <option value="mix">МИКС</option>
             <option value="return">Возврат</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>Тип документа</label>
-          <select id="orderType" required style="width:100%; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 500; color: var(--color-text-main);">Тип документа</label>
+          <select id="orderType" required style="width:100%; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
             <option value="order">Заказ поставщику</option>
             <option value="upd">УПД</option>
             <option value="etrn">ЭТрН</option>
           </select>
         </div>
-        <div class="form-group">
-          <label>Номер документа</label>
-          <input type="text" id="orderNumber" required placeholder="Например: 12345678">
+        <div class="form-group" style="margin-bottom: 25px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 500; color: var(--color-text-main);">Номер документа</label>
+          <input type="text" id="orderNumber" required placeholder="Например: 12345678" style="width:100%; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);">
         </div>
-        <button type="submit" class="btn-primary w-100 mt-3" id="submitBookingBtn">Подтвердить запись</button>
+        <button type="submit" class="btn-book" id="submitBookingBtn">Подтвердить запись</button>
       </form>
     </div>
   </div>
