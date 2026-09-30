@@ -7,40 +7,41 @@ document.addEventListener('DOMContentLoaded', async () => {
   const dateObj = new Date(selectedDate);
   document.getElementById('dateDisplay').innerText = dateObj.toLocaleDateString('ru-RU');
 
-  // Словари перевода
   const supplyTypes = { 'orders_im': 'Заказы ИМ', 'mix': 'МИКС', 'return': 'Возврат' };
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
 
-  // 1. Загружаем все бронирования (Включая новые поля: arrival_time, departure_time, gate_number)
-  const { data: bookings, error } = await sb
+  // 1. Загружаем все бронирования
+  const { data: bookings } = await sb
     .from('bookings')
     .select('id, slot_hour, order_number, order_type, supply_type, arrival_time, departure_time, gate_number, profiles(company_name, inn)')
     .eq('slot_date', selectedDate)
     .eq('status', 'active');
 
-  // 2. Загружаем список поставщиков для создания новых записей
-  let allProfiles = [];
+  // 2. Загружаем список поставщиков и создаем надежную мапу (защита от кавычек в названиях)
+  let suppliersMap = new Map();
   const { data: profilesData } = await sb.from('profiles').select('id, company_name, inn').eq('role', 'supplier');
   if (profilesData) {
     const dataList = document.getElementById('suppliersList');
     profilesData.forEach(p => {
+      const label = `${p.company_name} (ИНН: ${p.inn})`;
+      suppliersMap.set(label, p.id); // Сохраняем связку Текст -> ID
+      
       const option = document.createElement('option');
-      option.value = `${p.company_name} (ИНН: ${p.inn})`;
-      option.dataset.id = p.id;
+      option.value = label;
       dataList.appendChild(option);
     });
   }
 
+  // Привязка выбранного поставщика (без использования ломающихся CSS селекторов)
   document.getElementById('cSupplierSearch').addEventListener('input', function() {
     const val = this.value;
-    const option = document.querySelector(`#suppliersList option[value="${val}"]`);
-    document.getElementById('cProfileId').value = option ? option.dataset.id : '';
+    document.getElementById('cProfileId').value = suppliersMap.get(val) || '';
   });
 
   const container = document.getElementById('hoursContainer');
   container.innerHTML = '';
   
-  // 3. Отрисовка сетки часов с внутренними полями
+  // 3. Отрисовка сетки часов с новым порядком полей
   for (let hour = 9; hour <= 17; hour++) {
     const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
     const block = document.createElement('div');
@@ -60,6 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         fullCompany: `${compName} (ИНН: ${b.profiles?.inn || ''})`
       }));
 
+      // Порядок полей: Прибыл, Убыл, Ворота
       return `
         <div class="booking-card" data-info="${dataStr}">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -70,16 +72,16 @@ document.addEventListener('DOMContentLoaded', async () => {
           
           <div class="card-actions" data-id="${b.id}">
             <div class="inline-input-group">
-              <label>Ворота</label>
-              <input type="text" class="inline-gate" value="${gate}" placeholder="№">
-            </div>
-            <div class="inline-input-group">
               <label>Прибыл</label>
               <input type="time" class="inline-time inline-arr" value="${arrTime}">
             </div>
             <div class="inline-input-group">
               <label>Убыл</label>
               <input type="time" class="inline-time inline-dep" value="${depTime}">
+            </div>
+            <div class="inline-input-group">
+              <label>Ворота</label>
+              <input type="text" class="inline-gate" value="${gate}" placeholder="№">
             </div>
           </div>
         </div>
@@ -100,20 +102,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     container.appendChild(block);
   }
 
-  // --- ЛОГИКА МГНОВЕННОГО СОХРАНЕНИЯ (Inline Editing) ---
+  // --- ЛОГИКА МГНОВЕННОГО СОХРАНЕНИЯ ---
   
-  // Автозаполнение времени при клике (если поле пустое)
   container.addEventListener('focusin', (e) => {
     if (e.target.classList.contains('inline-time') && !e.target.value) {
       const now = new Date();
       const hh = String(now.getHours()).padStart(2, '0');
       const mm = String(now.getMinutes()).padStart(2, '0');
       e.target.value = `${hh}:${mm}`;
-      saveInlineField(e.target); // Сразу сохраняем
+      saveInlineField(e.target);
     }
   });
 
-  // Сохранение при ручном изменении/выходе из поля
   container.addEventListener('change', (e) => {
     if (e.target.classList.contains('inline-gate') || e.target.classList.contains('inline-time')) {
       saveInlineField(e.target);
@@ -130,10 +130,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (inputEl.classList.contains('inline-dep')) fieldName = 'departure_time';
 
     let val = inputEl.value;
-    // База Supabase (тип time) требует формата с секундами HH:MM:SS
     if (inputEl.type === 'time' && val) val = val + ':00'; 
 
-    inputEl.style.borderColor = '#3b82f6'; // Индикатор процесса
+    inputEl.style.borderColor = '#3b82f6'; 
     
     const { error } = await sb.from('bookings').update({ [fieldName]: val || null }).eq('id', id);
     
@@ -141,8 +140,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       inputEl.style.borderColor = '#ef4444';
       alert('Ошибка автосохранения: ' + error.message);
     } else {
-      inputEl.style.borderColor = '#10b981'; // Зеленый при успехе
-      setTimeout(() => inputEl.style.borderColor = '#fca5a5', 1000); // Возврат к стандартному
+      inputEl.style.borderColor = '#10b981';
+      setTimeout(() => inputEl.style.borderColor = '#fca5a5', 1000);
     }
   }
 
@@ -154,7 +153,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('closeCreateModal').onclick = () => createModal.style.display = 'none';
 
   container.addEventListener('click', (e) => {
-    // Открытие окна РЕДАКТИРОВАНИЯ только по трем точкам
     const dotsBtn = e.target.closest('.btn-dots');
     if (dotsBtn) {
       const card = dotsBtn.closest('.booking-card');
@@ -171,15 +169,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // Открытие окна СОЗДАНИЯ
     const addBtn = e.target.closest('.btn-add-slot');
     if (addBtn) {
       document.getElementById('cHour').value = addBtn.dataset.hour;
+      document.getElementById('cSupplierSearch').value = '';
+      document.getElementById('cProfileId').value = '';
+      document.getElementById('cDoc').value = '';
       createModal.style.display = 'flex';
     }
   });
 
-  // Сохранение изменений в модалке подробностей
   document.getElementById('btnUpdate').onclick = async () => {
     if (!confirm('Подтверждаете изменение записи?')) return;
     const id = document.getElementById('mId').value;
@@ -207,6 +206,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('createForm').onsubmit = async (e) => {
     e.preventDefault();
     const profileId = document.getElementById('cProfileId').value;
+    
+    // Блокировка сохранения, если ID не найден
     if (!profileId) return alert('Пожалуйста, выберите поставщика из выпадающего списка.');
 
     const btn = document.getElementById('btnCreate');
