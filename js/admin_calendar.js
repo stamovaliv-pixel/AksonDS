@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).single();
   if (!profile || (profile.role !== 'operator' && profile.role !== 'admin')) {
-    return window.location.href = 'calendar.html'; // Отбрасываем обычных поставщиков
+    return window.location.href = 'calendar.html';
   }
 
   const isAdmin = profile.role === 'admin';
@@ -14,16 +14,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('adminPastToggleContainer').style.display = 'flex';
   }
 
-  document.getElementById('logoutBtn').onclick = async () => {
-    await sb.auth.signOut(); window.location.href = '../index.html';
+  document.getElementById('logoutBtn').onclick = async (e) => {
+    e.preventDefault(); await sb.auth.signOut(); window.location.href = '../index.html';
   };
+
+  const today = new Date(); 
+  today.setHours(0,0,0,0);
+  const maxActiveDate = new Date(today);
+  maxActiveDate.setDate(today.getDate() + 29);
 
   const renderCalendar = async () => {
     const filterSupplier = document.getElementById('filterSupplier').value.trim();
     const filterDoc = document.getElementById('filterDoc').value.trim();
     const showPast = isAdmin && pastToggle.checked;
 
-    let query = sb.from('bookings').select('slot_date, order_number, profiles!inner(company_name, inn)').eq('status', 'active');
+    // Ищем записи
+    let query = sb.from('bookings')
+      .select('id, slot_date, slot_hour, order_number, order_type, supply_type, profiles!inner(company_name, inn)')
+      .eq('status', 'active');
     
     if (filterDoc) query = query.ilike('order_number', `%${filterDoc}%`);
     if (filterSupplier) {
@@ -31,12 +39,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const { data: bookings } = await query;
+    
+    // Собираем даты, в которые есть записи
     const bookedDates = new Set((bookings || []).map(b => b.slot_date));
 
-    const today = new Date(); today.setHours(0,0,0,0);
+    // Настраиваем начало календаря
     const startDate = new Date(today);
-    
-    // Если УТЗ включил прошлые дни, начинаем на 30 дней раньше
     if (showPast) {
       startDate.setDate(today.getDate() - 30);
     } else {
@@ -44,10 +52,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       startDate.setDate(today.getDate() - diffToMonday);
     }
 
-    const totalDays = showPast ? 60 : 35; // Рисуем сетку
+    const totalDays = showPast ? 60 : 35;
     const grid = document.getElementById('calendarGrid');
     grid.innerHTML = '';
 
+    // Отрисовка дней
     for (let i = 0; i < totalDays; i++) {
       const d = new Date(startDate);
       d.setDate(startDate.getDate() + i);
@@ -55,14 +64,105 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       const cell = document.createElement('div');
       cell.className = 'day-cell';
-      if (bookedDates.has(isoDate)) cell.classList.add('has-bookings');
       
-      cell.innerHTML = `<div style="font-weight:700; font-size:16px;">${d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})}</div>`;
+      const isPastOrFuture = d < today || d > maxActiveDate;
+      
+      // Логика классов
+      if (isPastOrFuture) cell.classList.add('inactive'); // Делает серым
+      if (bookedDates.has(isoDate)) cell.classList.add('booked'); // Делает полоску красной
+      
+      cell.innerHTML = `<div class="date-text">${d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})}</div>`;
+      
+      // Админ может кликать даже по неактивным дням
       cell.onclick = () => window.location.href = `admin_day.html?date=${isoDate}`;
       grid.appendChild(cell);
     }
+
+    // Отрисовка списка "Найденные записи"
+    const listContainer = document.getElementById('upcomingBookingsList');
+    listContainer.innerHTML = '';
+    
+    // Оставляем только записи от сегодня и в будущее (до 7 штук)
+    const upcoming = (bookings || [])
+      .filter(b => new Date(b.slot_date) >= today)
+      .sort((a, b) => new Date(a.slot_date) - new Date(b.slot_date) || a.slot_hour - b.slot_hour)
+      .slice(0, 7);
+
+    if (upcoming.length === 0) {
+      const msg = (filterSupplier || filterDoc) ? 'По вашему запросу ничего не найдено.' : 'Введите данные в фильтр для поиска...';
+      listContainer.innerHTML = `<div style="grid-column: 1 / -1; color: var(--color-text-muted); font-size: 14px; text-align: center;">${msg}</div>`;
+    } else {
+      upcoming.forEach(b => {
+        const dStr = new Date(b.slot_date).toLocaleDateString('ru-RU');
+        const item = document.createElement('div');
+        item.className = 'booking-item';
+        
+        // Упаковываем все данные для модального окна
+        const dataStr = encodeURIComponent(JSON.stringify({
+          id: b.id, date: b.slot_date, hour: b.slot_hour, doc: b.order_number, 
+          sTypeRaw: b.supply_type, oTypeRaw: b.order_type,
+          fullCompany: `${b.profiles.company_name} (ИНН: ${b.profiles.inn})`
+        }));
+        
+        // Выводим карточку
+        const shortName = b.profiles.company_name.length > 18 ? b.profiles.company_name.substring(0,18) + '...' : b.profiles.company_name;
+        
+        item.innerHTML = `
+          <div class="booking-date">${dStr}</div>
+          <div style="font-size: 12px; color: var(--color-primary); font-weight: 600;">${shortName}</div>
+          <div class="booking-time">${b.slot_hour}:00</div>
+        `;
+        
+        item.onclick = () => openEditModal(dataStr);
+        listContainer.appendChild(item);
+      });
+    }
   };
 
+  // --- Логика Модального окна редактирования из списка ---
+  const editModal = document.getElementById('editModal');
+  document.getElementById('closeEditModal').onclick = () => editModal.style.display = 'none';
+
+  function openEditModal(dataStr) {
+    const data = JSON.parse(decodeURIComponent(dataStr));
+    document.getElementById('mId').value = data.id;
+    document.getElementById('mDate').value = data.date;
+    document.getElementById('mHour').value = data.hour;
+    document.getElementById('mDoc').value = data.doc;
+    document.getElementById('mSupplyType').value = data.sTypeRaw;
+    document.getElementById('mOrderType').value = data.oTypeRaw;
+    document.getElementById('mCompany').innerText = data.fullCompany;
+    editModal.style.display = 'flex';
+  }
+
+  // Обновление
+  document.getElementById('btnUpdate').onclick = async () => {
+    if (!confirm('Подтверждаете изменение записи?')) return;
+    const id = document.getElementById('mId').value;
+    const payload = {
+      slot_date: document.getElementById('mDate').value,
+      slot_hour: parseInt(document.getElementById('mHour').value),
+      order_number: document.getElementById('mDoc').value.trim(),
+      supply_type: document.getElementById('mSupplyType').value,
+      order_type: document.getElementById('mOrderType').value
+    };
+    
+    const { error } = await sb.from('bookings').update(payload).eq('id', id);
+    if (error) alert('Ошибка обновления: ' + error.message);
+    else { editModal.style.display = 'none'; renderCalendar(); }
+  };
+
+  // Удаление
+  document.getElementById('btnDelete').onclick = async () => {
+    if (!confirm('ВНИМАНИЕ! Вы точно хотите удалить эту запись поставщика?')) return;
+    const id = document.getElementById('mId').value;
+    
+    const { error } = await sb.from('bookings').delete().eq('id', id);
+    if (error) alert('Ошибка удаления: ' + error.message);
+    else { editModal.style.display = 'none'; renderCalendar(); }
+  };
+
+  // Слушатели фильтров
   document.getElementById('applyFiltersBtn').onclick = renderCalendar;
   document.getElementById('resetFiltersBtn').onclick = () => {
     document.getElementById('filterSupplier').value = '';
