@@ -2,14 +2,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
   if (!sb) return;
 
-  // 1. Проверка авторизации
   const { data: { user } } = await sb.auth.getUser();
   if (!user) {
     window.location.href = '../index.html';
     return;
   }
 
-  // 2. Логика выхода
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async (e) => {
@@ -19,74 +17,112 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // 3. Элементы DOM
   const orgInn = document.getElementById('orgInn');
   const orgName = document.getElementById('orgName');
   
   const profileNameInput = document.getElementById('profileName');
   const profilePhoneInput = document.getElementById('profilePhone');
   const profileEmailInput = document.getElementById('profileEmail');
-  
-  const profileForm = document.getElementById('profileForm');
-  const saveProfileBtn = document.getElementById('saveProfileBtn');
 
-  // 4. Загрузка данных пользователя из таблицы profiles
-  const { data: profile, error } = await sb
+  let contactId = null;
+
+  // 1. Загружаем реквизиты из profiles
+  const { data: profile } = await sb
     .from('profiles')
-    .select('*')
+    .select('inn, company_name')
     .eq('id', user.id)
     .single();
 
-  if (error) {
-    console.error('Ошибка загрузки профиля:', error);
-    orgInn.innerText = 'Ошибка';
-    orgName.innerText = 'Ошибка';
-  } else if (profile) {
-    // Заполняем статичные поля организации (если они есть в БД)
+  if (profile) {
     orgInn.innerText = profile.inn || 'Не указан';
     orgName.innerText = profile.company_name || 'Не указано';
-    
-    // Заполняем редактируемые поля
-    profileNameInput.value = profile.full_name || '';
-    profilePhoneInput.value = profile.phone || '';
-    // Если email не сохранен в profiles, берем его из объекта авторизации
-    profileEmailInput.value = profile.email || user.email || '';
   }
 
-  // 5. Обработка сохранения формы
-  profileForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    // Блокируем кнопку на время отправки
-    saveProfileBtn.innerText = 'Сохранение...';
-    saveProfileBtn.disabled = true;
+  // 2. Загружаем контакты из contacts
+  const { data: contact } = await sb
+    .from('contacts')
+    .select('id, full_name, phone')
+    .eq('profile_id', user.id)
+    .maybeSingle();
 
-    // Собираем новые данные
-    const updates = {
-      full_name: profileNameInput.value.trim(),
-      phone: profilePhoneInput.value.trim(),
-      email: profileEmailInput.value.trim()
-    };
+  if (contact) {
+    contactId = contact.id;
+    profileNameInput.value = contact.full_name || '';
+    profilePhoneInput.value = contact.phone || '';
+  } else {
+    profileNameInput.value = '';
+    profilePhoneInput.value = '';
+  }
 
-    // Отправляем в базу
-    const { error: updateError } = await sb
-      .from('profiles')
-      .update(updates)
-      .eq('id', user.id);
+  profileEmailInput.value = user.email || '';
 
-    if (updateError) {
-      alert('Ошибка при сохранении: ' + updateError.message);
-    } else {
-      // Кратковременно меняем текст кнопки для визуального подтверждения
-      saveProfileBtn.innerText = 'Успешно сохранено!';
-      saveProfileBtn.style.backgroundColor = '#10b981'; // Зеленый цвет успеха
-      
-      setTimeout(() => {
-        saveProfileBtn.innerText = 'Сохранить изменения';
-        saveProfileBtn.style.backgroundColor = 'var(--color-primary)';
-      }, 2000);
-    }
+  // 3. Логика посимвольного редактирования (кнопки карандаш и галочка)
+  const editButtons = document.querySelectorAll('.edit-btn');
 
-    saveProfileBtn.disabled = false;
+  editButtons.forEach(editBtn => {
+    editBtn.addEventListener('click', (e) => {
+      const targetId = editBtn.getAttribute('data-target');
+      const input = document.getElementById(targetId);
+      const row = editBtn.closest('.input-row');
+      const saveBtn = row.querySelector('.save-btn');
+
+      // Разблокируем поле и ставим фокус
+      input.disabled = false;
+      input.focus();
+
+      // Скрываем карандаш, показываем галочку сохранения
+      editBtn.style.display = 'none';
+      saveBtn.style.display = 'inline-flex';
+    });
+  });
+
+  // Логика сохранения при клике на галочку
+  const saveButtons = document.querySelectorAll('.save-btn');
+
+  saveButtons.forEach(saveBtn => {
+    saveBtn.addEventListener('click', async () => {
+      const fieldName = saveBtn.getAttribute('data-field'); // full_name или phone
+      const row = saveBtn.closest('.input-row');
+      const input = row.querySelector('input');
+      const editBtn = row.querySelector('.edit-btn');
+
+      const newValue = input.value.trim();
+
+      // Отправляем в базу
+      const updatedData = {
+        profile_id: user.id,
+        [fieldName]: newValue,
+        is_primary: true
+      };
+
+      let saveError = null;
+
+      if (contactId) {
+        const { error } = await sb
+          .from('contacts')
+          .update({ [fieldName]: newValue })
+          .eq('id', contactId);
+        saveError = error;
+      } else {
+        const { data: newContact, error } = await sb
+          .from('contacts')
+          .insert([updatedData])
+          .select('id')
+          .single();
+        
+        if (newContact) contactId = newContact.id;
+        saveError = error;
+      }
+
+      if (saveError) {
+        alert('Ошибка сохранения: ' + saveError.message);
+      } else {
+        // Блокируем поле обратно
+        input.disabled = true;
+        // Возвращаем карандаш, прячем галочку
+        saveBtn.style.display = 'none';
+        editBtn.style.display = 'inline-flex';
+      }
+    });
   });
 });
