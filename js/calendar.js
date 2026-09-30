@@ -63,19 +63,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         const supplyName = supplyTypes[booking.supply_type] || booking.supply_type;
         const orderName = orderTypes[booking.order_type] || booking.order_type;
         const orderNum = booking.order_number;
+        const fullDocText = `Док: ${orderName} №${orderNum}`;
         
         const item = document.createElement('div');
         item.className = 'booking-item';
         
-        // Разделяем информацию на левую и правую части для выравнивания
         item.innerHTML = `
           <div class="booking-left">
             <div class="booking-date">${dateStr}</div>
             <div class="booking-time">Время: ${timeStr}</div>
           </div>
           <div class="booking-right">
-            <div class="booking-time" style="color: var(--color-text-main); font-weight: 600;">Тип: ${supplyName}</div>
-            <div class="booking-time">Док: ${orderName} №${orderNum}</div>
+            <div class="booking-time truncate-text" style="color: var(--color-text-main); font-weight: 600;" title="Тип: ${supplyName}">Тип: ${supplyName}</div>
+            <div class="booking-time truncate-text" title="${fullDocText}">${fullDocText}</div>
           </div>
         `;
         upcomingList.appendChild(item);
@@ -114,9 +114,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!isActive) {
         dayCell.className = 'day-cell inactive';
       } else if (bookedDates.has(isoDate)) {
-        dayCell.className = 'day-cell booked'; // Применится красная полоса
+        dayCell.className = 'day-cell booked'; 
       } else {
-        dayCell.className = 'day-cell'; // Применится полупрозрачная зеленая полоса
+        dayCell.className = 'day-cell'; 
       }
 
       if ((d.getDay() === 0 || d.getDay() === 6) && isActive) {
