@@ -2,7 +2,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
   if (!sb) return;
 
-  // 1. Проверяем авторизацию
   const { data: { user } } = await sb.auth.getUser();
   if (!user) {
     window.location.href = '../index.html';
@@ -12,7 +11,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const calendarGrid = document.getElementById('calendarGrid');
   const upcomingList = document.getElementById('upcomingBookingsList');
 
-  // Устанавливаем текущую дату без времени
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
@@ -21,7 +19,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const day = String(today.getDate()).padStart(2, '0');
   const isoToday = `${year}-${month}-${day}`;
 
-  // 2. Запрашиваем записи пользователя (Добавлены поля supply_type, order_type, order_number)
   const { data: bookings, error } = await sb
     .from('bookings')
     .select('slot_date, slot_hour, supply_type, order_type, order_number')
@@ -38,7 +35,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     bookings.forEach(b => bookedDates.add(b.slot_date));
   }
 
-  // Словари для перевода технических названий БД в красивый русский текст
   const supplyTypes = {
     'orders_im': 'Заказы ИМ',
     'mix': 'МИКС',
@@ -51,7 +47,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     'etrn': 'ЭТрН'
   };
 
-  // 3. Отрисовываем 5 ближайших записей
   if (upcomingList) {
     upcomingList.innerHTML = '';
     
@@ -65,26 +60,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         const dateStr = bDate.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const timeStr = `${booking.slot_hour}:00 - ${booking.slot_hour + 1}:00`;
         
-        // Получаем красивые названия или оставляем как есть, если не найдено
         const supplyName = supplyTypes[booking.supply_type] || booking.supply_type;
         const orderName = orderTypes[booking.order_type] || booking.order_type;
         const orderNum = booking.order_number;
         
         const item = document.createElement('div');
         item.className = 'booking-item';
-        // Добавлены новые строки с типом поставки и номером документа
+        
+        // Разделяем информацию на левую и правую части для выравнивания
         item.innerHTML = `
-          <div class="booking-date">${dateStr}</div>
-          <div class="booking-time">Время: ${timeStr}</div>
-          <div class="booking-time" style="margin-top: 6px; color: var(--color-text-main); font-weight: 500;">Тип: ${supplyName}</div>
-          <div class="booking-time">Док: ${orderName} №${orderNum}</div>
+          <div class="booking-left">
+            <div class="booking-date">${dateStr}</div>
+            <div class="booking-time">Время: ${timeStr}</div>
+          </div>
+          <div class="booking-right">
+            <div class="booking-time" style="color: var(--color-text-main); font-weight: 600;">Тип: ${supplyName}</div>
+            <div class="booking-time">Док: ${orderName} №${orderNum}</div>
+          </div>
         `;
         upcomingList.appendChild(item);
       });
     }
   }
 
-  // 4. Логика генерации 5 недель (35 дней)
   if (calendarGrid) {
     calendarGrid.innerHTML = ''; 
 
@@ -116,9 +114,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!isActive) {
         dayCell.className = 'day-cell inactive';
       } else if (bookedDates.has(isoDate)) {
-        dayCell.className = 'day-cell booked'; // Применится красная полоса из CSS
+        dayCell.className = 'day-cell booked'; // Применится красная полоса
       } else {
-        dayCell.className = 'day-cell'; // Применится зеленая полоса из CSS
+        dayCell.className = 'day-cell'; // Применится полупрозрачная зеленая полоса
       }
 
       if ((d.getDay() === 0 || d.getDay() === 6) && isActive) {
@@ -137,7 +135,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // 5. Логика кнопки "Выйти"
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async (e) => {
