@@ -26,24 +26,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   const renderCalendar = async () => {
     const filterSupplier = document.getElementById('filterSupplier').value.trim();
     const filterDoc = document.getElementById('filterDoc').value.trim();
+    const filterSupply = document.getElementById('filterSupplyType').value;
+    const filterOrder = document.getElementById('filterOrderType').value;
     const showPast = isAdmin && pastToggle.checked;
 
-    // Ищем записи
+    const isSearchActive = filterSupplier !== '' || filterDoc !== '' || filterSupply !== '' || filterOrder !== '';
+
     let query = sb.from('bookings')
       .select('id, slot_date, slot_hour, order_number, order_type, supply_type, profiles!inner(company_name, inn)')
       .eq('status', 'active');
     
+    // Применение фильтров к запросу
     if (filterDoc) query = query.ilike('order_number', `%${filterDoc}%`);
+    if (filterSupply) query = query.eq('supply_type', filterSupply);
+    if (filterOrder) query = query.eq('order_type', filterOrder);
     if (filterSupplier) {
       query = query.or(`company_name.ilike.%${filterSupplier}%,inn.ilike.%${filterSupplier}%`, { foreignTable: 'profiles' });
     }
 
     const { data: bookings } = await query;
-    
-    // Собираем даты, в которые есть записи
     const bookedDates = new Set((bookings || []).map(b => b.slot_date));
 
-    // Настраиваем начало календаря
+    // --- 1. Отрисовка сетки календаря ---
     const startDate = new Date(today);
     if (showPast) {
       startDate.setDate(today.getDate() - 30);
@@ -56,7 +60,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const grid = document.getElementById('calendarGrid');
     grid.innerHTML = '';
 
-    // Отрисовка дней
     for (let i = 0; i < totalDays; i++) {
       const d = new Date(startDate);
       d.setDate(startDate.getDate() + i);
@@ -66,45 +69,52 @@ document.addEventListener('DOMContentLoaded', async () => {
       cell.className = 'day-cell';
       
       const isPastOrFuture = d < today || d > maxActiveDate;
-      
-      // Логика классов
-      if (isPastOrFuture) cell.classList.add('inactive'); // Делает серым
-      if (bookedDates.has(isoDate)) cell.classList.add('booked'); // Делает полоску красной
+      if (isPastOrFuture) cell.classList.add('inactive'); 
+      if (bookedDates.has(isoDate)) cell.classList.add('booked'); 
       
       cell.innerHTML = `<div class="date-text">${d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})}</div>`;
-      
-      // Админ может кликать даже по неактивным дням
       cell.onclick = () => window.location.href = `admin_day.html?date=${isoDate}`;
       grid.appendChild(cell);
     }
 
-    // Отрисовка списка "Найденные записи"
+    // --- 2. Отрисовка списка "Найденные записи" ---
     const listContainer = document.getElementById('upcomingBookingsList');
     listContainer.innerHTML = '';
     
-    // Оставляем только записи от сегодня и в будущее (до 7 штук)
+    // Если поиск не активен, показываем 7 пустых серых слотов (заглушек)
+    if (!isSearchActive) {
+      for (let i = 0; i < 7; i++) {
+        listContainer.innerHTML += `
+          <div class="booking-item empty">
+            <div style="color: #94a3b8; font-size: 13px; font-weight: 500;">Нет данных</div>
+          </div>
+        `;
+      }
+      return; // Завершаем выполнение, карточки не рисуем
+    }
+
+    // Оставляем только записи от сегодня и в будущее (максимум 7)
     const upcoming = (bookings || [])
       .filter(b => new Date(b.slot_date) >= today)
       .sort((a, b) => new Date(a.slot_date) - new Date(b.slot_date) || a.slot_hour - b.slot_hour)
       .slice(0, 7);
 
+    // Если поиск активен, но ничего не найдено
     if (upcoming.length === 0) {
-      const msg = (filterSupplier || filterDoc) ? 'По вашему запросу ничего не найдено.' : 'Введите данные в фильтр для поиска...';
-      listContainer.innerHTML = `<div style="grid-column: 1 / -1; color: var(--color-text-muted); font-size: 14px; text-align: center;">${msg}</div>`;
+      listContainer.innerHTML = `<div style="grid-column: 1 / -1; color: var(--color-text-muted); font-size: 14px; text-align: center; padding: 20px;">По вашему запросу ничего не найдено.</div>`;
     } else {
+      // Отрисовка найденных карточек
       upcoming.forEach(b => {
         const dStr = new Date(b.slot_date).toLocaleDateString('ru-RU');
         const item = document.createElement('div');
         item.className = 'booking-item';
         
-        // Упаковываем все данные для модального окна
         const dataStr = encodeURIComponent(JSON.stringify({
           id: b.id, date: b.slot_date, hour: b.slot_hour, doc: b.order_number, 
           sTypeRaw: b.supply_type, oTypeRaw: b.order_type,
           fullCompany: `${b.profiles.company_name} (ИНН: ${b.profiles.inn})`
         }));
         
-        // Выводим карточку
         const shortName = b.profiles.company_name.length > 18 ? b.profiles.company_name.substring(0,18) + '...' : b.profiles.company_name;
         
         item.innerHTML = `
@@ -119,7 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  // --- Логика Модального окна редактирования из списка ---
+  // --- Логика Модального окна редактирования ---
   const editModal = document.getElementById('editModal');
   document.getElementById('closeEditModal').onclick = () => editModal.style.display = 'none';
 
@@ -167,6 +177,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('resetFiltersBtn').onclick = () => {
     document.getElementById('filterSupplier').value = '';
     document.getElementById('filterDoc').value = '';
+    document.getElementById('filterSupplyType').value = '';
+    document.getElementById('filterOrderType').value = '';
     renderCalendar();
   };
   pastToggle.onchange = renderCalendar;
