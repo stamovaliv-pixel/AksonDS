@@ -7,24 +7,34 @@
   <link rel="stylesheet" href="../css/theme.css">
   <link rel="stylesheet" href="../css/main.css">
   <style>
-    /* Сетка для разделения на 2 колонки */
+    /* Сетка для разделения на 2 колонки с линией между ними */
     .calendar-layout {
       display: flex;
       gap: 30px;
       align-items: flex-start;
       margin-top: 20px;
     }
-    @media (max-width: 900px) {
-      .calendar-layout { flex-direction: column; }
-    }
     
     .grid-section {
       flex: 1;
       width: 100%;
+      /* Серая полупрозрачная полоса-разделитель */
+      border-right: 1px solid rgba(0, 0, 0, 0.1);
+      padding-right: 30px;
     }
     .upcoming-section {
       flex: 0 0 320px;
       width: 100%;
+    }
+
+    @media (max-width: 900px) {
+      .calendar-layout { flex-direction: column; }
+      .grid-section { 
+        border-right: none; 
+        padding-right: 0; 
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1); 
+        padding-bottom: 30px; 
+      }
     }
 
     /* Сетка календаря (строго 7 колонок) */
@@ -37,6 +47,7 @@
       font-weight: 600;
       color: var(--color-text-muted);
       font-size: 14px;
+      height: 20px; /* Фиксируем высоту для выравнивания соседней колонки */
     }
     .calendar-grid {
       display: grid;
@@ -67,46 +78,57 @@
       box-shadow: 0 8px 15px rgba(0,0,0,0.05);
     }
     
-    /* Полоска по умолчанию - серая */
+    /* Полоска по умолчанию - зеленая (свободные дни) */
     .day-cell::before {
       content: '';
       position: absolute;
       top: 0; left: 0; right: 0;
       height: 4px;
-      background-color: #cbd5e1; 
+      background-color: #10b981; 
       transition: background-color 0.3s;
     }
-    /* Если есть запись - зеленая */
+    /* Если есть запись - красная (занятые пользователем дни) */
     .day-cell.booked::before {
-      background-color: #10b981; 
+      background-color: var(--color-primary); 
     }
     
-    /* Неактивные дни (прошлое и > 30 дней) */
+    /* Неактивные дни */
     .day-cell.inactive {
       opacity: 0.4;
       background-color: #f1f5f9;
       cursor: default;
-      pointer-events: none; /* Запрет клика */
+      pointer-events: none;
       box-shadow: none;
     }
     .day-cell.inactive::before {
-      display: none; /* Убираем полоску у неактивных дней */
+      display: none; 
     }
 
     .date-text { font-size: 16px; font-weight: 700; color: var(--color-text-main); }
     
+    /* Список ближайших записей (выравнивание с сеткой) */
+    .booking-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px; /* Такой же отступ, как между строками календаря */
+      margin-top: 30px; /* Отступ вниз, чтобы пропустить высоту заголовков дней недели (20px + 10px gap) */
+    }
+
     /* Карточки ближайших записей */
     .booking-item {
-      padding: 15px;
+      padding: 10px 15px;
       border: 1px solid var(--color-border);
       border-radius: var(--radius-sm);
-      margin-bottom: 12px;
       border-left: 4px solid var(--color-primary);
       background: #fff;
+      min-height: 60px; /* Такая же высота, как у ячейки дня */
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      box-shadow: var(--shadow-sm);
     }
-    .booking-item:last-child { margin-bottom: 0; }
     .booking-date { font-weight: 600; color: var(--color-text-main); font-size: 15px; }
-    .booking-time { font-size: 14px; color: var(--color-text-muted); margin-top: 4px; }
+    .booking-time { font-size: 14px; color: var(--color-text-muted); margin-top: 2px; }
   </style>
 </head>
 <body class="app-body">
@@ -127,7 +149,7 @@
       
       <!-- Левая колонка: Календарь -->
       <div class="grid-section">
-        <h1 class="page-title" style="margin-top: 0; margin-bottom: 25px;">Выберите дату</h1>
+        <h1 class="page-title" style="margin-top: 0; margin-bottom: 25px;">Выберите слот</h1>
         
         <div class="weekdays-header">
           <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
@@ -135,13 +157,12 @@
         <div class="calendar-grid" id="calendarGrid" oncontextmenu="return false;"></div>
       </div>
 
-      <!-- Правая колонка: Ближайшие записи -->
+      <!-- Правая колонка: Ближайшие слоты -->
       <div class="upcoming-section">
-        <h3 class="page-title" style="margin-top: 0; margin-bottom: 25px;">Мои записи</h3>
-        <div class="auth-card" style="padding: 20px; margin-top: 0; max-width: none;">
-          <div id="upcomingBookingsList">
-            <div class="text-center" style="color: var(--color-text-muted); font-size: 14px;">Загрузка...</div>
-          </div>
+        <h3 class="page-title" style="margin-top: 0; margin-bottom: 25px;">Мои слоты</h3>
+        <!-- Убрали класс auth-card, чтобы карточки сливались с фоном и идеально выравнивались по высоте сетки -->
+        <div id="upcomingBookingsList" class="booking-list">
+          <div class="text-center" style="color: var(--color-text-muted); font-size: 14px;">Загрузка...</div>
         </div>
       </div>
 
