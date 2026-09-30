@@ -17,31 +17,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     .eq('slot_date', selectedDate)
     .eq('status', 'active');
 
-  // 2. Загружаем список поставщиков и создаем надежную мапу (защита от кавычек в названиях)
-  let suppliersMap = new Map();
+  // 2. Загружаем список всех поставщиков
+  let allProfiles = [];
   const { data: profilesData } = await sb.from('profiles').select('id, company_name, inn').eq('role', 'supplier');
   if (profilesData) {
+    allProfiles = profilesData;
     const dataList = document.getElementById('suppliersList');
     profilesData.forEach(p => {
-      const label = `${p.company_name} (ИНН: ${p.inn})`;
-      suppliersMap.set(label, p.id); // Сохраняем связку Текст -> ID
-      
       const option = document.createElement('option');
-      option.value = label;
+      option.value = `${p.company_name} (ИНН: ${p.inn})`;
       dataList.appendChild(option);
     });
   }
 
-  // Привязка выбранного поставщика (без использования ломающихся CSS селекторов)
-  document.getElementById('cSupplierSearch').addEventListener('input', function() {
-    const val = this.value;
-    document.getElementById('cProfileId').value = suppliersMap.get(val) || '';
-  });
-
   const container = document.getElementById('hoursContainer');
   container.innerHTML = '';
   
-  // 3. Отрисовка сетки часов с новым порядком полей
+  // 3. Отрисовка сетки часов
   for (let hour = 9; hour <= 17; hour++) {
     const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
     const block = document.createElement('div');
@@ -61,7 +53,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         fullCompany: `${compName} (ИНН: ${b.profiles?.inn || ''})`
       }));
 
-      // Порядок полей: Прибыл, Убыл, Ворота
       return `
         <div class="booking-card" data-info="${dataStr}">
           <div style="display:flex; justify-content:space-between; align-items:flex-start;">
@@ -102,8 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     container.appendChild(block);
   }
 
-  // --- ЛОГИКА МГНОВЕННОГО СОХРАНЕНИЯ ---
-  
+  // --- ЛОГИКА МГНОВЕННОГО СОХРАНЕНИЯ (Прибыл / Убыл / Ворота) ---
   container.addEventListener('focusin', (e) => {
     if (e.target.classList.contains('inline-time') && !e.target.value) {
       const now = new Date();
@@ -173,7 +163,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (addBtn) {
       document.getElementById('cHour').value = addBtn.dataset.hour;
       document.getElementById('cSupplierSearch').value = '';
-      document.getElementById('cProfileId').value = '';
       document.getElementById('cDoc').value = '';
       createModal.style.display = 'flex';
     }
@@ -202,19 +191,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     else window.location.reload();
   };
 
-  // Создание слота админом
+  // --- УМНОЕ СОЗДАНИЕ СЛОТА ---
   document.getElementById('createForm').onsubmit = async (e) => {
     e.preventDefault();
-    const profileId = document.getElementById('cProfileId').value;
+    const searchVal = document.getElementById('cSupplierSearch').value.trim();
     
-    // Блокировка сохранения, если ID не найден
-    if (!profileId) return alert('Пожалуйста, выберите поставщика из выпадающего списка.');
+    // Пытаемся найти профиль по полному тексту из списка, ИНН или Названию
+    const found = allProfiles.find(p => 
+      `${p.company_name} (ИНН: ${p.inn})` === searchVal || 
+      p.inn === searchVal || 
+      p.company_name.toLowerCase() === searchVal.toLowerCase()
+    );
+
+    if (!found) {
+      return alert('Поставщик не найден. Пожалуйста, выберите его из списка или введите точный ИНН.');
+    }
 
     const btn = document.getElementById('btnCreate');
     btn.disabled = true; btn.innerText = 'Запись...';
 
     const payload = {
-      profile_id: profileId,
+      profile_id: found.id,
       slot_date: selectedDate,
       slot_hour: parseInt(document.getElementById('cHour').value),
       supply_type: document.getElementById('cSupplyType').value,
