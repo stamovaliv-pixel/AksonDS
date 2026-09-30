@@ -1,0 +1,208 @@
+body {
+  font-family: var(--font-main);
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
+  margin: 0;
+  padding: 0;
+  line-height: 1.5;
+}
+
+.no-select { user-select: none; -webkit-user-select: none; }
+
+/* Градиентная полоса на всю ширину экрана */
+.top-gradient-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  background: linear-gradient(90deg, var(--color-gradient-start), var(--color-gradient-end));
+  z-index: 9999;
+}
+
+/* Центрирование страниц авторизации */
+.auth-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Карточки форм с адаптивностью */
+.auth-card {
+  background: var(--color-surface);
+  width: 100%;
+  max-width: 420px;
+  padding: 40px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  box-sizing: border-box;
+  margin-top: 20px; /* Отступ от градиентной полосы */
+}
+
+.auth-card-large {
+  max-width: 700px;
+}
+
+/* Заголовок и Лого */
+.auth-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.brand-logo {
+  width: 100%;
+  max-width: 240px; /* Увеличен размер для нового лого */
+  height: auto;
+  margin: 0 auto;
+  display: block;
+}
+
+.form-title {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-main);
+  margin-bottom: 25px;
+}
+
+/* Элементы форм и Сетка */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 15px;
+}
+
+@media (min-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .desktop-only {
+    display: block;
+  }
+}
+@media (max-width: 767px) {
+  .desktop-only {
+    display: none;
+  }
+}
+
+.form-group { margin-bottom: 18px; text-align: left; }
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+.form-group input {
+  width: 100%;
+  padding: 14px 16px;
+  font-family: var(--font-main);
+  font-size: 15px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: #fff;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+.form-group input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 4px var(--color-input-focus);
+}
+
+/* Объемная кнопка */
+.btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-btn);
+}
+.btn-primary:hover {
+  background-color: var(--color-primary-hover);
+  box-shadow: var(--shadow-btn-hover);
+  transform: translateY(-2px);
+}
+.btn-primary:active {
+  transform: translateY(1px);
+  box-shadow: var(--shadow-btn);
+}
+
+.w-100 { width: 100%; }
+.mt-3 { margin-top: 15px; }
+.mt-4 { margin-top: 25px; }
+.text-center { text-align: center; }
+
+/* Ссылки */
+.link-action {
+  color: var(--color-text-muted);
+  text-decoration: underline;
+  font-weight: 500;
+  font-size: 15px;
+  transition: color 0.2s;
+}
+.link-action:hover {
+  color: var(--color-primary);
+}
+
+/* Шапка внутренних страниц */
+.app-header {
+  background: var(--color-surface);
+  padding: 15px 30px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px; /* Отступ под фиксированную полосу */
+}
+
+.app-logo {
+  max-width: 150px;
+  height: auto;
+}
+
+.header-nav {
+  display: flex;
+  gap: 20px;
+}
+.header-nav a {
+  color: var(--color-text-muted);
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.header-nav a.active, .header-nav a:hover {
+  color: var(--color-primary);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+.page-title {
+  color: var(--color-text-main);
+  font-size: 24px;
+}
+
+/* Мобильная адаптивность для карточек и шапки */
+@media (max-width: 600px) {
+  .auth-card {
+    padding: 30px 20px;
+  }
+  .app-header {
+    flex-direction: column;
+    gap: 15px;
+    padding: 15px;
+  }
+}

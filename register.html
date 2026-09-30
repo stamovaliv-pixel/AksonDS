@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Регистрация - AKSon Logistics</title>
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body class="auth-page">
+  <div class="top-gradient-bar"></div>
+  <main class="auth-card auth-card-large">
+    <div class="auth-header no-select">
+      <img src="assets/logistic-logo.svg" alt="АКСОН Логистика" class="brand-logo">
+    </div>
+    
+    <h2 class="form-title">Регистрация</h2>
+    <form id="registerForm">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>ИНН (10 или 12 цифр)</label>
+          <input type="text" id="inn" required pattern="\d{10}|\d{12}" placeholder="7712345678">
+        </div>
+        <div class="form-group">
+          <label>Наименование организации</label>
+          <input type="text" id="company_name" required placeholder="ООО «Ромашка»">
+        </div>
+        <div class="form-group">
+          <label>ФИО ответственного лица</label>
+          <input type="text" id="full_name" required placeholder="Иванов Иван Иванович">
+        </div>
+        <div class="form-group">
+          <label>Телефон</label>
+          <input type="tel" id="phone" required placeholder="+7 (999) 123-45-67">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="email" required placeholder="ivanov@company.ru">
+        </div>
+        <div class="form-group desktop-only"></div> 
+        <div class="form-group">
+          <label>Пароль (минимум 8 символов)</label>
+          <input type="password" id="password" required minlength="8" placeholder="Придумайте пароль">
+        </div>
+        <div class="form-group">
+          <label>Повторите пароль</label>
+          <input type="password" id="password_repeat" required minlength="8" placeholder="Повторите пароль">
+        </div>
+      </div>
+      
+      <button type="submit" class="btn-primary w-100 mt-3">Зарегистрироваться</button>
+    </form>
+    <div class="text-center mt-4">
+      <a href="index.html" class="link-action">Уже есть аккаунт? Войти</a>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/auth.js"></script>
+</body>
+</html>

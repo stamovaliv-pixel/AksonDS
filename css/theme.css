@@ -1,0 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --color-primary: #E31E24;
+  --color-primary-hover: #c8181f;
+  --color-blue: #00AEEF; /* Адаптировано под цвет Аксона, если нужно */
+  --color-gradient-start: #0056b3;
+  --color-gradient-end: #E31E24;
+  
+  --color-bg: #f4f7f9;
+  --color-surface: #ffffff;
+  --color-text-main: #1e293b;
+  --color-text-muted: #64748b;
+  --color-border: #e2e8f0;
+  --color-input-focus: rgba(227, 30, 36, 0.15);
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  --shadow-btn: 0 6px 16px 0 rgba(227, 30, 36, 0.3);
+  --shadow-btn-hover: 0 8px 20px 0 rgba(227, 30, 36, 0.4);
+  
+  --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+}
