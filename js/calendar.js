@@ -12,20 +12,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const calendarGrid = document.getElementById('calendarGrid');
   const upcomingList = document.getElementById('upcomingBookingsList');
 
-  // Устанавливаем текущую дату без времени для точного сравнения
+  // Устанавливаем текущую дату без времени
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  // Форматируем сегодняшний день для БД
   const year = today.getFullYear();
   const month = String(today.getMonth() + 1).padStart(2, '0');
   const day = String(today.getDate()).padStart(2, '0');
   const isoToday = `${year}-${month}-${day}`;
 
-  // 2. Запрашиваем записи пользователя из базы данных
+  // 2. Запрашиваем записи пользователя (Добавлены поля supply_type, order_type, order_number)
   const { data: bookings, error } = await sb
     .from('bookings')
-    .select('slot_date, slot_hour')
+    .select('slot_date, slot_hour, supply_type, order_type, order_number')
     .eq('profile_id', user.id)
     .eq('status', 'active')
     .gte('slot_date', isoToday)
@@ -39,25 +38,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     bookings.forEach(b => bookedDates.add(b.slot_date));
   }
 
-  // 3. Отрисовываем 3 ближайшие записи
+  // Словари для перевода технических названий БД в красивый русский текст
+  const supplyTypes = {
+    'orders_im': 'Заказы ИМ',
+    'mix': 'МИКС',
+    'return': 'Возврат'
+  };
+  
+  const orderTypes = {
+    'order': 'Заказ',
+    'upd': 'УПД',
+    'etrn': 'ЭТрН'
+  };
+
+  // 3. Отрисовываем 5 ближайших записей
   if (upcomingList) {
     upcomingList.innerHTML = '';
     
     if (!bookings || bookings.length === 0) {
-      upcomingList.innerHTML = '<div style="color: var(--color-text-muted); font-size: 14px;">У вас пока нет активных записей.</div>';
+      upcomingList.innerHTML = '<div style="color: var(--color-text-muted); font-size: 14px;">У вас пока нет активных слотов.</div>';
     } else {
-      const nextThree = bookings.slice(0, 3);
+      const nextFive = bookings.slice(0, 5);
       
-      nextThree.forEach(booking => {
+      nextFive.forEach(booking => {
         const bDate = new Date(booking.slot_date);
         const dateStr = bDate.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const timeStr = `${booking.slot_hour}:00 - ${booking.slot_hour + 1}:00`;
         
+        // Получаем красивые названия или оставляем как есть, если не найдено
+        const supplyName = supplyTypes[booking.supply_type] || booking.supply_type;
+        const orderName = orderTypes[booking.order_type] || booking.order_type;
+        const orderNum = booking.order_number;
+        
         const item = document.createElement('div');
         item.className = 'booking-item';
+        // Добавлены новые строки с типом поставки и номером документа
         item.innerHTML = `
           <div class="booking-date">${dateStr}</div>
           <div class="booking-time">Время: ${timeStr}</div>
+          <div class="booking-time" style="margin-top: 6px; color: var(--color-text-main); font-weight: 500;">Тип: ${supplyName}</div>
+          <div class="booking-time">Док: ${orderName} №${orderNum}</div>
         `;
         upcomingList.appendChild(item);
       });
@@ -68,18 +88,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (calendarGrid) {
     calendarGrid.innerHTML = ''; 
 
-    // Находим понедельник текущей недели
-    const currentDayIndex = today.getDay(); // 0 - Вс, 1 - Пн ... 6 - Сб
+    const currentDayIndex = today.getDay(); 
     const diffToMonday = currentDayIndex === 0 ? 6 : currentDayIndex - 1;
     
     const startDate = new Date(today);
     startDate.setDate(today.getDate() - diffToMonday);
 
-    // Определяем крайний день доступности (+29 дней от сегодня)
     const endActiveDate = new Date(today);
     endActiveDate.setDate(today.getDate() + 29);
 
-    // Генерируем ровно 35 дней (5 недель по 7 дней)
     for (let i = 0; i < 35; i++) {
       const d = new Date(startDate);
       d.setDate(startDate.getDate() + i);
@@ -94,28 +111,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const dayCell = document.createElement('div');
       
-      // Проверяем, является ли день активным
       const isActive = d >= today && d <= endActiveDate;
 
       if (!isActive) {
-        // Прошедшие даты и даты за пределом 30 дней
         dayCell.className = 'day-cell inactive';
       } else if (bookedDates.has(isoDate)) {
-        // Если день активен и в нем есть запись пользователя
-        dayCell.className = 'day-cell booked';
+        dayCell.className = 'day-cell booked'; // Применится красная полоса из CSS
       } else {
-        // Обычный активный свободный день (серая полоса)
-        dayCell.className = 'day-cell'; 
+        dayCell.className = 'day-cell'; // Применится зеленая полоса из CSS
       }
 
-      // Выходные делаем со слегка серым фоном (если они активны)
       if ((d.getDay() === 0 || d.getDay() === 6) && isActive) {
         dayCell.style.backgroundColor = '#f8fafc';
       }
 
       dayCell.innerHTML = `<div class="date-text">${dateStr}</div>`;
 
-      // Разрешаем клик только для активных дней
       if (isActive) {
         dayCell.addEventListener('click', () => {
           window.location.href = `day.html?date=${isoDate}`;
