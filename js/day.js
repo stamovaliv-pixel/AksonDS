@@ -19,6 +19,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const dateObj = new Date(selectedDate);
   document.getElementById('currentDateDisplay').innerText = dateObj.toLocaleDateString('ru-RU');
 
+  // Надежная функция для получения локальной даты (Y-M-D) без сбоев из-за часовых поясов
+  function getLocalDateString(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   // --- Логика навигации по дням ---
   const now = new Date();
   const todayMidnight = new Date(now);
@@ -39,39 +47,55 @@ document.addEventListener('DOMContentLoaded', async () => {
   const prevBtn = document.getElementById('prevDayBtn');
   const nextBtn = document.getElementById('nextDayBtn');
 
-  // Проверяем рамки активных дней
+  // Блокируем кнопку "пред. день", если это прошлое
   if (prevDate < todayMidnight) {
     prevBtn.disabled = true;
   } else {
-    prevBtn.onclick = () => window.location.href = `day.html?date=${prevDate.toISOString().split('T')[0]}`;
+    prevBtn.onclick = () => window.location.href = `day.html?date=${getLocalDateString(prevDate)}`;
   }
 
+  // Блокируем кнопку "след. день", если вышли за 30 дней
   if (nextDate > maxDate) {
     nextBtn.disabled = true;
   } else {
-    nextBtn.onclick = () => window.location.href = `day.html?date=${nextDate.toISOString().split('T')[0]}`;
+    nextBtn.onclick = () => window.location.href = `day.html?date=${getLocalDateString(nextDate)}`;
   }
 
-  // Загружаем данные из БД (Добавлены supply_type, order_type, order_number)
+  // Загружаем данные из БД
   const { data: bookings, error } = await sb
     .from('bookings')
     .select('id, slot_hour, profile_id, supply_type, order_type, order_number')
     .eq('slot_date', selectedDate)
     .eq('status', 'active');
 
+  if (error) console.error('Ошибка загрузки записей:', error);
+
   const slotsContainer = document.getElementById('slotsContainer');
+  slotsContainer.innerHTML = ''; // Очищаем текст "Загрузка..."
+  
   const currentHour = now.getHours();
   const isToday = selectedMidnight.getTime() === todayMidnight.getTime();
   const isPastDay = selectedMidnight < todayMidnight;
 
-  let morningHtml = `<div class="time-group"><div class="time-group-title">🌅 Утро</div><div class="slot-grid">`;
-  let afternoonHtml = `</div></div><div class="time-group"><div class="time-group-title">☀️ День</div><div class="slot-grid">`;
-  let eveningHtml = `</div></div><div class="time-group"><div class="time-group-title">🌆 Вечер</div><div class="slot-grid">`;
+  // Создаем контейнеры для Утра, Дня и Вечера
+  const groups = {
+    morning: { title: '🌅 Утро', el: null },
+    afternoon: { title: '☀️ День', el: null },
+    evening: { title: '🌆 Вечер', el: null }
+  };
 
-  // Словари для красивого отображения в модальном окне
+  for (const key in groups) {
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'time-group';
+    groupDiv.innerHTML = `<div class="time-group-title">${groups[key].title}</div><div class="slot-grid"></div>`;
+    groups[key].el = groupDiv.querySelector('.slot-grid');
+    slotsContainer.appendChild(groupDiv);
+  }
+
   const supplyTypes = { 'orders_im': 'Заказы ИМ', 'mix': 'МИКС', 'return': 'Возврат' };
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
 
+  // Генерируем слоты надежным методом createElement (избегает ошибок кликов)
   for (let hour = 9; hour <= 17; hour++) {
     const bookingsForHour = bookings ? bookings.filter(b => b.slot_hour === hour) : [];
     const count = bookingsForHour.length;
@@ -83,57 +107,57 @@ document.addEventListener('DOMContentLoaded', async () => {
       isPast = true;
     }
 
+    const card = document.createElement('div');
+    card.className = 'slot-card';
+    
     let statusHtml = '';
     let btnHtml = '';
-    let cardClass = 'slot-card';
 
     if (isPast) {
-      cardClass += ' inactive';
+      card.classList.add('inactive');
       statusHtml = `<span style="color: #64748b;">Время вышло</span>`;
       btnHtml = `<button class="btn-disabled" disabled>Недоступно</button>`;
     } 
     else if (myBooking) {
       statusHtml = `<span style="color: #1f2937;">Вы записаны</span>`;
+      btnHtml = `<button class="btn-cancel">Отменить</button>`;
       
-      // Формируем данные для передачи в функцию открытия окна деталей
-      const sType = supplyTypes[myBooking.supply_type] || myBooking.supply_type;
-      const oType = orderTypes[myBooking.order_type] || myBooking.order_type;
-      
-      btnHtml = `<button class="btn-cancel" onclick="openDetailsModal(${myBooking.id}, '${selectedDate}', ${hour}, '${sType}', '${oType}', '${myBooking.order_number}')">
-                   Отменить
-                 </button>`;
+      // Делаем кликабельной ВСЮ иконку, если есть запись
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => {
+        const sType = supplyTypes[myBooking.supply_type] || myBooking.supply_type;
+        const oType = orderTypes[myBooking.order_type] || myBooking.order_type;
+        openDetailsModal(myBooking.id, selectedDate, hour, sType, oType, myBooking.order_number);
+      });
     } 
     else if (placesLeft === 0) {
-      cardClass += ' inactive';
+      card.classList.add('inactive');
       statusHtml = `<span style="color: #64748b;">Мест нет (5/5)</span>`;
       btnHtml = `<button class="btn-disabled" disabled>Занято</button>`;
     } 
     else {
-      let statusColor = '';
-      if (placesLeft >= 4) statusColor = '#10b981'; 
-      else if (placesLeft >= 2) statusColor = '#f59e0b'; 
-      else statusColor = '#ef4444'; 
-
+      let statusColor = placesLeft >= 4 ? '#10b981' : (placesLeft >= 2 ? '#f59e0b' : '#ef4444');
       statusHtml = `<span style="color: ${statusColor};">Свободно (${placesLeft} мест)</span>`;
-      btnHtml = `<button class="btn-book" onclick="openCreateModal(${hour})">Записаться</button>`;
+      btnHtml = `<button class="btn-book">Записаться</button>`;
+      
+      // Делаем кликабельной иконку для свободных мест тоже
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => openCreateModal(hour));
     }
 
-    const slotHtml = `
-      <div class="${cardClass}">
-        <div>
-          <div class="slot-time">${hour}:00 - ${hour + 1}:00</div>
-          <div class="slot-status">${statusHtml}</div>
-        </div>
-        ${btnHtml}
+    card.innerHTML = `
+      <div>
+        <div class="slot-time">${hour}:00 - ${hour + 1}:00</div>
+        <div class="slot-status">${statusHtml}</div>
       </div>
+      ${btnHtml}
     `;
 
-    if (hour >= 9 && hour <= 11) morningHtml += slotHtml;
-    else if (hour >= 12 && hour <= 16) afternoonHtml += slotHtml;
-    else if (hour === 17) eveningHtml += slotHtml;
+    // Распределяем карточки по блокам
+    if (hour >= 9 && hour <= 11) groups.morning.el.appendChild(card);
+    else if (hour >= 12 && hour <= 16) groups.afternoon.el.appendChild(card);
+    else if (hour === 17) groups.evening.el.appendChild(card);
   }
-
-  slotsContainer.innerHTML = morningHtml + afternoonHtml + eveningHtml + `</div></div>`;
 
   // --- Логика Модального окна СОЗДАНИЯ записи ---
   const createModal = document.getElementById('bookingModal');
@@ -141,12 +165,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const bookingForm = document.getElementById('bookingForm');
   const hourInput = document.getElementById('selectedHour');
 
-  window.openCreateModal = (hour) => {
+  function openCreateModal(hour) {
     hourInput.value = hour;
     createModal.style.display = 'flex';
-  };
+  }
 
-  closeCreateBtn.onclick = () => createModal.style.display = 'none';
+  if(closeCreateBtn) closeCreateBtn.onclick = () => createModal.style.display = 'none';
 
   bookingForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -175,20 +199,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // --- Логика Модального окна ДЕТАЛЕЙ (отмена) ---
+  // --- Логика Модального окна ДЕТАЛЕЙ (удаление) ---
   const detailsModal = document.getElementById('bookingDetailsModal');
   const closeDetailsBtn = document.getElementById('closeDetailsModalBtn');
   const trashBtn = document.getElementById('deleteBookingBtn');
 
-  window.openDetailsModal = (id, dateStr, hour, supplyType, orderType, orderNum) => {
+  function openDetailsModal(id, dateStr, hour, supplyType, orderType, orderNum) {
     const bDate = new Date(dateStr).toLocaleDateString('ru-RU');
     const timeStr = `${hour}:00 - ${hour + 1}:00`;
     
+    // Заполняем данные в окне
     document.getElementById('modalDate').innerText = bDate;
     document.getElementById('modalTime').innerText = timeStr;
     document.getElementById('modalType').innerText = supplyType;
     document.getElementById('modalDoc').innerText = `${orderType} №${orderNum}`;
     
+    // Назначаем действие на корзину
     trashBtn.onclick = async () => {
       const confirmCancel = confirm(`Отменить запись на ${bDate} (${timeStr})?`);
       if (confirmCancel) {
@@ -202,11 +228,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
     
     detailsModal.style.display = 'flex';
-  };
+  }
 
-  closeDetailsBtn.onclick = () => detailsModal.style.display = 'none';
+  if(closeDetailsBtn) closeDetailsBtn.onclick = () => detailsModal.style.display = 'none';
 
-  // Закрытие окон по клику вне их области
+  // Закрытие окон при клике на темный фон
   window.onclick = (e) => { 
     if (e.target === createModal) createModal.style.display = 'none';
     if (e.target === detailsModal) detailsModal.style.display = 'none';
