@@ -1,5 +1,4 @@
-﻿JavaScript
-document.addEventListener('DOMContentLoaded', async () => {
+﻿document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
   if (!sb) {
     console.error("Supabase клиент не найден!");
