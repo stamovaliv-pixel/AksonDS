@@ -7,23 +7,26 @@
   <link rel="stylesheet" href="../css/theme.css">
   <link rel="stylesheet" href="../css/main.css">
   <style>
+    /* Убираем отступ сверху у шапки и тень */
     .app-header {
       margin-top: 0;
       box-shadow: none; 
+      border-bottom: none;
+      padding-bottom: 15px; /* Немного отступа до полосы */
     }
     
+    /* Градиентная полоса на всю ширину под шапкой */
     .top-gradient-bar {
       width: 100%;
       height: 4.8px; 
       background: linear-gradient(90deg, var(--color-gradient-start), var(--color-gradient-end));
-      box-shadow: var(--shadow-sm); 
+      margin-bottom: 20px; /* Отступ от полосы до контента */
     }
 
     .calendar-layout {
       display: flex;
       gap: 30px;
       align-items: flex-start;
-      margin-top: 20px;
     }
     
     .grid-section {
@@ -33,7 +36,6 @@
       padding-right: 30px;
     }
     
-    /* Ширина уменьшена на 10% (с 480px до 430px) */
     .upcoming-section {
       flex: 0 0 430px; 
       width: 100%;
@@ -45,13 +47,14 @@
       .upcoming-section { flex: auto; }
     }
     
-    /* Унифицированные заголовки для идеального выравнивания по высоте */
+    /* Унифицированные заголовки для выравнивания */
     .section-title {
       margin: 0 0 25px 0;
       font-size: 24px;
       line-height: 1.2;
       font-weight: 700;
       color: var(--color-text-main);
+      height: 28px; /* Фиксируем высоту заголовка */
     }
 
     /* Сетка календаря */
@@ -59,12 +62,13 @@
       display: grid;
       grid-template-columns: repeat(7, 1fr);
       gap: 12px;
-      margin-bottom: 12px; /* Фиксированный отступ */
+      margin-bottom: 12px; 
       text-align: center;
       font-weight: 600;
       color: var(--color-text-muted);
       font-size: 14px;
-      height: 20px; /* Фиксированная высота */
+      height: 20px; 
+      line-height: 20px;
     }
     .calendar-grid {
       display: grid;
@@ -80,7 +84,6 @@
       text-align: center;
       cursor: pointer;
       transition: all 0.2s ease;
-      box-shadow: var(--shadow-sm);
       position: relative;
       overflow: hidden;
       height: 75px; 
@@ -103,7 +106,6 @@
       top: 0; left: 0; right: 0;
       height: 4px;
       background-color: rgba(16, 185, 129, 0.8); 
-      transition: background-color 0.3s;
     }
     /* Полоска занятых дней (красная) */
     .day-cell.booked::before {
@@ -129,38 +131,52 @@
       display: flex;
       flex-direction: column;
       gap: 12px; 
-      /* Отступ сверху = высота weekdays-header (20px) + margin-bottom (12px) = 32px. Идеальное выравнивание! */
+      /* Отступ сверху строго равен высоте шапки дней (20) + отступ (12) */
       margin-top: 32px; 
     }
 
     /* Карточки слотов */
     .booking-item {
-      padding: 0 20px;
+      padding: 0 15px;
       border: 1px solid var(--color-border);
+      border-left: 4px solid var(--color-primary); /* Возвращаем красную полосу налево */
       border-radius: var(--radius-sm);
       background: #fff;
-      height: 75px; /* Высота строго совпадает с иконкой даты */
+      height: 75px; /* Идеально совпадает с иконкой даты */
       display: flex;
       flex-direction: row; 
       justify-content: space-between; 
       align-items: center; 
-      box-shadow: var(--shadow-sm);
       box-sizing: border-box;
       position: relative;
+    }
+    
+    /* Левый блок (дата и время) - не сжимается */
+    .booking-left { 
+      display: flex; 
+      flex-direction: column; 
+      gap: 4px; 
+      flex-shrink: 0; 
+    }
+    
+    /* Правый блок (тип и док) - занимает оставшееся место, обрезает длинный текст */
+    .booking-right { 
+      display: flex; 
+      flex-direction: column; 
+      gap: 4px; 
+      text-align: right; 
+      flex: 1; 
+      min-width: 0; /* Обязательно для работы ellipsis во flexbox */
+      margin-left: 15px;
+    }
+    
+    /* Класс для обрезки длинного текста с многоточием */
+    .truncate-text {
+      white-space: nowrap;
       overflow: hidden;
+      text-overflow: ellipsis;
+      width: 100%;
     }
-    
-    /* Красная полоса теперь сверху, как у календаря */
-    .booking-item::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 4px;
-      background-color: var(--color-primary);
-    }
-    
-    .booking-left { display: flex; flex-direction: column; gap: 4px; }
-    .booking-right { display: flex; flex-direction: column; gap: 4px; text-align: right; }
     
     .booking-date { font-weight: 600; color: var(--color-text-main); font-size: 15px; }
     .booking-time { font-size: 14px; color: var(--color-text-muted); }
@@ -177,9 +193,11 @@
       <a href="#" id="logoutBtn" style="color: var(--color-primary);">Выйти</a>
     </div>
   </header>
+  
+  <!-- Градиентная полоса вынесена под шапку -->
   <div class="top-gradient-bar"></div>
   
-  <main class="container mt-4">
+  <main class="container">
     <div class="calendar-layout">
       
       <!-- Левая колонка: Календарь -->
