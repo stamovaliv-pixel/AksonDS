@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (error) {
         alert('Ошибка входа: ' + error.message);
       } else {
-        window.location.href = 'app/dashboard.html';
+        window.location.href = 'app/calendar.html';
       }
     });
   }
