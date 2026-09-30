@@ -1,0 +1,46 @@
+body {
+  font-family: var(--font-main);
+  background-color: var(--color-gray-light);
+  color: var(--color-gray-dark);
+  margin: 0;
+  padding: 0;
+}
+
+.no-select { user-select: none; -webkit-user-select: none; }
+.protected-data { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
+.header {
+  background: #ffffff;
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.logo-container { display: flex; flex-direction: column; }
+.logo { font-size: 24px; font-weight: bold; color: var(--color-primary); text-transform: uppercase; letter-spacing: 1px; }
+.gradient-line { height: 3px; background: linear-gradient(to right, var(--color-blue), var(--color-primary)); margin-top: 5px; width: 100%; }
+
+.nav-links a { margin-left: 20px; text-decoration: none; color: var(--color-gray-dark); font-weight: 500; }
+.nav-links a:hover, .nav-links a.active { color: var(--color-primary); }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.login-container { max-width: 400px; margin: 50px auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+.form-title { text-align: center; color: var(--color-blue); margin-bottom: 20px; }
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
+.form-group input { width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 4px; box-sizing: border-box; }
+
+.btn-primary { background-color: var(--color-primary); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+.btn-primary:hover { background-color: #c8181f; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+.w-100 { width: 100%; }
+.mt-3 { margin-top: 20px; }
+.text-center { text-align: center; }
+.float-right { float: right; }
+
+.card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { padding: 12px; border-bottom: 1px solid var(--color-border); text-align: left; }
+.table th { background: #fafafa; font-weight: 600; }
