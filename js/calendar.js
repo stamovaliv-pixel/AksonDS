@@ -19,9 +19,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const day = String(today.getDate()).padStart(2, '0');
   const isoToday = `${year}-${month}-${day}`;
 
+  // Запрашиваем записи пользователя (Добавлено поле id для возможности удаления)
   const { data: bookings, error } = await sb
     .from('bookings')
-    .select('slot_date, slot_hour, supply_type, order_type, order_number')
+    .select('id, slot_date, slot_hour, supply_type, order_type, order_number')
     .eq('profile_id', user.id)
     .eq('status', 'active')
     .gte('slot_date', isoToday)
@@ -67,6 +68,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const item = document.createElement('div');
         item.className = 'booking-item';
+        // Подсказка при наведении на всю карточку
+        item.title = "Нажмите, чтобы отменить эту запись\n" + fullDocText;
         
         item.innerHTML = `
           <div class="booking-left">
@@ -74,10 +77,30 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="booking-time">Время: ${timeStr}</div>
           </div>
           <div class="booking-right">
-            <div class="booking-time truncate-text" style="color: var(--color-text-main); font-weight: 600;" title="Тип: ${supplyName}">Тип: ${supplyName}</div>
-            <div class="booking-time truncate-text" title="${fullDocText}">${fullDocText}</div>
+            <div class="booking-time truncate-text" style="color: var(--color-text-main); font-weight: 600;">Тип: ${supplyName}</div>
+            <div class="booking-time truncate-text">${fullDocText}</div>
           </div>
         `;
+        
+        // Логика удаления записи при клике
+        item.addEventListener('click', async () => {
+          const confirmCancel = confirm(`Вы уверены, что хотите отменить запись на ${dateStr} (время: ${timeStr})?`);
+          if (confirmCancel) {
+            // Удаляем запись из Supabase по её ID
+            const { error: delError } = await sb
+              .from('bookings')
+              .delete()
+              .eq('id', booking.id);
+              
+            if (delError) {
+              alert('Ошибка при отмене: ' + delError.message);
+            } else {
+              // Если успешно - перезагружаем страницу, чтобы обновить график и слоты
+              window.location.reload();
+            }
+          }
+        });
+
         upcomingList.appendChild(item);
       });
     }
