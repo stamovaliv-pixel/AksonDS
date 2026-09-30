@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Календарь (Staff) - AKSon Logistics</title>
+  <link rel="stylesheet" href="../css/theme.css">
+  <link rel="stylesheet" href="../css/main.css">
+  <style>
+    .app-header { margin-top: 0; box-shadow: none; border-bottom: none; padding-bottom: 15px; }
+    .top-gradient-bar { width: 100%; height: 2px; background: linear-gradient(90deg, var(--color-gradient-start), var(--color-gradient-end)); margin-bottom: 20px; }
+    .header-nav { display: flex; gap: 20px; align-items: center; }
+    .nav-icon { padding: 5px; text-decoration: none; display: flex; align-items: center; gap: 8px; color: #3b82f6; font-weight: 500; font-size: 15px; }
+    
+    .filters-card { background: #fff; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border); margin-bottom: 30px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; }
+    .filter-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 200px; }
+    .filter-group label { font-size: 13px; font-weight: 500; color: var(--color-text-muted); }
+    .filter-group input { padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
+    .btn-search { background: #3b82f6; color: #fff; border: none; padding: 9px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; }
+    
+    .weekdays-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; margin-bottom: 12px; text-align: center; font-weight: 600; font-size: 14px; color: var(--color-text-muted); }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
+    .day-cell { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-sm); text-align: center; cursor: pointer; height: 75px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+    .day-cell:hover { border-color: #3b82f6; }
+    .day-cell::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background-color: #e2e8f0; }
+    .day-cell.has-bookings::before { background-color: #10b981; } /* Зеленый, если есть отфильтрованные записи */
+    
+    #adminPastToggleContainer { display: none; margin-bottom: 15px; font-size: 14px; align-items: center; gap: 8px; }
+  </style>
+</head>
+<body class="app-body">
+  <header class="app-header">
+    <div class="header-logo"><img src="../assets/logistic-logo.svg" alt="АКСОН Логистика" class="app-logo"></div>
+    <div class="header-nav">
+      <a href="admin_calendar.html" class="nav-icon">Календарь (Сотрудник)</a>
+      <a href="#" id="logoutBtn" class="nav-icon" style="color: #ef4444;">Выйти</a>
+    </div>
+  </header>
+  <div class="top-gradient-bar"></div>
+  
+  <main class="container">
+    <div id="adminPastToggleContainer">
+      <input type="checkbox" id="showPastBtn">
+      <label for="showPastBtn">Показать прошедшие 30 дней (Только для УТЗ)</label>
+    </div>
+
+    <div class="filters-card">
+      <div class="filter-group">
+        <label>Поставщик (ИНН или Название)</label>
+        <input type="text" id="filterSupplier" placeholder="Например: Ромашка">
+      </div>
+      <div class="filter-group">
+        <label>Номер документа</label>
+        <input type="text" id="filterDoc" placeholder="№ заказа, УПД, ЭТрН">
+      </div>
+      <button class="btn-search" id="applyFiltersBtn">Найти записи</button>
+      <button class="btn-search" id="resetFiltersBtn" style="background: #e2e8f0; color: #1e293b;">Сбросить</button>
+    </div>
+
+    <div class="grid-section">
+      <div class="weekdays-header">
+        <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supabase-client.js"></script>
+  <script src="../js/admin_calendar.js"></script>
+</body>
+</html>
