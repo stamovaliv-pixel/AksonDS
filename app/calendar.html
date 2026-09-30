@@ -12,30 +12,43 @@
       display: flex;
       gap: 30px;
       align-items: flex-start;
-      margin-top: 25px;
+      margin-top: 20px;
     }
-    @media (max-width: 768px) {
+    @media (max-width: 900px) {
       .calendar-layout { flex-direction: column; }
     }
-    .upcoming-section {
-      flex: 0 0 300px;
-      width: 100%;
-    }
+    
     .grid-section {
       flex: 1;
       width: 100%;
     }
+    .upcoming-section {
+      flex: 0 0 320px;
+      width: 100%;
+    }
+
+    /* Сетка календаря (строго 7 колонок) */
+    .weekdays-header {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 10px;
+      margin-bottom: 10px;
+      text-align: center;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      font-size: 14px;
+    }
     .calendar-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-      gap: 15px;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 10px;
     }
     
     /* Стили ячеек календаря */
     .day-cell {
       background: var(--color-surface);
       border: 1px solid var(--color-border);
-      padding: 20px 10px;
+      padding: 15px 5px;
       border-radius: var(--radius-sm);
       text-align: center;
       cursor: pointer;
@@ -43,12 +56,17 @@
       box-shadow: var(--shadow-sm);
       position: relative;
       overflow: hidden;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .day-cell:hover {
+    .day-cell:hover:not(.inactive) {
       border-color: var(--color-primary);
       transform: translateY(-3px);
       box-shadow: 0 8px 15px rgba(0,0,0,0.05);
     }
+    
     /* Полоска по умолчанию - серая */
     .day-cell::before {
       content: '';
@@ -58,14 +76,26 @@
       background-color: #cbd5e1; 
       transition: background-color 0.3s;
     }
-    /* Если в этот день есть запись - зеленая */
+    /* Если есть запись - зеленая */
     .day-cell.booked::before {
       background-color: #10b981; 
     }
-    .date-text { font-size: 18px; font-weight: 700; color: var(--color-text-main); }
-    .day-text { font-size: 14px; font-weight: 500; color: var(--color-text-muted); margin-top: 4px; }
     
-    /* Стили для карточек ближайших записей */
+    /* Неактивные дни (прошлое и > 30 дней) */
+    .day-cell.inactive {
+      opacity: 0.4;
+      background-color: #f1f5f9;
+      cursor: default;
+      pointer-events: none; /* Запрет клика */
+      box-shadow: none;
+    }
+    .day-cell.inactive::before {
+      display: none; /* Убираем полоску у неактивных дней */
+    }
+
+    .date-text { font-size: 16px; font-weight: 700; color: var(--color-text-main); }
+    
+    /* Карточки ближайших записей */
     .booking-item {
       padding: 15px;
       border: 1px solid var(--color-border);
@@ -95,20 +125,24 @@
   <main class="container mt-4">
     <div class="calendar-layout">
       
-      <!-- Левая колонка: Ближайшие записи -->
+      <!-- Левая колонка: Календарь -->
+      <div class="grid-section">
+        <h1 class="page-title" style="margin-top: 0; margin-bottom: 25px;">Выберите дату</h1>
+        
+        <div class="weekdays-header">
+          <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+        </div>
+        <div class="calendar-grid" id="calendarGrid" oncontextmenu="return false;"></div>
+      </div>
+
+      <!-- Правая колонка: Ближайшие записи -->
       <div class="upcoming-section">
-        <div class="auth-card" style="padding: 25px; margin-top: 0;">
-          <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 18px; color: var(--color-text-main);">Мои записи</h3>
+        <h3 class="page-title" style="margin-top: 0; margin-bottom: 25px;">Мои записи</h3>
+        <div class="auth-card" style="padding: 20px; margin-top: 0; max-width: none;">
           <div id="upcomingBookingsList">
             <div class="text-center" style="color: var(--color-text-muted); font-size: 14px;">Загрузка...</div>
           </div>
         </div>
-      </div>
-
-      <!-- Правая колонка: Календарь -->
-      <div class="grid-section">
-        <h1 class="page-title" style="margin-top: 0; margin-bottom: 20px;">Выберите дату</h1>
-        <div class="calendar-grid" id="calendarGrid" oncontextmenu="return false;"></div>
       </div>
 
     </div>
