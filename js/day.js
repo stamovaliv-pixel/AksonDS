@@ -19,7 +19,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const dateObj = new Date(selectedDate);
   document.getElementById('currentDateDisplay').innerText = dateObj.toLocaleDateString('ru-RU');
 
-  // Надежная функция для получения локальной даты (Y-M-D) без сбоев из-за часовых поясов
   function getLocalDateString(d) {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -27,7 +26,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `${y}-${m}-${day}`;
   }
 
-  // --- Логика навигации по дням ---
+  // Функция для правильного склонения слова "слот"
+  function getSlotWord(num) {
+    if (num === 1) return 'слот';
+    if (num >= 2 && num <= 4) return 'слота';
+    return 'слотов';
+  }
+
   const now = new Date();
   const todayMidnight = new Date(now);
   todayMidnight.setHours(0, 0, 0, 0);
@@ -47,21 +52,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   const prevBtn = document.getElementById('prevDayBtn');
   const nextBtn = document.getElementById('nextDayBtn');
 
-  // Блокируем кнопку "пред. день", если это прошлое
   if (prevDate < todayMidnight) {
     prevBtn.disabled = true;
   } else {
     prevBtn.onclick = () => window.location.href = `day.html?date=${getLocalDateString(prevDate)}`;
   }
 
-  // Блокируем кнопку "след. день", если вышли за 30 дней
   if (nextDate > maxDate) {
     nextBtn.disabled = true;
   } else {
     nextBtn.onclick = () => window.location.href = `day.html?date=${getLocalDateString(nextDate)}`;
   }
 
-  // Загружаем данные из БД
   const { data: bookings, error } = await sb
     .from('bookings')
     .select('id, slot_hour, profile_id, supply_type, order_type, order_number')
@@ -71,17 +73,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (error) console.error('Ошибка загрузки записей:', error);
 
   const slotsContainer = document.getElementById('slotsContainer');
-  slotsContainer.innerHTML = ''; // Очищаем текст "Загрузка..."
+  slotsContainer.innerHTML = ''; 
   
   const currentHour = now.getHours();
   const isToday = selectedMidnight.getTime() === todayMidnight.getTime();
   const isPastDay = selectedMidnight < todayMidnight;
 
-  // Создаем контейнеры для Утра, Дня и Вечера
+  // Обновленные, более аккуратные иконки времени суток
   const groups = {
-    morning: { title: '🌅 Утро', el: null },
+    morning: { title: '☕ Утро', el: null },
     afternoon: { title: '☀️ День', el: null },
-    evening: { title: '🌆 Вечер', el: null }
+    evening: { title: '🌙 Вечер', el: null }
   };
 
   for (const key in groups) {
@@ -95,7 +97,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const supplyTypes = { 'orders_im': 'Заказы ИМ', 'mix': 'МИКС', 'return': 'Возврат' };
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
 
-  // Генерируем слоты надежным методом createElement (избегает ошибок кликов)
   for (let hour = 9; hour <= 17; hour++) {
     const bookingsForHour = bookings ? bookings.filter(b => b.slot_hour === hour) : [];
     const count = bookingsForHour.length;
@@ -120,9 +121,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     } 
     else if (myBooking) {
       statusHtml = `<span style="color: #1f2937;">Вы записаны</span>`;
-      btnHtml = `<button class="btn-cancel">Отменить</button>`;
+      btnHtml = `<button class="btn-cancel">Подробнее</button>`; // Текст изменен на "Подробнее"
       
-      // Делаем кликабельной ВСЮ иконку, если есть запись
       card.style.cursor = 'pointer';
       card.addEventListener('click', () => {
         const sType = supplyTypes[myBooking.supply_type] || myBooking.supply_type;
@@ -132,15 +132,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     } 
     else if (placesLeft === 0) {
       card.classList.add('inactive');
-      statusHtml = `<span style="color: #64748b;">Мест нет (5/5)</span>`;
+      statusHtml = `<span style="color: #64748b;">0 слотов</span>`; // Теперь 0 слотов
       btnHtml = `<button class="btn-disabled" disabled>Занято</button>`;
     } 
     else {
       let statusColor = placesLeft >= 4 ? '#10b981' : (placesLeft >= 2 ? '#f59e0b' : '#ef4444');
-      statusHtml = `<span style="color: ${statusColor};">Свободно (${placesLeft} мест)</span>`;
+      // Применяем функцию склонения слова
+      statusHtml = `<span style="color: ${statusColor};">Свободно (${placesLeft} ${getSlotWord(placesLeft)})</span>`;
       btnHtml = `<button class="btn-book">Записаться</button>`;
       
-      // Делаем кликабельной иконку для свободных мест тоже
       card.style.cursor = 'pointer';
       card.addEventListener('click', () => openCreateModal(hour));
     }
@@ -153,13 +153,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       ${btnHtml}
     `;
 
-    // Распределяем карточки по блокам
     if (hour >= 9 && hour <= 11) groups.morning.el.appendChild(card);
     else if (hour >= 12 && hour <= 16) groups.afternoon.el.appendChild(card);
     else if (hour === 17) groups.evening.el.appendChild(card);
   }
 
-  // --- Логика Модального окна СОЗДАНИЯ записи ---
   const createModal = document.getElementById('bookingModal');
   const closeCreateBtn = document.getElementById('closeModalBtn');
   const bookingForm = document.getElementById('bookingForm');
@@ -199,7 +197,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // --- Логика Модального окна ДЕТАЛЕЙ (удаление) ---
   const detailsModal = document.getElementById('bookingDetailsModal');
   const closeDetailsBtn = document.getElementById('closeDetailsModalBtn');
   const trashBtn = document.getElementById('deleteBookingBtn');
@@ -208,13 +205,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const bDate = new Date(dateStr).toLocaleDateString('ru-RU');
     const timeStr = `${hour}:00 - ${hour + 1}:00`;
     
-    // Заполняем данные в окне
     document.getElementById('modalDate').innerText = bDate;
     document.getElementById('modalTime').innerText = timeStr;
     document.getElementById('modalType').innerText = supplyType;
     document.getElementById('modalDoc').innerText = `${orderType} №${orderNum}`;
     
-    // Назначаем действие на корзину
     trashBtn.onclick = async () => {
       const confirmCancel = confirm(`Отменить запись на ${bDate} (${timeStr})?`);
       if (confirmCancel) {
@@ -232,7 +227,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if(closeDetailsBtn) closeDetailsBtn.onclick = () => detailsModal.style.display = 'none';
 
-  // Закрытие окон при клике на темный фон
   window.onclick = (e) => { 
     if (e.target === createModal) createModal.style.display = 'none';
     if (e.target === detailsModal) detailsModal.style.display = 'none';
