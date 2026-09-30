@@ -3,37 +3,108 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Календарь (Staff) - AKSon Logistics</title>
+  <title>Календарь (Админ) - AKSon Logistics</title>
   <link rel="stylesheet" href="../css/theme.css">
   <link rel="stylesheet" href="../css/main.css">
   <style>
     .app-header { margin-top: 0; box-shadow: none; border-bottom: none; padding-bottom: 15px; }
     .top-gradient-bar { width: 100%; height: 2px; background: linear-gradient(90deg, var(--color-gradient-start), var(--color-gradient-end)); margin-bottom: 20px; }
-    .header-nav { display: flex; gap: 20px; align-items: center; }
-    .nav-icon { padding: 5px; text-decoration: none; display: flex; align-items: center; gap: 8px; color: #3b82f6; font-weight: 500; font-size: 15px; }
     
+    /* Шапка с иконками как у пользователя */
+    .header-nav { display: flex; gap: 20px; align-items: center; }
+    .nav-icon { display: inline-flex; align-items: center; justify-content: center; padding: 5px; transition: transform 0.2s ease; text-decoration: none; }
+    .nav-icon:hover { transform: scale(1.15); }
+
+    /* Блок фильтров */
     .filters-card { background: #fff; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border); margin-bottom: 30px; display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; }
     .filter-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 200px; }
     .filter-group label { font-size: 13px; font-weight: 500; color: var(--color-text-muted); }
-    .filter-group input { padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); }
-    .btn-search { background: #3b82f6; color: #fff; border: none; padding: 9px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; }
+    .filter-group input { padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 14px; }
+    .btn-search { background: #3b82f6; color: #fff; border: none; padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; transition: 0.2s; }
+    .btn-search:hover { background: #2563eb; }
     
+    .calendar-layout { display: flex; flex-direction: column; gap: 40px; }
+    .grid-section, .upcoming-section { width: 100%; }
+    .section-title { margin: 0 0 25px 0; font-size: 24px; line-height: 1.2; font-weight: 700; color: var(--color-text-main); }
+
+    /* Сетка календаря */
     .weekdays-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; margin-bottom: 12px; text-align: center; font-weight: 600; font-size: 14px; color: var(--color-text-muted); }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
-    .day-cell { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-sm); text-align: center; cursor: pointer; height: 75px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden; }
-    .day-cell:hover { border-color: #3b82f6; }
-    .day-cell::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background-color: #e2e8f0; }
-    .day-cell.has-bookings::before { background-color: #10b981; } /* Зеленый, если есть отфильтрованные записи */
     
+    .day-cell { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); text-align: center; cursor: pointer; transition: all 0.2s ease; position: relative; overflow: hidden; height: 75px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; }
+    .day-cell:hover { border-color: var(--color-primary); transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.05); }
+    
+    /* Индикаторы записей */
+    .day-cell::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background-color: #3b82f6; } /* Синий - пустой */
+    .day-cell.booked::before { background-color: #ef4444; } /* Красный - есть записи */
+    
+    /* Неактивные дни (серые, но админ может нажать) */
+    .day-cell.inactive { opacity: 0.6; background-color: #f1f5f9; box-shadow: none; pointer-events: auto; }
+    .day-cell.inactive::before { display: none; }
+    .day-cell.inactive.booked::before { display: block; background-color: #ef4444; }
+    .date-text { font-size: 16px; font-weight: 700; color: var(--color-text-main); }
+
+    /* Карточки ближайших записей */
+    .booking-list { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
+    .booking-item { border: 1px solid var(--color-border); border-left: 4px solid var(--color-primary); border-radius: var(--radius-sm); background: #fff; height: 75px; display: flex; flex-direction: column; justify-content: center; align-items: center; box-sizing: border-box; cursor: pointer; transition: all 0.2s ease; text-align: center; padding: 5px; }
+    .booking-item:hover { border-color: var(--color-primary); transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.05); }
+    .booking-date { font-weight: 700; color: var(--color-text-main); font-size: 14px; margin-bottom: 4px; }
+    .booking-time { font-size: 13px; color: var(--color-text-muted); }
+    
+    /* Модальное окно */
+    .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
+    .modal-content { background: #fff; padding: 25px; border-radius: var(--radius-md); width: 100%; max-width: 450px; position: relative; max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--color-border); padding-bottom: 10px; }
+    
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 5px; color: var(--color-text-muted); text-align: left; }
+    .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 4px; box-sizing: border-box; font-size: 14px; }
+    
+    .copy-box { display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0; }
+    .copy-text { flex: 1; word-break: break-word; font-size: 14px; font-weight: 500; text-align: left;}
+    .btn-copy { background: none; border: none; cursor: pointer; color: #64748b; padding: 5px; border-radius: 4px; transition: 0.2s; }
+    .btn-copy:hover { background: #e2e8f0; color: #3b82f6; }
+
+    .btn-red { background: #ef4444; color: #fff; border: none; padding: 12px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600; margin-top: 10px; }
+    .btn-save { background: #10b981; color: #fff; border: none; padding: 12px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600; margin-top: 20px; }
+
     #adminPastToggleContainer { display: none; margin-bottom: 15px; font-size: 14px; align-items: center; gap: 8px; }
+
+    /* =========================================
+       АДАПТИВ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ
+       ========================================= */
+    @media (max-width: 768px) {
+      .filters-card { padding: 15px; flex-direction: column; align-items: stretch; }
+      .btn-search { width: 100%; }
+      .section-title { font-size: 20px; margin-bottom: 15px; }
+      
+      .weekdays-header, .calendar-grid { gap: 4px; }
+      .weekdays-header { font-size: 12px; margin-bottom: 8px; }
+      .day-cell { height: 60px; border-radius: 6px; }
+      .date-text { font-size: 13px; } 
+
+      .booking-list { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .booking-item { padding: 10px; }
+    }
+
+    @media (max-width: 480px) {
+      .weekdays-header, .calendar-grid { gap: 2px; }
+      .day-cell { height: 50px; }
+      .date-text { font-size: 12px; }
+      .booking-list { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body class="app-body">
   <header class="app-header">
     <div class="header-logo"><img src="../assets/logistic-logo.svg" alt="АКСОН Логистика" class="app-logo"></div>
     <div class="header-nav">
-      <a href="admin_calendar.html" class="nav-icon">Календарь (Сотрудник)</a>
-      <a href="#" id="logoutBtn" class="nav-icon" style="color: #ef4444;">Выйти</a>
+      <a href="admin_calendar.html" class="nav-icon" title="Календарь (Сотрудник)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+      </a>
+      <a href="#" id="logoutBtn" class="nav-icon" title="Выйти">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      </a>
     </div>
   </header>
   <div class="top-gradient-bar"></div>
@@ -41,7 +112,7 @@
   <main class="container">
     <div id="adminPastToggleContainer">
       <input type="checkbox" id="showPastBtn">
-      <label for="showPastBtn">Показать прошедшие 30 дней (Только для УТЗ)</label>
+      <label for="showPastBtn" style="color: var(--color-text-main); font-weight: 500;">Показать прошедшие 30 дней (Только для УТЗ)</label>
     </div>
 
     <div class="filters-card">
@@ -57,16 +128,106 @@
       <button class="btn-search" id="resetFiltersBtn" style="background: #e2e8f0; color: #1e293b;">Сбросить</button>
     </div>
 
-    <div class="grid-section">
-      <div class="weekdays-header">
-        <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+    <div class="calendar-layout">
+      <!-- Сетка календаря -->
+      <div class="grid-section">
+        <h2 class="section-title">Календарь (Админ)</h2>
+        <div class="weekdays-header">
+          <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
       </div>
-      <div class="calendar-grid" id="calendarGrid"></div>
+
+      <!-- Ближайшие отфильтрованные записи -->
+      <div class="upcoming-section">
+        <h2 class="section-title">Найденные записи (ближайшие 7)</h2>
+        <div id="upcomingBookingsList" class="booking-list">
+          <div style="grid-column: 1 / -1; color: var(--color-text-muted); font-size: 14px;">Введите данные в фильтр для поиска...</div>
+        </div>
+      </div>
     </div>
   </main>
 
+  <!-- Модальное окно РЕДАКТИРОВАНИЯ записи из списка -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 style="margin:0; font-size: 18px;">Детали записи</h3>
+        <button id="closeEditModal" style="border:none; background:none; font-size:24px; cursor:pointer; color: #64748b;">&times;</button>
+      </div>
+      
+      <input type="hidden" id="mId">
+      
+      <div class="form-group">
+        <label>Поставщик (Организация и ИНН)</label>
+        <div class="copy-box">
+          <span class="copy-text" id="mCompany"></span>
+          <button class="btn-copy" title="Копировать" onclick="copyText('mCompany')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          </button>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Номер документа</label>
+        <div class="copy-box" style="background: #fff; padding: 0; border: none;">
+          <input type="text" id="mDoc" style="border-radius: 4px 0 0 4px;">
+          <button class="btn-copy" style="background: #f1f5f9; border: 1px solid var(--color-border); border-left: none; padding: 10px; border-radius: 0 4px 4px 0;" title="Копировать" onclick="copyInput('mDoc')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          </button>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <div class="form-group" style="flex: 1;">
+          <label>Тип поставки</label>
+          <select id="mSupplyType">
+            <option value="orders_im">Заказы ИМ</option>
+            <option value="mix">МИКС</option>
+            <option value="return">Возврат</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label>Тип документа</label>
+          <select id="mOrderType">
+            <option value="order">Заказ</option>
+            <option value="upd">УПД</option>
+            <option value="etrn">ЭТрН</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Дата и время</label>
+        <div style="display: flex; gap: 10px;">
+          <input type="date" id="mDate" style="flex: 1;">
+          <select id="mHour" style="flex: 1;">
+            <option value="9">9:00 - 10:00</option><option value="10">10:00 - 11:00</option>
+            <option value="11">11:00 - 12:00</option><option value="12">12:00 - 13:00</option>
+            <option value="13">13:00 - 14:00</option><option value="14">14:00 - 15:00</option>
+            <option value="15">15:00 - 16:00</option><option value="16">16:00 - 17:00</option>
+            <option value="17">17:00 - 18:00</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn-save" id="btnUpdate">Сохранить изменения</button>
+      <button class="btn-red" id="btnDelete">Удалить запись</button>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js"></script>
+  <script>
+    function copyText(elementId) {
+      const text = document.getElementById(elementId).innerText;
+      navigator.clipboard.writeText(text).then(() => alert('Скопировано: ' + text));
+    }
+    function copyInput(elementId) {
+      const text = document.getElementById(elementId).value;
+      navigator.clipboard.writeText(text).then(() => alert('Скопировано: ' + text));
+    }
+  </script>
   <script src="../js/admin_calendar.js"></script>
 </body>
 </html>
