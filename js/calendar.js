@@ -11,12 +11,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const calendarGrid = document.getElementById('calendarGrid');
   const upcomingList = document.getElementById('upcomingBookingsList');
   
-  // Элементы модального окна
   const modal = document.getElementById('bookingDetailsModal');
   const closeBtn = document.getElementById('closeDetailsModalBtn');
   const trashBtn = document.getElementById('deleteBookingBtn');
 
-  // Закрытие модального окна
   if (closeBtn) {
     closeBtn.onclick = () => modal.style.display = 'none';
   }
@@ -32,10 +30,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const day = String(today.getDate()).padStart(2, '0');
   const isoToday = `${year}-${month}-${day}`;
 
-  const { data: bookings, error } = await sb
+  // ИЗМЕНЕНИЕ: Запрашиваем ВСЕ записи на активные даты, чтобы посчитать загруженность дней
+  const { data: allBookings, error } = await sb
     .from('bookings')
-    .select('id, slot_date, slot_hour, supply_type, order_type, order_number')
-    .eq('profile_id', user.id)
+    .select('id, slot_date, slot_hour, supply_type, order_type, order_number, profile_id')
     .eq('status', 'active')
     .gte('slot_date', isoToday)
     .order('slot_date', { ascending: true })
@@ -43,9 +41,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (error) console.error('Ошибка загрузки записей:', error);
 
+  // Выделяем записи ТОЛЬКО текущего пользователя
+  const userBookings = allBookings ? allBookings.filter(b => b.profile_id === user.id) : [];
   const bookedDates = new Set();
-  if (bookings) {
-    bookings.forEach(b => bookedDates.add(b.slot_date));
+  userBookings.forEach(b => bookedDates.add(b.slot_date));
+
+  // Считаем общую загруженность каждого дня
+  const dateCapacities = {};
+  if (allBookings) {
+    allBookings.forEach(b => {
+      dateCapacities[b.slot_date] = (dateCapacities[b.slot_date] || 0) + 1;
+    });
   }
 
   const supplyTypes = { 'orders_im': 'Заказы ИМ', 'mix': 'МИКС', 'return': 'Возврат' };
@@ -54,11 +60,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (upcomingList) {
     upcomingList.innerHTML = '';
     
-    if (!bookings || bookings.length === 0) {
+    if (userBookings.length === 0) {
       upcomingList.innerHTML = '<div style="grid-column: 1 / -1; color: var(--color-text-muted); font-size: 14px;">У вас пока нет активных слотов.</div>';
     } else {
-      // ИЗМЕНЕНИЕ ЗДЕСЬ: берем 7 первых записей вместо 5
-      const nextSeven = bookings.slice(0, 7);
+      const nextSeven = userBookings.slice(0, 7);
       
       nextSeven.forEach(booking => {
         const bDate = new Date(booking.slot_date);
@@ -69,7 +74,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const orderName = orderTypes[booking.order_type] || booking.order_type;
         const orderNum = booking.order_number;
         
-        // Создаем маленькую иконку
         const item = document.createElement('div');
         item.className = 'booking-item';
         item.title = "Нажмите для просмотра деталей";
@@ -79,15 +83,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="booking-time">${timeStr}</div>
         `;
         
-        // По клику открываем модальное окно
         item.addEventListener('click', () => {
-          // Заполняем данные
           document.getElementById('modalDate').innerText = dateStr;
           document.getElementById('modalTime').innerText = timeStr;
           document.getElementById('modalType').innerText = supplyName;
           document.getElementById('modalDoc').innerText = `${orderName} №${orderNum}`;
           
-          // Назначаем действие на синюю корзину
           trashBtn.onclick = async () => {
             const confirmCancel = confirm(`Вы уверены, что хотите отменить запись на ${dateStr} (${timeStr})?`);
             if (confirmCancel) {
@@ -100,7 +101,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
           };
           
-          // Показываем окно
           modal.style.display = 'flex';
         });
 
@@ -121,6 +121,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const endActiveDate = new Date(today);
     endActiveDate.setDate(today.getDate() + 29);
 
+    const currentRealHour = new Date().getHours();
+
     for (let i = 0; i < 35; i++) {
       const d = new Date(startDate);
       d.setDate(startDate.getDate() + i);
@@ -136,22 +138,41 @@ document.addEventListener('DOMContentLoaded', async () => {
       const dayCell = document.createElement('div');
       
       const isActive = d >= today && d <= endActiveDate;
+      
+      // День полностью забронирован, если занято 45 слотов (9 часов * 5 мест)
+      let isFull = (dateCapacities[isoDate] || 0) >= 45;
+      
+      // Если сегодня уже 17:00 или позже, считаем день закрытым (неактивным)
+      if (isoDate === isoToday && currentRealHour >= 17) {
+        isFull = true;
+      }
 
+      let isClickable = false;
+
+      // Логика состояний дня
       if (!isActive) {
         dayCell.className = 'day-cell inactive';
       } else if (bookedDates.has(isoDate)) {
-        dayCell.className = 'day-cell booked'; 
+        // Даже если день переполнен, если у нас там запись — день должен быть красным и кликабельным
+        dayCell.className = 'day-cell booked';
+        isClickable = true;
+      } else if (isFull) {
+        // День активен, но мест больше нет (и наших записей там тоже нет)
+        dayCell.className = 'day-cell inactive';
       } else {
-        dayCell.className = 'day-cell'; 
+        // Обычный свободный активный день
+        dayCell.className = 'day-cell';
+        isClickable = true;
       }
 
-      if ((d.getDay() === 0 || d.getDay() === 6) && isActive) {
+      if ((d.getDay() === 0 || d.getDay() === 6) && isActive && !isFull) {
         dayCell.style.backgroundColor = '#f8fafc';
       }
 
       dayCell.innerHTML = `<div class="date-text">${dateStr}</div>`;
 
-      if (isActive) {
+      // Привязываем клик только к тем дням, где есть места или наши записи
+      if (isClickable) {
         dayCell.addEventListener('click', () => {
           window.location.href = `day.html?date=${isoDate}`;
         });
