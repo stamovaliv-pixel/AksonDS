@@ -10,6 +10,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const calendarGrid = document.getElementById('calendarGrid');
   const upcomingList = document.getElementById('upcomingBookingsList');
+  
+  // Элементы модального окна
+  const modal = document.getElementById('bookingDetailsModal');
+  const closeBtn = document.getElementById('closeDetailsModalBtn');
+  const trashBtn = document.getElementById('deleteBookingBtn');
+
+  // Закрытие модального окна
+  closeBtn.onclick = () => modal.style.display = 'none';
+  window.onclick = (e) => {
+    if (e.target === modal) modal.style.display = 'none';
+  };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -19,7 +30,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const day = String(today.getDate()).padStart(2, '0');
   const isoToday = `${year}-${month}-${day}`;
 
-  // Запрашиваем записи пользователя (Добавлено поле id для возможности удаления)
   const { data: bookings, error } = await sb
     .from('bookings')
     .select('id, slot_date, slot_hour, supply_type, order_type, order_number')
@@ -36,23 +46,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     bookings.forEach(b => bookedDates.add(b.slot_date));
   }
 
-  const supplyTypes = {
-    'orders_im': 'Заказы ИМ',
-    'mix': 'МИКС',
-    'return': 'Возврат'
-  };
-  
-  const orderTypes = {
-    'order': 'Заказ',
-    'upd': 'УПД',
-    'etrn': 'ЭТрН'
-  };
+  const supplyTypes = { 'orders_im': 'Заказы ИМ', 'mix': 'МИКС', 'return': 'Возврат' };
+  const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
 
   if (upcomingList) {
     upcomingList.innerHTML = '';
     
     if (!bookings || bookings.length === 0) {
-      upcomingList.innerHTML = '<div style="color: var(--color-text-muted); font-size: 14px;">У вас пока нет активных слотов.</div>';
+      upcomingList.innerHTML = '<div style="grid-column: 1 / -1; color: var(--color-text-muted); font-size: 14px;">У вас пока нет активных слотов.</div>';
     } else {
       const nextFive = bookings.slice(0, 5);
       
@@ -64,41 +65,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         const supplyName = supplyTypes[booking.supply_type] || booking.supply_type;
         const orderName = orderTypes[booking.order_type] || booking.order_type;
         const orderNum = booking.order_number;
-        const fullDocText = `Док: ${orderName} №${orderNum}`;
         
+        // Создаем маленькую иконку
         const item = document.createElement('div');
         item.className = 'booking-item';
-        // Подсказка при наведении на всю карточку
-        item.title = "Нажмите, чтобы отменить эту запись\n" + fullDocText;
+        item.title = "Нажмите для просмотра деталей";
         
         item.innerHTML = `
-          <div class="booking-left">
-            <div class="booking-date">${dateStr}</div>
-            <div class="booking-time">Время: ${timeStr}</div>
-          </div>
-          <div class="booking-right">
-            <div class="booking-time truncate-text" style="color: var(--color-text-main); font-weight: 600;">Тип: ${supplyName}</div>
-            <div class="booking-time truncate-text">${fullDocText}</div>
-          </div>
+          <div class="booking-date">${dateStr}</div>
+          <div class="booking-time">${timeStr}</div>
         `;
         
-        // Логика удаления записи при клике
-        item.addEventListener('click', async () => {
-          const confirmCancel = confirm(`Вы уверены, что хотите отменить запись на ${dateStr} (время: ${timeStr})?`);
-          if (confirmCancel) {
-            // Удаляем запись из Supabase по её ID
-            const { error: delError } = await sb
-              .from('bookings')
-              .delete()
-              .eq('id', booking.id);
-              
-            if (delError) {
-              alert('Ошибка при отмене: ' + delError.message);
-            } else {
-              // Если успешно - перезагружаем страницу, чтобы обновить график и слоты
-              window.location.reload();
+        // По клику открываем модальное окно
+        item.addEventListener('click', () => {
+          // Заполняем данные
+          document.getElementById('modalDate').innerText = dateStr;
+          document.getElementById('modalTime').innerText = timeStr;
+          document.getElementById('modalType').innerText = supplyName;
+          document.getElementById('modalDoc').innerText = `${orderName} №${orderNum}`;
+          
+          // Назначаем действие на синюю корзину
+          trashBtn.onclick = async () => {
+            const confirmCancel = confirm(`Вы уверены, что хотите отменить запись на ${dateStr} (${timeStr})?`);
+            if (confirmCancel) {
+              const { error: delError } = await sb.from('bookings').delete().eq('id', booking.id);
+              if (delError) {
+                alert('Ошибка при отмене: ' + delError.message);
+              } else {
+                window.location.reload();
+              }
             }
-          }
+          };
+          
+          // Показываем окно
+          modal.style.display = 'flex';
         });
 
         upcomingList.appendChild(item);
