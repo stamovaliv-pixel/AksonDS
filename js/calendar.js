@@ -17,7 +17,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const trashBtn = document.getElementById('deleteBookingBtn');
 
   // Закрытие модального окна
-  closeBtn.onclick = () => modal.style.display = 'none';
+  if (closeBtn) {
+    closeBtn.onclick = () => modal.style.display = 'none';
+  }
   window.onclick = (e) => {
     if (e.target === modal) modal.style.display = 'none';
   };
@@ -55,9 +57,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!bookings || bookings.length === 0) {
       upcomingList.innerHTML = '<div style="grid-column: 1 / -1; color: var(--color-text-muted); font-size: 14px;">У вас пока нет активных слотов.</div>';
     } else {
-      const nextFive = bookings.slice(0, 5);
+      // ИЗМЕНЕНИЕ ЗДЕСЬ: берем 7 первых записей вместо 5
+      const nextSeven = bookings.slice(0, 7);
       
-      nextFive.forEach(booking => {
+      nextSeven.forEach(booking => {
         const bDate = new Date(booking.slot_date);
         const dateStr = bDate.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const timeStr = `${booking.slot_hour}:00 - ${booking.slot_hour + 1}:00`;
