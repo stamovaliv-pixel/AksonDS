@@ -12,10 +12,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const calendarGrid = document.getElementById('calendarGrid');
   const upcomingList = document.getElementById('upcomingBookingsList');
 
-  // Получаем сегодняшнюю дату для фильтрации
+  // Устанавливаем текущую дату без времени для точного сравнения
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   
-  // Правильное форматирование даты (YYYY-MM-DD) для запроса в БД
+  // Форматируем сегодняшний день для БД
   const year = today.getFullYear();
   const month = String(today.getMonth() + 1).padStart(2, '0');
   const day = String(today.getDate()).padStart(2, '0');
@@ -33,20 +34,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (error) console.error('Ошибка загрузки записей:', error);
 
-  // Сохраняем даты, в которые есть записи, чтобы покрасить их в зеленый
   const bookedDates = new Set();
   if (bookings) {
     bookings.forEach(b => bookedDates.add(b.slot_date));
   }
 
-  // 3. Отрисовываем 3 ближайшие записи в левой колонке
+  // 3. Отрисовываем 3 ближайшие записи
   if (upcomingList) {
     upcomingList.innerHTML = '';
     
     if (!bookings || bookings.length === 0) {
       upcomingList.innerHTML = '<div style="color: var(--color-text-muted); font-size: 14px;">У вас пока нет активных записей.</div>';
     } else {
-      // Берем максимум 3 первые записи
       const nextThree = bookings.slice(0, 3);
       
       nextThree.forEach(booking => {
@@ -65,17 +64,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // 4. Генерируем 30 дней для календаря
+  // 4. Логика генерации 5 недель (35 дней)
   if (calendarGrid) {
-    const daysOfWeek = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
     calendarGrid.innerHTML = ''; 
 
-    for (let i = 0; i < 30; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
+    // Находим понедельник текущей недели
+    const currentDayIndex = today.getDay(); // 0 - Вс, 1 - Пн ... 6 - Сб
+    const diffToMonday = currentDayIndex === 0 ? 6 : currentDayIndex - 1;
+    
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - diffToMonday);
+
+    // Определяем крайний день доступности (+29 дней от сегодня)
+    const endActiveDate = new Date(today);
+    endActiveDate.setDate(today.getDate() + 29);
+
+    // Генерируем ровно 35 дней (5 недель по 7 дней)
+    for (let i = 0; i < 35; i++) {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
+      d.setHours(0, 0, 0, 0);
 
       const dateStr = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
-      const dayOfWeekStr = daysOfWeek[d.getDay()];
       
       const iterYear = d.getFullYear();
       const iterMonth = String(d.getMonth() + 1).padStart(2, '0');
@@ -84,26 +94,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const dayCell = document.createElement('div');
       
-      // Красим полоску: если день есть в Set, добавляем класс booked (зеленая)
-      if (bookedDates.has(isoDate)) {
+      // Проверяем, является ли день активным
+      const isActive = d >= today && d <= endActiveDate;
+
+      if (!isActive) {
+        // Прошедшие даты и даты за пределом 30 дней
+        dayCell.className = 'day-cell inactive';
+      } else if (bookedDates.has(isoDate)) {
+        // Если день активен и в нем есть запись пользователя
         dayCell.className = 'day-cell booked';
       } else {
-        dayCell.className = 'day-cell'; // По умолчанию серая
+        // Обычный активный свободный день (серая полоса)
+        dayCell.className = 'day-cell'; 
       }
 
-      // Выделяем выходные легким фоном
-      if (d.getDay() === 0 || d.getDay() === 6) {
+      // Выходные делаем со слегка серым фоном (если они активны)
+      if ((d.getDay() === 0 || d.getDay() === 6) && isActive) {
         dayCell.style.backgroundColor = '#f8fafc';
       }
 
-      dayCell.innerHTML = `
-        <div class="date-text">${dateStr}</div>
-        <div class="day-text">${dayOfWeekStr}</div>
-      `;
+      dayCell.innerHTML = `<div class="date-text">${dateStr}</div>`;
 
-      dayCell.addEventListener('click', () => {
-        window.location.href = `day.html?date=${isoDate}`;
-      });
+      // Разрешаем клик только для активных дней
+      if (isActive) {
+        dayCell.addEventListener('click', () => {
+          window.location.href = `day.html?date=${isoDate}`;
+        });
+      }
 
       calendarGrid.appendChild(dayCell);
     }
