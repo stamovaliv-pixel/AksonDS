@@ -40,7 +40,7 @@
     .btn-cancel:hover { background-color: #dc2626; }
     .btn-disabled { background-color: #cbd5e1; color: #64748b; cursor: not-allowed; }
 
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; }
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; box-sizing: border-box; padding: 15px;}
     .modal-content { background: #fff; padding: 25px; border-radius: var(--radius-md); width: 100%; max-width: 400px; position: relative; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--color-border); padding-bottom: 10px; }
     .close-btn { background: none; border: none; font-size: 26px; line-height: 1; cursor: pointer; color: var(--color-text-muted); }
@@ -48,6 +48,43 @@
     .trash-btn:hover { transform: scale(1.1); }
     .modal-body p { margin: 10px 0; font-size: 14px; color: var(--color-text-main); }
     .modal-body strong { color: var(--color-text-muted); font-weight: 500; display: inline-block; width: 120px; }
+
+    /* =========================================
+       АДАПТИВ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ
+       ========================================= */
+    @media (max-width: 768px) {
+      .header-nav { gap: 10px; }
+      .day-navigation { padding: 10px; margin-bottom: 15px; }
+      .page-title { font-size: 16px !important; }
+      .nav-btn { padding: 6px 10px; font-size: 13px; }
+      
+      /* Сжимаем карточки слотов */
+      .slot-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+      .slot-card { padding: 10px; }
+      .slot-time { font-size: 15px; }
+      .slot-status { font-size: 12px; }
+    }
+
+    @media (max-width: 480px) {
+      /* Для маленьких экранов (iPhone) */
+      .day-navigation { padding: 8px; }
+      .nav-btn { padding: 5px 8px; font-size: 12px; }
+      .page-title { font-size: 14px !important; }
+      
+      /* Слоты в одну колонку, чтобы ничего не сжималось */
+      .slot-grid { grid-template-columns: 1fr; }
+      .slot-card { padding: 12px; }
+      .slot-time { font-size: 16px; }
+      .slot-status { font-size: 13px; }
+      
+      /* Увеличиваем кнопки, чтобы удобно нажимать пальцем */
+      .btn-book, .btn-cancel, .btn-disabled { padding: 10px; font-size: 14px; }
+      
+      /* Адаптируем модальные окна */
+      .modal-content { padding: 15px; }
+      .modal-header { margin-bottom: 15px; padding-bottom: 10px; }
+      .modal-body p { font-size: 13px; margin: 8px 0; }
+    }
   </style>
 </head>
 <body class="app-body">
