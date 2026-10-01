@@ -21,11 +21,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     list.innerHTML = '';
     const lowerFilter = filterText.toLowerCase().trim();
 
-    // Поиск только по ИНН и Названию
+    // Универсальный поиск: ищет и по ИНН, и по названию, и по скопированным строкам
     const filtered = allUsers.filter(s => {
       const name = (s.company_name || '').toLowerCase();
       const inn = (s.inn || '').toLowerCase();
-      return name.includes(lowerFilter) || inn.includes(lowerFilter);
+      
+      const combined = `${name} (инн: ${inn}) ${inn}`;
+      return combined.includes(lowerFilter);
     });
 
     if (filtered.length === 0) {
@@ -37,12 +39,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const card = document.createElement('div');
       card.className = `supplier-card ${s.is_blocked ? 'blocked' : ''}`;
       
-      // Генерируем карточку с тумблером
       card.innerHTML = `
         <div class="sup-info">
           <div class="sup-name">${s.company_name || 'Без названия'} (ИНН: ${s.inn || 'Не указан'})</div>
           <div class="sup-details">ID профиля: ${s.id.substring(0, 8)}...</div>
-          <div class="sup-details">Дата регистрации: ${new Date(s.created_at).toLocaleDateString('ru-RU')}</div>
+          <div class="sup-details">Дата регистрации: ${s.created_at ? new Date(s.created_at).toLocaleDateString('ru-RU') : 'Нет данных'}</div>
         </div>
         <div class="block-control">
           <span class="block-label">Блок</span>
@@ -57,49 +58,56 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const loadData = async () => {
-    const { data, error } = await sb.from('profiles')
-      .select('*')
-      .eq('role', 'supplier')
-      .order('created_at', { ascending: false });
+    // Выгружаем ВСЕХ пользователей, чтобы обойти проблемы с регистрами и пустыми ролями
+    const { data, error } = await sb.from('profiles').select('*');
     
     if (error) {
-      document.getElementById('usersList').innerHTML = `<div style="text-align:center; color:#ef4444;">Ошибка: ${error.message}</div>`;
+      document.getElementById('usersList').innerHTML = `<div style="text-align:center; color:#ef4444;">Ошибка БД: ${error.message}</div>`;
       return;
     }
 
-    if (data) allUsers = data;
+    if (data) {
+      // Отсекаем только сотрудников, все остальные считаются поставщиками
+      allUsers = data.filter(u => u.role !== 'admin' && u.role !== 'operator');
+      // Сортируем: новые сверху
+      allUsers.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    }
+    
     renderUsers(document.getElementById('searchInput').value);
   };
 
-  // Поиск по кнопке и по нажатию Enter
-  const performSearch = () => renderUsers(document.getElementById('searchInput').value);
-  document.getElementById('searchBtn').addEventListener('click', performSearch);
-  document.getElementById('searchInput').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') performSearch();
+  // МГНОВЕННЫЙ "ЖИВОЙ" ПОИСК при вводе текста
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    renderUsers(e.target.value);
   });
-
+  
+  // Дублирующий поиск по кнопке
+  const performSearch = () => renderUsers(document.getElementById('searchInput').value);
+  if (document.getElementById('searchBtn')) {
+    document.getElementById('searchBtn').addEventListener('click', performSearch);
+  }
+  
   // Изменение статуса блокировки при переключении тумблера
   document.getElementById('usersList').addEventListener('change', async (e) => {
     if (e.target.classList.contains('toggle-block')) {
       const id = e.target.dataset.id;
-      const newStatus = e.target.checked; // true если включили блок, false если выключили
+      const newStatus = e.target.checked; 
       const card = e.target.closest('.supplier-card');
       
       const { error } = await sb.from('profiles').update({ is_blocked: newStatus }).eq('id', id);
       
       if (!error) {
-        // Меняем стиль карточки мгновенно
         if (newStatus) {
           card.classList.add('blocked');
         } else {
           card.classList.remove('blocked');
         }
-        // Обновляем данные в локальном массиве, чтобы поиск не сбрасывал состояние
+        // Обновляем состояние в локальном массиве, чтобы поиск его не сбросил
         const userIndex = allUsers.findIndex(u => u.id === id);
         if (userIndex !== -1) allUsers[userIndex].is_blocked = newStatus;
       } else {
         alert('Ошибка смены статуса: ' + error.message);
-        e.target.checked = !newStatus; // Возвращаем тумблер обратно в случае ошибки
+        e.target.checked = !newStatus; 
       }
     }
   });
