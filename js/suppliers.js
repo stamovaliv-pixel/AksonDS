@@ -8,6 +8,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     return window.location.href = 'calendar.html';
   }
 
+  // Запоминаем, является ли текущий пользователь администратором
+  const isAdmin = profile.role === 'admin';
+
   document.getElementById('logoutBtn').onclick = async (e) => { 
     e.preventDefault(); 
     await sb.auth.signOut(); 
@@ -21,13 +24,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     list.innerHTML = '';
     const lowerFilter = filterText.toLowerCase().trim();
 
-    // Универсальный поиск: ищет и по ИНН, и по названию, и по скопированным строкам
     const filtered = allUsers.filter(s => {
       const name = (s.company_name || '').toLowerCase();
       const inn = (s.inn || '').toLowerCase();
-      
-      const combined = `${name} (инн: ${inn}) ${inn}`;
-      return combined.includes(lowerFilter);
+      return name.includes(lowerFilter) || inn.includes(lowerFilter);
     });
 
     if (filtered.length === 0) {
@@ -39,6 +39,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const card = document.createElement('div');
       card.className = `supplier-card ${s.is_blocked ? 'blocked' : ''}`;
       
+      // Если это НЕ админ (т.е. оператор), добавляем атрибут disabled и подсказку
+      const disabledAttr = isAdmin ? '' : 'disabled title="Изменять статус может только Администратор"';
+      
       card.innerHTML = `
         <div class="sup-info">
           <div class="sup-name">${s.company_name || 'Без названия'} (ИНН: ${s.inn || 'Не указан'})</div>
@@ -48,7 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="block-control">
           <span class="block-label">Блок</span>
           <label class="switch">
-            <input type="checkbox" class="toggle-block" data-id="${s.id}" ${s.is_blocked ? 'checked' : ''}>
+            <input type="checkbox" class="toggle-block" data-id="${s.id}" ${s.is_blocked ? 'checked' : ''} ${disabledAttr}>
             <span class="slider"></span>
           </label>
         </div>
@@ -58,7 +61,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const loadData = async () => {
-    // Выгружаем ВСЕХ пользователей, чтобы обойти проблемы с регистрами и пустыми ролями
     const { data, error } = await sb.from('profiles').select('*');
     
     if (error) {
@@ -67,29 +69,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (data) {
-      // Отсекаем только сотрудников, все остальные считаются поставщиками
       allUsers = data.filter(u => u.role !== 'admin' && u.role !== 'operator');
-      // Сортируем: новые сверху
       allUsers.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     }
     
     renderUsers(document.getElementById('searchInput').value);
   };
 
-  // МГНОВЕННЫЙ "ЖИВОЙ" ПОИСК при вводе текста
+  // Живой поиск при вводе текста
   document.getElementById('searchInput').addEventListener('input', (e) => {
     renderUsers(e.target.value);
   });
   
-  // Дублирующий поиск по кнопке
+  // Поиск по нажатию на кнопку
   const performSearch = () => renderUsers(document.getElementById('searchInput').value);
   if (document.getElementById('searchBtn')) {
     document.getElementById('searchBtn').addEventListener('click', performSearch);
   }
   
-  // Изменение статуса блокировки при переключении тумблера
+  // Изменение статуса блокировки
   document.getElementById('usersList').addEventListener('change', async (e) => {
     if (e.target.classList.contains('toggle-block')) {
+      
+      // Дополнительная защита: если это каким-то чудом нажал оператор, блокируем
+      if (!isAdmin) {
+        e.preventDefault();
+        e.target.checked = !e.target.checked;
+        return alert('Изменять статус пользователей может только Администратор.');
+      }
+
       const id = e.target.dataset.id;
       const newStatus = e.target.checked; 
       const card = e.target.closest('.supplier-card');
@@ -97,12 +105,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const { error } = await sb.from('profiles').update({ is_blocked: newStatus }).eq('id', id);
       
       if (!error) {
-        if (newStatus) {
-          card.classList.add('blocked');
-        } else {
-          card.classList.remove('blocked');
-        }
-        // Обновляем состояние в локальном массиве, чтобы поиск его не сбросил
+        if (newStatus) card.classList.add('blocked');
+        else card.classList.remove('blocked');
+        
         const userIndex = allUsers.findIndex(u => u.id === id);
         if (userIndex !== -1) allUsers[userIndex].is_blocked = newStatus;
       } else {
