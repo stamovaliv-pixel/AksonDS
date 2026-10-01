@@ -19,6 +19,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const dateObj = new Date(selectedDate);
   document.getElementById('currentDateDisplay').innerText = dateObj.toLocaleDateString('ru-RU');
 
+  // ЗАГРУЗКА ГЛОБАЛЬНЫХ НАСТРОЕК
+  const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
+  if (!settings) return console.error('Не удалось загрузить настройки');
+
   function getLocalDateString(d) {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -26,7 +30,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `${y}-${m}-${day}`;
   }
 
-  // Функция для правильного склонения слова "слот"
   function getSlotWord(num) {
     if (num === 1) return 'слот';
     if (num >= 2 && num <= 4) return 'слота';
@@ -52,17 +55,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const prevBtn = document.getElementById('prevDayBtn');
   const nextBtn = document.getElementById('nextDayBtn');
 
-  if (prevDate < todayMidnight) {
-    prevBtn.disabled = true;
-  } else {
-    prevBtn.onclick = () => window.location.href = `day.html?date=${getLocalDateString(prevDate)}`;
-  }
+  if (prevDate < todayMidnight) prevBtn.disabled = true;
+  else prevBtn.onclick = () => window.location.href = `day.html?date=${getLocalDateString(prevDate)}`;
 
-  if (nextDate > maxDate) {
-    nextBtn.disabled = true;
-  } else {
-    nextBtn.onclick = () => window.location.href = `day.html?date=${getLocalDateString(nextDate)}`;
-  }
+  if (nextDate > maxDate) nextBtn.disabled = true;
+  else nextBtn.onclick = () => window.location.href = `day.html?date=${getLocalDateString(nextDate)}`;
 
   const { data: bookings, error } = await sb
     .from('bookings')
@@ -79,11 +76,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isToday = selectedMidnight.getTime() === todayMidnight.getTime();
   const isPastDay = selectedMidnight < todayMidnight;
 
-  // Обновленные, более аккуратные иконки времени суток
   const groups = {
-    morning: { title: '☕ Утро', el: null },
-    afternoon: { title: '☀️ День', el: null },
-    evening: { title: '🌙 Вечер', el: null }
+    morning: { title: '☕ Утро', el: null, min: 0, max: 11 },
+    afternoon: { title: '☀️ День', el: null, min: 12, max: 16 },
+    evening: { title: '🌙 Вечер', el: null, min: 17, max: 23 }
   };
 
   for (const key in groups) {
@@ -94,17 +90,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     slotsContainer.appendChild(groupDiv);
   }
 
-  const supplyTypes = { 'orders_im': 'Заказы ИМ', 'mix': 'МИКС', 'return': 'Возврат' };
+  // Создаем словари для отображения названий типов поставок из настроек
+  const supplyTypesDict = {};
+  settings.supply_types.forEach(t => supplyTypesDict[t.id] = t.name);
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
 
-  for (let hour = 9; hour <= 17; hour++) {
+  // Используем часы из настроек
+  for (let hour = settings.slot_start_hour; hour <= settings.slot_end_hour; hour++) {
     const bookingsForHour = bookings ? bookings.filter(b => b.slot_hour === hour) : [];
     const count = bookingsForHour.length;
-    const placesLeft = 5 - count;
+    // Используем лимит из настроек
+    const placesLeft = settings.slots_per_hour - count;
     const myBooking = bookingsForHour.find(b => b.profile_id === user.id);
 
     let isPast = isPastDay;
-    if (isToday && currentHour >= hour - 1) {
+    // Учитываем дедлайн записи из настроек
+    if (isToday && currentHour >= hour - settings.booking_deadline_hours) {
       isPast = true;
     }
 
@@ -121,23 +122,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     } 
     else if (myBooking) {
       statusHtml = `<span style="color: #1f2937;">Вы записаны</span>`;
-      btnHtml = `<button class="btn-cancel">Подробнее</button>`; // Текст изменен на "Подробнее"
+      btnHtml = `<button class="btn-cancel">Подробнее</button>`;
       
       card.style.cursor = 'pointer';
       card.addEventListener('click', () => {
-        const sType = supplyTypes[myBooking.supply_type] || myBooking.supply_type;
+        const sType = supplyTypesDict[myBooking.supply_type] || myBooking.supply_type;
         const oType = orderTypes[myBooking.order_type] || myBooking.order_type;
         openDetailsModal(myBooking.id, selectedDate, hour, sType, oType, myBooking.order_number);
       });
     } 
-    else if (placesLeft === 0) {
+    else if (placesLeft <= 0) {
       card.classList.add('inactive');
-      statusHtml = `<span style="color: #64748b;">0 слотов</span>`; // Теперь 0 слотов
+      statusHtml = `<span style="color: #64748b;">0 слотов</span>`;
       btnHtml = `<button class="btn-disabled" disabled>Занято</button>`;
     } 
     else {
-      let statusColor = placesLeft >= 4 ? '#10b981' : (placesLeft >= 2 ? '#f59e0b' : '#ef4444');
-      // Применяем функцию склонения слова
+      // Динамический цвет статуса на основе лимитов
+      const greenThresh = Math.floor(settings.slots_per_hour * 0.6); // 60% мест
+      const orangeThresh = Math.floor(settings.slots_per_hour * 0.3); // 30% мест
+      
+      let statusColor = placesLeft >= greenThresh ? '#10b981' : (placesLeft >= orangeThresh ? '#f59e0b' : '#ef4444');
       statusHtml = `<span style="color: ${statusColor};">Свободно (${placesLeft} ${getSlotWord(placesLeft)})</span>`;
       btnHtml = `<button class="btn-book">Записаться</button>`;
       
@@ -153,15 +157,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       ${btnHtml}
     `;
 
-    if (hour >= 9 && hour <= 11) groups.morning.el.appendChild(card);
-    else if (hour >= 12 && hour <= 16) groups.afternoon.el.appendChild(card);
-    else if (hour === 17) groups.evening.el.appendChild(card);
+    if (hour >= groups.morning.min && hour <= groups.morning.max) groups.morning.el.appendChild(card);
+    else if (hour >= groups.afternoon.min && hour <= groups.afternoon.max) groups.afternoon.el.appendChild(card);
+    else if (hour >= groups.evening.min && hour <= groups.evening.max) groups.evening.el.appendChild(card);
+  }
+
+  // Очистка пустых групп времени
+  for (const key in groups) {
+    if (groups[key].el.children.length === 0) {
+      groups[key].el.parentElement.style.display = 'none';
+    }
   }
 
   const createModal = document.getElementById('bookingModal');
   const closeCreateBtn = document.getElementById('closeModalBtn');
   const bookingForm = document.getElementById('bookingForm');
   const hourInput = document.getElementById('selectedHour');
+
+  // Динамическое заполнение Select для Типов поставки в модальном окне
+  const supplySelect = document.getElementById('supplyType');
+  if (supplySelect) {
+    supplySelect.innerHTML = '';
+    settings.supply_types.forEach(st => {
+      const option = document.createElement('option');
+      option.value = st.id;
+      option.textContent = st.name;
+      supplySelect.appendChild(option);
+    });
+  }
 
   function openCreateModal(hour) {
     hourInput.value = hour;
