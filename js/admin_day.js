@@ -7,8 +7,41 @@ document.addEventListener('DOMContentLoaded', async () => {
   const dateObj = new Date(selectedDate);
   document.getElementById('dateDisplay').innerText = dateObj.toLocaleDateString('ru-RU');
 
-  const supplyTypes = { 'orders_im': 'Заказы ИМ', 'mix': 'МИКС', 'return': 'Возврат' };
+  // ЗАГРУЗКА ГЛОБАЛЬНЫХ НАСТРОЕК
+  const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
+  if (!settings) return console.error("Ошибка загрузки настроек");
+
+  // Динамические словари
+  const supplyTypes = {};
+  settings.supply_types.forEach(st => supplyTypes[st.id] = st.name);
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
+
+  // Динамическое заполнение Select элементов в модальных окнах
+  const fillSelects = (elementId) => {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    el.innerHTML = '';
+    settings.supply_types.forEach(st => {
+      const opt = document.createElement('option');
+      opt.value = st.id;
+      opt.textContent = st.name;
+      el.appendChild(opt);
+    });
+  };
+  fillSelects('mSupplyType');
+  fillSelects('cSupplyType');
+
+  // Динамическое заполнение часов слотов в окне редактирования
+  const mHourSelect = document.getElementById('mHour');
+  if (mHourSelect) {
+    mHourSelect.innerHTML = '';
+    for (let h = settings.slot_start_hour; h <= settings.slot_end_hour; h++) {
+      const opt = document.createElement('option');
+      opt.value = h;
+      opt.textContent = `${h}:00 - ${h+1}:00`;
+      mHourSelect.appendChild(opt);
+    }
+  }
 
   // 1. Загружаем все бронирования
   const { data: bookings } = await sb
@@ -33,8 +66,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const container = document.getElementById('hoursContainer');
   container.innerHTML = '';
   
-  // 3. Отрисовка сетки часов
-  for (let hour = 9; hour <= 17; hour++) {
+  // 3. Отрисовка сетки часов с использованием настроек
+  for (let hour = settings.slot_start_hour; hour <= settings.slot_end_hour; hour++) {
     const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
     const block = document.createElement('div');
     block.className = 'hour-block';
@@ -79,21 +112,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
     }).join('');
 
-    if (hourBookings.length < 5) {
-      cardsHtml += `<div class="btn-add-slot" data-hour="${hour}">+ Добавить запись (${5 - hourBookings.length} мест)</div>`;
+    // Используем лимит мест из настроек
+    if (hourBookings.length < settings.slots_per_hour) {
+      cardsHtml += `<div class="btn-add-slot" data-hour="${hour}">+ Добавить запись (${settings.slots_per_hour - hourBookings.length} мест)</div>`;
     }
+
+    const occupancyColor = hourBookings.length === settings.slots_per_hour ? '#ef4444' : '#10b981';
 
     block.innerHTML = `
       <div class="hour-header">
         <span>${hour}:00 - ${hour+1}:00</span>
-        <span style="font-size:14px; color:#64748b; font-weight:normal;">Занято: <strong style="color:${hourBookings.length===5?'#ef4444':'#10b981'}">${hourBookings.length}/5</strong></span>
+        <span style="font-size:14px; color:#64748b; font-weight:normal;">Занято: <strong style="color:${occupancyColor}">${hourBookings.length}/${settings.slots_per_hour}</strong></span>
       </div>
       <div class="cards-container">${cardsHtml}</div>
     `;
     container.appendChild(block);
   }
 
-  // --- ЛОГИКА МГНОВЕННОГО СОХРАНЕНИЯ (Прибыл / Убыл / Ворота) ---
+  // --- ЛОГИКА МГНОВЕННОГО СОХРАНЕНИЯ ---
   container.addEventListener('focusin', (e) => {
     if (e.target.classList.contains('inline-time') && !e.target.value) {
       const now = new Date();
@@ -135,7 +171,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // --- Логика модальных окон (Три точки и Создание) ---
   const editModal = document.getElementById('editModal');
   const createModal = document.getElementById('createModal');
   
@@ -151,7 +186,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('mId').value = data.id;
       document.getElementById('mHour').value = data.hour;
       document.getElementById('mDoc').value = data.doc;
-      document.getElementById('mSupplyType').value = data.sTypeRaw;
+      
+      const sType = document.getElementById('mSupplyType');
+      if ([...sType.options].map(o => o.value).includes(data.sTypeRaw)) {
+        sType.value = data.sTypeRaw;
+      }
+      
       document.getElementById('mOrderType').value = data.oTypeRaw;
       document.getElementById('mCompany').innerText = data.fullCompany;
       
@@ -191,21 +231,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     else window.location.reload();
   };
 
-  // --- УМНОЕ СОЗДАНИЕ СЛОТА ---
   document.getElementById('createForm').onsubmit = async (e) => {
     e.preventDefault();
     const searchVal = document.getElementById('cSupplierSearch').value.trim();
     
-    // Пытаемся найти профиль по полному тексту из списка, ИНН или Названию
     const found = allProfiles.find(p => 
       `${p.company_name} (ИНН: ${p.inn})` === searchVal || 
       p.inn === searchVal || 
       p.company_name.toLowerCase() === searchVal.toLowerCase()
     );
 
-    if (!found) {
-      return alert('Поставщик не найден. Пожалуйста, выберите его из списка или введите точный ИНН.');
-    }
+    if (!found) return alert('Поставщик не найден. Выберите из списка.');
 
     const btn = document.getElementById('btnCreate');
     btn.disabled = true; btn.innerText = 'Запись...';
