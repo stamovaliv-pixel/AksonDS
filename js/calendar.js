@@ -8,6 +8,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  // ЗАГРУЗКА ГЛОБАЛЬНЫХ НАСТРОЕК
+  const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
+  if (!settings) return console.error('Не удалось загрузить настройки');
+
   const calendarGrid = document.getElementById('calendarGrid');
   const upcomingList = document.getElementById('upcomingBookingsList');
   
@@ -30,7 +34,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const day = String(today.getDate()).padStart(2, '0');
   const isoToday = `${year}-${month}-${day}`;
 
-  // ИЗМЕНЕНИЕ: Запрашиваем ВСЕ записи на активные даты, чтобы посчитать загруженность дней
   const { data: allBookings, error } = await sb
     .from('bookings')
     .select('id, slot_date, slot_hour, supply_type, order_type, order_number, profile_id')
@@ -54,7 +57,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  const supplyTypes = { 'orders_im': 'Заказы ИМ', 'mix': 'МИКС', 'return': 'Возврат' };
+  // Динамические словари из настроек
+  const supplyTypes = {};
+  settings.supply_types.forEach(st => supplyTypes[st.id] = st.name);
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
 
   if (upcomingList) {
@@ -122,6 +127,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     endActiveDate.setDate(today.getDate() + 29);
 
     const currentRealHour = new Date().getHours();
+    
+    // Считаем макс. кол-во слотов в день на основе настроек
+    const maxCapacityPerDay = (settings.slot_end_hour - settings.slot_start_hour + 1) * settings.slots_per_hour;
 
     for (let i = 0; i < 35; i++) {
       const d = new Date(startDate);
@@ -137,13 +145,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const dayCell = document.createElement('div');
       
-      const isActive = d >= today && d <= endActiveDate;
+      let isActive = d >= today && d <= endActiveDate;
       
-      // День полностью забронирован, если занято 45 слотов (9 часов * 5 мест)
-      let isFull = (dateCapacities[isoDate] || 0) >= 45;
+      // Проверяем доступность дня недели из настроек (Пн=1 ... Вс=7)
+      const jsDay = d.getDay();
+      const dbDay = jsDay === 0 ? 7 : jsDay;
+      if (!settings.available_days.includes(dbDay)) {
+        isActive = false;
+      }
       
-      // Если сегодня уже 17:00 или позже, считаем день закрытым (неактивным)
-      if (isoDate === isoToday && currentRealHour >= 17) {
+      let isFull = (dateCapacities[isoDate] || 0) >= maxCapacityPerDay;
+      
+      // Если сегодня уже перевалило за час окончания слотов, день считается закрытым
+      if (isoDate === isoToday && currentRealHour >= settings.slot_end_hour) {
         isFull = true;
       }
 
@@ -153,25 +167,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!isActive) {
         dayCell.className = 'day-cell inactive';
       } else if (bookedDates.has(isoDate)) {
-        // Даже если день переполнен, если у нас там запись — день должен быть красным и кликабельным
+        // Даже если день переполнен, если у нас там запись — день красный и кликабельный
         dayCell.className = 'day-cell booked';
         isClickable = true;
       } else if (isFull) {
-        // День активен, но мест больше нет (и наших записей там тоже нет)
+        // День активен, но мест больше нет
         dayCell.className = 'day-cell inactive';
       } else {
-        // Обычный свободный активный день
+        // Свободный активный день
         dayCell.className = 'day-cell';
         isClickable = true;
       }
 
-      if ((d.getDay() === 0 || d.getDay() === 6) && isActive && !isFull) {
+      // Подсветка выходных
+      if ((jsDay === 0 || jsDay === 6) && isActive && !isFull) {
         dayCell.style.backgroundColor = '#f8fafc';
       }
 
       dayCell.innerHTML = `<div class="date-text">${dateStr}</div>`;
 
-      // Привязываем клик только к тем дням, где есть места или наши записи
+      // Переход разрешен только в кликабельные дни
       if (isClickable) {
         dayCell.addEventListener('click', () => {
           window.location.href = `day.html?date=${isoDate}`;
