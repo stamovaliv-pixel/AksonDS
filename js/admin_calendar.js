@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const isAdmin = profile.role === 'admin';
   const pastToggle = document.getElementById('showPastBtn');
-  if (isAdmin) {
+  if (isAdmin && pastToggle) {
     document.getElementById('adminPastToggleContainer').style.display = 'flex';
   }
 
@@ -21,7 +21,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ЗАГРУЗКА ГЛОБАЛЬНЫХ НАСТРОЕК
   const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
 
-  // Динамическое заполнение фильтров и модального окна на основе настроек
+  // Внедряем строгие стили для неактивных дней
+  const styleBlock = document.createElement('style');
+  styleBlock.innerHTML = `
+    .day-cell.inactive::before { display: none !important; }
+    .day-cell.inactive { background-color: #f1f5f9 !important; opacity: 0.6 !important; cursor: not-allowed; }
+    .day-cell.inactive.booked { cursor: pointer !important; }
+    .day-cell.inactive.booked::before { display: block !important; background-color: #ef4444 !important; }
+  `;
+  document.head.appendChild(styleBlock);
+
   const fillSelects = (elementId) => {
     const el = document.getElementById(elementId);
     if (!el || !settings) return;
@@ -37,7 +46,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   fillSelects('filterSupplyType');
   fillSelects('mSupplyType');
 
-  // Динамическое заполнение часов слотов в модальном окне редактирования
   const mHourSelect = document.getElementById('mHour');
   if (mHourSelect && settings) {
     mHourSelect.innerHTML = '';
@@ -59,25 +67,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const filterDoc = document.getElementById('filterDoc').value.trim();
     const filterSupply = document.getElementById('filterSupplyType').value;
     const filterOrder = document.getElementById('filterOrderType').value;
-    const showPast = isAdmin && pastToggle.checked;
+    const showPast = isAdmin && pastToggle && pastToggle.checked;
 
     const isSearchActive = filterSupplier !== '' || filterDoc !== '' || filterSupply !== '' || filterOrder !== '';
 
-    let query = sb.from('bookings')
-      .select('id, slot_date, slot_hour, order_number, order_type, supply_type, profiles!inner(company_name, inn)')
-      .eq('status', 'active');
+    let query = sb.from('bookings').select('id, slot_date, slot_hour, order_number, order_type, supply_type, profiles!inner(company_name, inn)').eq('status', 'active');
     
     if (filterDoc) query = query.ilike('order_number', `%${filterDoc}%`);
     if (filterSupply) query = query.eq('supply_type', filterSupply);
     if (filterOrder) query = query.eq('order_type', filterOrder);
-    if (filterSupplier) {
-      query = query.or(`company_name.ilike.%${filterSupplier}%,inn.ilike.%${filterSupplier}%`, { foreignTable: 'profiles' });
-    }
+    if (filterSupplier) query = query.or(`company_name.ilike.%${filterSupplier}%,inn.ilike.%${filterSupplier}%`, { foreignTable: 'profiles' });
 
     const { data: bookings } = await query;
     const bookedDates = new Set((bookings || []).map(b => b.slot_date));
 
-    // --- 1. Отрисовка сетки календаря ---
     const startDate = new Date(today);
     if (showPast) {
       startDate.setDate(today.getDate() - 30);
@@ -98,57 +101,48 @@ document.addEventListener('DOMContentLoaded', async () => {
       const cell = document.createElement('div');
       cell.className = 'day-cell';
       
+      // Проверка доступности дня
       const isPastOrFuture = d < today || d > maxActiveDate;
-      if (isPastOrFuture) cell.classList.add('inactive'); 
+      const jsDay = d.getDay();
+      const dbDay = jsDay === 0 ? 7 : jsDay;
+      const isAllowedDay = settings.available_days ? settings.available_days.includes(dbDay) : true;
+      
+      if (isPastOrFuture || !isAllowedDay) cell.classList.add('inactive'); 
       if (bookedDates.has(isoDate)) cell.classList.add('booked'); 
       
       cell.innerHTML = `<div class="date-text">${d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})}</div>`;
-      cell.onclick = () => window.location.href = `admin_day.html?date=${isoDate}`;
+      
+      // Разрешаем клик, только если день активен ИЛИ в нем есть заявки
+      if (!(isPastOrFuture || !isAllowedDay) || bookedDates.has(isoDate)) {
+        cell.onclick = () => window.location.href = `admin_day.html?date=${isoDate}`;
+      }
+      
       grid.appendChild(cell);
     }
 
-    // --- 2. Отрисовка списка "Найденные записи" ---
     const listContainer = document.getElementById('upcomingBookingsList');
     listContainer.innerHTML = '';
     
     if (!isSearchActive) {
       for (let i = 0; i < 14; i++) {
-        listContainer.innerHTML += `
-          <div class="booking-item empty">
-            <div style="color: #94a3b8; font-size: 13px; font-weight: 500;">Нет данных</div>
-          </div>
-        `;
+        listContainer.innerHTML += `<div class="booking-item empty"><div style="color: #94a3b8; font-size: 13px; font-weight: 500;">Нет данных</div></div>`;
       }
       return; 
     }
 
-    const upcoming = (bookings || [])
-      .filter(b => new Date(b.slot_date) >= today)
-      .sort((a, b) => new Date(a.slot_date) - new Date(b.slot_date) || a.slot_hour - b.slot_hour)
-      .slice(0, 14);
+    const upcoming = (bookings || []).filter(b => new Date(b.slot_date) >= today).sort((a, b) => new Date(a.slot_date) - new Date(b.slot_date) || a.slot_hour - b.slot_hour).slice(0, 14);
 
     if (upcoming.length === 0) {
       listContainer.innerHTML = `<div style="grid-column: 1 / -1; color: var(--color-text-muted); font-size: 14px; text-align: center; padding: 20px;">По вашему запросу ничего не найдено.</div>`;
     } else {
       upcoming.forEach(b => {
-        const dStr = new Date(b.slot_date).toLocaleDateString('ru-RU');
         const item = document.createElement('div');
         item.className = 'booking-item';
-        
         const dataStr = encodeURIComponent(JSON.stringify({
-          id: b.id, date: b.slot_date, hour: b.slot_hour, doc: b.order_number, 
-          sTypeRaw: b.supply_type, oTypeRaw: b.order_type,
-          fullCompany: `${b.profiles.company_name} (ИНН: ${b.profiles.inn})`
+          id: b.id, date: b.slot_date, hour: b.slot_hour, doc: b.order_number, sTypeRaw: b.supply_type, oTypeRaw: b.order_type, fullCompany: `${b.profiles.company_name} (ИНН: ${b.profiles.inn})`
         }));
-        
         const shortName = b.profiles.company_name.length > 18 ? b.profiles.company_name.substring(0,18) + '...' : b.profiles.company_name;
-        
-        item.innerHTML = `
-          <div class="booking-date">${dStr}</div>
-          <div style="font-size: 12px; color: var(--color-primary); font-weight: 600;">${shortName}</div>
-          <div class="booking-time">${b.slot_hour}:00</div>
-        `;
-        
+        item.innerHTML = `<div class="booking-date">${new Date(b.slot_date).toLocaleDateString('ru-RU')}</div><div style="font-size: 12px; color: var(--color-primary); font-weight: 600;">${shortName}</div><div class="booking-time">${b.slot_hour}:00</div>`;
         item.onclick = () => openEditModal(dataStr);
         listContainer.appendChild(item);
       });
@@ -165,11 +159,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('mHour').value = data.hour;
     document.getElementById('mDoc').value = data.doc;
     
-    // Безопасная установка значений, если типы были удалены из настроек
     const sType = document.getElementById('mSupplyType');
-    if ([...sType.options].map(o => o.value).includes(data.sTypeRaw)) {
-      sType.value = data.sTypeRaw;
-    }
+    if ([...sType.options].map(o => o.value).includes(data.sTypeRaw)) sType.value = data.sTypeRaw;
     
     document.getElementById('mOrderType').value = data.oTypeRaw;
     document.getElementById('mCompany').innerText = data.fullCompany;
@@ -178,7 +169,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('btnUpdate').onclick = async () => {
     if (!confirm('Подтверждаете изменение записи?')) return;
-    const id = document.getElementById('mId').value;
     const payload = {
       slot_date: document.getElementById('mDate').value,
       slot_hour: parseInt(document.getElementById('mHour').value),
@@ -186,17 +176,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       supply_type: document.getElementById('mSupplyType').value,
       order_type: document.getElementById('mOrderType').value
     };
-    
-    const { error } = await sb.from('bookings').update(payload).eq('id', id);
+    const { error } = await sb.from('bookings').update(payload).eq('id', document.getElementById('mId').value);
     if (error) alert('Ошибка обновления: ' + error.message);
     else { editModal.style.display = 'none'; renderCalendar(); }
   };
 
   document.getElementById('btnDelete').onclick = async () => {
     if (!confirm('ВНИМАНИЕ! Вы точно хотите удалить эту запись поставщика?')) return;
-    const id = document.getElementById('mId').value;
-    
-    const { error } = await sb.from('bookings').delete().eq('id', id);
+    const { error } = await sb.from('bookings').delete().eq('id', document.getElementById('mId').value);
     if (error) alert('Ошибка удаления: ' + error.message);
     else { editModal.style.display = 'none'; renderCalendar(); }
   };
@@ -209,7 +196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('filterOrderType').value = '';
     renderCalendar();
   };
-  pastToggle.onchange = renderCalendar;
+  if (pastToggle) pastToggle.onchange = renderCalendar;
 
   renderCalendar();
 });
