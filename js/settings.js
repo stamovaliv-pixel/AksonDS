@@ -14,13 +14,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault(); await sb.auth.signOut(); window.location.href = '../index.html'; 
   };
 
-  // Глобальное состояние
   let currentSettings = {};
   let localSupplyTypes = [];
 
-  // Генерация опций для выпадающих списков
   const generateOptions = (selectId, min, max, formatTime = false) => {
     const select = document.getElementById(selectId);
+    if (!select) return;
     select.innerHTML = '';
     for (let i = min; i <= max; i++) {
       const opt = document.createElement('option');
@@ -37,39 +36,53 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const dayNames = { 1:'Пн', 2:'Вт', 3:'Ср', 4:'Чт', 5:'Пт', 6:'Сб', 7:'Вс' };
 
-  // Загрузка настроек
+  // Загрузка настроек с защитой от ошибок
   const loadSettings = async () => {
-    const { data, error } = await sb.from('app_settings').select('*').eq('id', 1).single();
-    if (error) return alert('Ошибка загрузки настроек: ' + error.message);
-    
-    currentSettings = data;
-    localSupplyTypes = JSON.parse(JSON.stringify(data.supply_types || []));
+    try {
+      const { data, error } = await sb.from('app_settings').select('*').eq('id', 1).single();
+      
+      if (error || !data) {
+        document.querySelectorAll('.setting-value, .days-view').forEach(el => el.textContent = '⚠️ Ошибка БД');
+        console.error('Ошибка БД:', error);
+        return alert('База данных не вернула настройки. Убедитесь, что вы выполнили SQL-запрос для создания таблицы app_settings!');
+      }
+      
+      currentSettings = data;
+      localSupplyTypes = JSON.parse(JSON.stringify(data.supply_types || []));
 
-    // Установка значений для просмотра и редактирования
-    document.getElementById('view_startHour').textContent = `${data.slot_start_hour}:00`;
-    document.getElementById('edit_startHour').value = data.slot_start_hour;
+      // Защита от null с помощью ?? (значения по умолчанию)
+      const sHour = data.slot_start_hour ?? 9;
+      document.getElementById('view_startHour').textContent = `${sHour}:00`;
+      document.getElementById('edit_startHour').value = sHour;
 
-    document.getElementById('view_endHour').textContent = `${data.slot_end_hour}:00`;
-    document.getElementById('edit_endHour').value = data.slot_end_hour;
+      const eHour = data.slot_end_hour ?? 17;
+      document.getElementById('view_endHour').textContent = `${eHour}:00`;
+      document.getElementById('edit_endHour').value = eHour;
 
-    document.getElementById('view_slotsPer').textContent = data.slots_per_hour;
-    document.getElementById('edit_slotsPer').value = data.slots_per_hour;
+      const sPer = data.slots_per_hour ?? 5;
+      document.getElementById('view_slotsPer').textContent = sPer;
+      document.getElementById('edit_slotsPer').value = sPer;
 
-    document.getElementById('view_deadline').textContent = data.booking_deadline_hours;
-    document.getElementById('edit_deadline').value = data.booking_deadline_hours;
+      const dLine = data.booking_deadline_hours ?? 1;
+      document.getElementById('view_deadline').textContent = dLine;
+      document.getElementById('edit_deadline').value = dLine;
 
-    // Дни недели
-    const activeDaysText = data.available_days.map(d => dayNames[d]).join(', ');
-    document.getElementById('view_days').textContent = activeDaysText || 'Нет активных дней';
-    const checkboxes = document.querySelectorAll('#edit_days input[type="checkbox"]');
-    checkboxes.forEach(cb => {
-      cb.checked = data.available_days.includes(parseInt(cb.value));
-    });
+      const daysArr = data.available_days || [1, 2, 3, 4, 5];
+      const activeDaysText = daysArr.map(d => dayNames[d]).join(', ');
+      document.getElementById('view_days').textContent = activeDaysText || 'Нет активных дней';
+      
+      const checkboxes = document.querySelectorAll('#edit_days input[type="checkbox"]');
+      checkboxes.forEach(cb => {
+        cb.checked = daysArr.includes(parseInt(cb.value));
+      });
 
-    renderSupplyTypes();
+      renderSupplyTypes();
+    } catch (err) {
+      console.error('Критическая ошибка скрипта:', err);
+      document.querySelectorAll('.setting-value, .days-view').forEach(el => el.textContent = '⚠️ Ошибка скрипта');
+    }
   };
 
-  // --- УНИВЕРСАЛЬНАЯ ЛОГИКА ПЕРЕКЛЮЧЕНИЯ ПОЛЕЙ ---
   const toggleEdit = (fieldKey, isEditing) => {
     document.getElementById(`view_${fieldKey}`).style.display = isEditing ? 'none' : 'block';
     document.getElementById(`edit_${fieldKey}`).style.display = isEditing ? (fieldKey === 'days' ? 'flex' : 'block') : 'none';
@@ -79,15 +92,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const saveField = async (fieldKey, dbColumn) => {
     let newValue;
-    
-    // Обработка особых полей (Дни недели)
     if (fieldKey === 'days') {
       newValue = Array.from(document.querySelectorAll('#edit_days input[type="checkbox"]:checked')).map(cb => parseInt(cb.value));
     } else {
       newValue = parseInt(document.getElementById(`edit_${fieldKey}`).value);
     }
 
-    // Блокируем кнопку на время сохранения
     const btnSave = document.getElementById(`btnSave_${fieldKey}`);
     btnSave.style.opacity = '0.5';
     btnSave.style.pointerEvents = 'none';
@@ -101,7 +111,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       alert('Ошибка сохранения: ' + error.message);
     } else {
       currentSettings[dbColumn] = newValue;
-      // Обновляем view
       if (fieldKey === 'days') {
         document.getElementById(`view_days`).textContent = newValue.map(d => dayNames[d]).join(', ') || 'Нет активных дней';
       } else {
@@ -112,7 +121,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  // Привязка кнопок для простых полей
   const simpleFields = [
     { key: 'startHour', db: 'slot_start_hour' },
     { key: 'endHour', db: 'slot_end_hour' },
@@ -122,15 +130,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   ];
 
   simpleFields.forEach(f => {
-    document.getElementById(`btnEdit_${f.key}`).onclick = () => toggleEdit(f.key, true);
-    document.getElementById(`btnSave_${f.key}`).onclick = () => saveField(f.key, f.db);
+    const editBtn = document.getElementById(`btnEdit_${f.key}`);
+    const saveBtn = document.getElementById(`btnSave_${f.key}`);
+    if (editBtn) editBtn.onclick = () => toggleEdit(f.key, true);
+    if (saveBtn) saveBtn.onclick = () => saveField(f.key, f.db);
   });
 
-  // --- ЛОГИКА ТИПОВ ПОСТАВОК ---
   let isEditingSupply = false;
 
   const renderSupplyTypes = () => {
     const list = document.getElementById('supplyTypesList');
+    if (!list) return;
     list.innerHTML = '';
     localSupplyTypes.forEach((st, index) => {
       const li = document.createElement('li');
@@ -145,57 +155,64 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
 
-  // Вкл/Выкл режима редактирования типов
-  document.getElementById('btnEdit_supply').onclick = () => {
-    isEditingSupply = true;
-    document.getElementById('btnEdit_supply').style.display = 'none';
-    document.getElementById('btnSave_supply').style.display = 'flex';
-    document.getElementById('supplyAddRow').style.display = 'flex';
-    renderSupplyTypes();
-  };
-
-  // Удаление из локального массива
-  document.getElementById('supplyTypesList').addEventListener('click', (e) => {
-    const trashBtn = e.target.closest('.btn-trash');
-    if (trashBtn) {
-      const index = trashBtn.dataset.index;
-      localSupplyTypes.splice(index, 1);
+  const btnEditSupply = document.getElementById('btnEdit_supply');
+  if (btnEditSupply) {
+    btnEditSupply.onclick = () => {
+      isEditingSupply = true;
+      btnEditSupply.style.display = 'none';
+      document.getElementById('btnSave_supply').style.display = 'flex';
+      document.getElementById('supplyAddRow').style.display = 'flex';
       renderSupplyTypes();
-    }
-  });
+    };
+  }
 
-  // Добавление в локальный массив
-  document.getElementById('btnAddSupply').onclick = () => {
-    const input = document.getElementById('newSupplyName');
-    const name = input.value.trim();
-    if (!name) return;
-    const id = 'type_' + Math.random().toString(36).substr(2, 9);
-    localSupplyTypes.push({ id, name });
-    input.value = '';
-    renderSupplyTypes();
-  };
+  const supplyTypesList = document.getElementById('supplyTypesList');
+  if (supplyTypesList) {
+    supplyTypesList.addEventListener('click', (e) => {
+      const trashBtn = e.target.closest('.btn-trash');
+      if (trashBtn) {
+        const index = trashBtn.dataset.index;
+        localSupplyTypes.splice(index, 1);
+        renderSupplyTypes();
+      }
+    });
+  }
 
-  // Сохранение в базу
-  document.getElementById('btnSave_supply').onclick = async () => {
-    const btn = document.getElementById('btnSave_supply');
-    btn.style.opacity = '0.5';
-    btn.style.pointerEvents = 'none';
-
-    const { error } = await sb.from('app_settings').update({ supply_types: localSupplyTypes }).eq('id', 1);
-    
-    btn.style.opacity = '1';
-    btn.style.pointerEvents = 'auto';
-
-    if (error) {
-      alert('Ошибка сохранения: ' + error.message);
-    } else {
-      isEditingSupply = false;
-      document.getElementById('btnEdit_supply').style.display = 'flex';
-      document.getElementById('btnSave_supply').style.display = 'none';
-      document.getElementById('supplyAddRow').style.display = 'none';
+  const btnAddSupply = document.getElementById('btnAddSupply');
+  if (btnAddSupply) {
+    btnAddSupply.onclick = () => {
+      const input = document.getElementById('newSupplyName');
+      const name = input.value.trim();
+      if (!name) return;
+      const id = 'type_' + Math.random().toString(36).substr(2, 9);
+      localSupplyTypes.push({ id, name });
+      input.value = '';
       renderSupplyTypes();
-    }
-  };
+    };
+  }
+
+  const btnSaveSupply = document.getElementById('btnSave_supply');
+  if (btnSaveSupply) {
+    btnSaveSupply.onclick = async () => {
+      btnSaveSupply.style.opacity = '0.5';
+      btnSaveSupply.style.pointerEvents = 'none';
+
+      const { error } = await sb.from('app_settings').update({ supply_types: localSupplyTypes }).eq('id', 1);
+      
+      btnSaveSupply.style.opacity = '1';
+      btnSaveSupply.style.pointerEvents = 'auto';
+
+      if (error) {
+        alert('Ошибка сохранения: ' + error.message);
+      } else {
+        isEditingSupply = false;
+        document.getElementById('btnEdit_supply').style.display = 'flex';
+        btnSaveSupply.style.display = 'none';
+        document.getElementById('supplyAddRow').style.display = 'none';
+        renderSupplyTypes();
+      }
+    };
+  }
 
   loadSettings();
 });
