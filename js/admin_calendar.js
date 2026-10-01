@@ -18,6 +18,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault(); await sb.auth.signOut(); window.location.href = '../index.html';
   };
 
+  // ЗАГРУЗКА ГЛОБАЛЬНЫХ НАСТРОЕК
+  const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
+
+  // Динамическое заполнение фильтров и модального окна на основе настроек
+  const fillSelects = (elementId) => {
+    const el = document.getElementById(elementId);
+    if (!el || !settings) return;
+    el.innerHTML = elementId === 'filterSupplyType' ? '<option value="">Все типы</option>' : '';
+    settings.supply_types.forEach(st => {
+      const opt = document.createElement('option');
+      opt.value = st.id;
+      opt.textContent = st.name;
+      el.appendChild(opt);
+    });
+  };
+  
+  fillSelects('filterSupplyType');
+  fillSelects('mSupplyType');
+
+  // Динамическое заполнение часов слотов в модальном окне редактирования
+  const mHourSelect = document.getElementById('mHour');
+  if (mHourSelect && settings) {
+    mHourSelect.innerHTML = '';
+    for (let h = settings.slot_start_hour; h <= settings.slot_end_hour; h++) {
+      const opt = document.createElement('option');
+      opt.value = h;
+      opt.textContent = `${h}:00 - ${h+1}:00`;
+      mHourSelect.appendChild(opt);
+    }
+  }
+
   const today = new Date(); 
   today.setHours(0,0,0,0);
   const maxActiveDate = new Date(today);
@@ -80,7 +111,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const listContainer = document.getElementById('upcomingBookingsList');
     listContainer.innerHTML = '';
     
-    // Показываем 14 пустых серых слотов если фильтр не применен
     if (!isSearchActive) {
       for (let i = 0; i < 14; i++) {
         listContainer.innerHTML += `
@@ -92,7 +122,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       return; 
     }
 
-    // Оставляем только записи от сегодня и в будущее (максимум 14)
     const upcoming = (bookings || [])
       .filter(b => new Date(b.slot_date) >= today)
       .sort((a, b) => new Date(a.slot_date) - new Date(b.slot_date) || a.slot_hour - b.slot_hour)
@@ -126,7 +155,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  // --- Логика Модального окна редактирования ---
   const editModal = document.getElementById('editModal');
   document.getElementById('closeEditModal').onclick = () => editModal.style.display = 'none';
 
@@ -136,7 +164,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('mDate').value = data.date;
     document.getElementById('mHour').value = data.hour;
     document.getElementById('mDoc').value = data.doc;
-    document.getElementById('mSupplyType').value = data.sTypeRaw;
+    
+    // Безопасная установка значений, если типы были удалены из настроек
+    const sType = document.getElementById('mSupplyType');
+    if ([...sType.options].map(o => o.value).includes(data.sTypeRaw)) {
+      sType.value = data.sTypeRaw;
+    }
+    
     document.getElementById('mOrderType').value = data.oTypeRaw;
     document.getElementById('mCompany').innerText = data.fullCompany;
     editModal.style.display = 'flex';
