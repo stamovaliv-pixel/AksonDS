@@ -7,173 +7,165 @@ document.addEventListener('DOMContentLoaded', async () => {
   const dateObj = new Date(selectedDate);
   document.getElementById('dateDisplay').innerText = dateObj.toLocaleDateString('ru-RU');
 
-  // ЗАГРУЗКА ГЛОБАЛЬНЫХ НАСТРОЕК
-  const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
-  if (!settings) return console.error("Ошибка загрузки настроек");
+  // Инициализация роли
+  const { data: { user } } = await sb.auth.getUser();
+  const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).single();
+  const isViewer = profile?.role === 'viewer';
+  
+  if (isViewer) {
+    document.body.classList.add('role-viewer');
+  }
 
-  // Динамические словари
+  const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
   const supplyTypes = {};
   settings.supply_types.forEach(st => supplyTypes[st.id] = st.name);
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
 
-  // Динамическое заполнение Select элементов в модальных окнах
-  const fillSelects = (elementId) => {
-    const el = document.getElementById(elementId);
+  // Отрисовка чекбоксов
+  const fillCheckboxes = (containerId) => {
+    const el = document.getElementById(containerId);
     if (!el) return;
     el.innerHTML = '';
     settings.supply_types.forEach(st => {
-      const opt = document.createElement('option');
-      opt.value = st.id;
-      opt.textContent = st.name;
-      el.appendChild(opt);
+      el.innerHTML += `<label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" value="${st.id}"> ${st.name}</label>`;
     });
   };
-  fillSelects('mSupplyType');
-  fillSelects('cSupplyType');
+  fillCheckboxes('mSupplyTypesGroup');
+  fillCheckboxes('cSupplyTypesGroup');
 
-  // Динамическое заполнение часов слотов в окне редактирования
-  const mHourSelect = document.getElementById('mHour');
-  if (mHourSelect) {
-    mHourSelect.innerHTML = '';
-    for (let h = settings.slot_start_hour; h <= settings.slot_end_hour; h++) {
-      const opt = document.createElement('option');
-      opt.value = h;
-      opt.textContent = `${h}:00 - ${h+1}:00`;
-      mHourSelect.appendChild(opt);
-    }
-  }
-
-  // 1. Загружаем все бронирования
+  // 1. Загрузка данных
   const { data: bookings } = await sb
     .from('bookings')
-    .select('id, slot_hour, order_number, order_type, supply_type, arrival_time, departure_time, gate_number, profiles(company_name, inn)')
+    .select('id, slot_hour, order_number, order_type, supply_type, supply_types, arrival_time, departure_time, gate_number, is_tk, comment, registry_file_url, profiles(company_name, inn)')
     .eq('slot_date', selectedDate)
     .eq('status', 'active');
 
-  // 2. Загружаем список всех поставщиков
   let allProfiles = [];
-  const { data: profilesData } = await sb.from('profiles').select('id, company_name, inn').eq('role', 'supplier');
-  if (profilesData) {
-    allProfiles = profilesData;
-    const dataList = document.getElementById('suppliersList');
-    profilesData.forEach(p => {
-      const option = document.createElement('option');
-      option.value = `${p.company_name} (ИНН: ${p.inn})`;
-      dataList.appendChild(option);
-    });
+  if (!isViewer) {
+    const { data: profilesData } = await sb.from('profiles').select('id, company_name, inn').eq('role', 'supplier');
+    if (profilesData) {
+      allProfiles = profilesData;
+      const dataList = document.getElementById('suppliersList');
+      profilesData.forEach(p => dataList.innerHTML += `<option value="${p.company_name} (ИНН: ${p.inn})">`);
+    }
   }
 
   const container = document.getElementById('hoursContainer');
   container.innerHTML = '';
   
-  // 3. Отрисовка сетки часов с использованием настроек
+  // 2. Отрисовка сетки
   for (let hour = settings.slot_start_hour; hour <= settings.slot_end_hour; hour++) {
     const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
     const block = document.createElement('div');
     block.className = 'hour-block';
     
-    let cardsHtml = hourBookings.map(b => {
-      const sType = supplyTypes[b.supply_type] || b.supply_type;
-      const oType = orderTypes[b.order_type] || b.order_type;
-      const compName = b.profiles?.company_name || 'Неизвестно';
-      
-      const arrTime = b.arrival_time ? b.arrival_time.substring(0,5) : '';
-      const depTime = b.departure_time ? b.departure_time.substring(0,5) : '';
-      const gate = b.gate_number || '';
+    let reserveCards = [];
+    let mainCards = [];
 
-      const dataStr = encodeURIComponent(JSON.stringify({
-        id: b.id, hour: b.slot_hour, doc: b.order_number, sTypeRaw: b.supply_type, oTypeRaw: b.order_type,
-        fullCompany: `${compName} (ИНН: ${b.profiles?.inn || ''})`
-      }));
+    hourBookings.forEach(b => {
+      const types = b.supply_types?.length ? b.supply_types : [b.supply_type];
+      const isImOnly = types.length === 1 && types[0] === 'orders_im';
+      if (isImOnly && reserveCards.length < (settings.reserve_slots_per_hour || 3)) {
+        reserveCards.push(b);
+      } else {
+        mainCards.push(b);
+      }
+    });
 
-      return `
-        <div class="booking-card" data-info="${dataStr}">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            <strong style="color:#1f2937; margin-bottom:4px;">${compName}</strong>
-            <button class="btn-dots" title="Подробнее">⋮</button>
-          </div>
-          <div style="color:#64748b; font-size:13px;">${oType} №${b.order_number} • ${sType}</div>
-          
-          <div class="card-actions" data-id="${b.id}">
-            <div class="inline-input-group">
-              <label>Прибыл</label>
-              <input type="time" class="inline-time inline-arr" value="${arrTime}">
-            </div>
-            <div class="inline-input-group">
-              <label>Убыл</label>
-              <input type="time" class="inline-time inline-dep" value="${depTime}">
-            </div>
-            <div class="inline-input-group">
-              <label>Ворота</label>
-              <input type="text" class="inline-gate" value="${gate}" placeholder="№">
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
+    let cardsHtml = '';
 
-    // Используем лимит мест из настроек
-    if (hourBookings.length < settings.slots_per_hour) {
-      cardsHtml += `<div class="btn-add-slot" data-hour="${hour}">+ Добавить запись (${settings.slots_per_hour - hourBookings.length} мест)</div>`;
+    // Занятые резервные (Оранжевые)
+    reserveCards.forEach(b => cardsHtml += generateCardHtml(b, 'reserve'));
+    
+    // Свободные резервные (Серые)
+    const freeReserve = (settings.reserve_slots_per_hour || 3) - reserveCards.length;
+    for(let i=0; i<freeReserve; i++) {
+      cardsHtml += `
+        <div class="booking-card ${isViewer ? 'viewer-hide' : ''}" style="border-left-color: #94a3b8; background: #f8fafc; border-color: #cbd5e1; cursor: pointer;" onclick="document.querySelector('.btn-add-slot[data-hour=\\'${hour}\\']').click()">
+          <div style="color: #475569; font-weight: 600;">Резервный слот (Только Заказы ИМ)</div>
+        </div>`;
     }
 
-    const occupancyColor = hourBookings.length === settings.slots_per_hour ? '#ef4444' : '#10b981';
+    // Занятые основные (Красные)
+    mainCards.forEach(b => cardsHtml += generateCardHtml(b, 'main'));
 
+    // Кнопка добавить (Свободные основные)
+    const freeMain = settings.slots_per_hour - mainCards.length;
+    if (freeMain > 0) {
+      cardsHtml += `<div class="btn-add-slot viewer-hide" data-hour="${hour}" style="margin-top:10px;">+ Добавить запись (${freeMain} мест)</div>`;
+    }
+
+    const occupancyColor = mainCards.length === settings.slots_per_hour ? '#ef4444' : '#10b981';
     block.innerHTML = `
       <div class="hour-header">
         <span>${hour}:00 - ${hour+1}:00</span>
-        <span style="font-size:14px; color:#64748b; font-weight:normal;">Занято: <strong style="color:${occupancyColor}">${hourBookings.length}/${settings.slots_per_hour}</strong></span>
+        <span style="font-size:14px; color:#64748b; font-weight:normal;">Занято осн.: <strong style="color:${occupancyColor}">${mainCards.length}/${settings.slots_per_hour}</strong></span>
       </div>
       <div class="cards-container">${cardsHtml}</div>
     `;
     container.appendChild(block);
   }
 
-  // --- ЛОГИКА МГНОВЕННОГО СОХРАНЕНИЯ ---
-  container.addEventListener('focusin', (e) => {
-    if (e.target.classList.contains('inline-time') && !e.target.value) {
-      const now = new Date();
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      e.target.value = `${hh}:${mm}`;
-      saveInlineField(e.target);
-    }
-  });
-
-  container.addEventListener('change', (e) => {
-    if (e.target.classList.contains('inline-gate') || e.target.classList.contains('inline-time')) {
-      saveInlineField(e.target);
-    }
-  });
-
-  async function saveInlineField(inputEl) {
-    const cardActions = inputEl.closest('.card-actions');
-    const id = cardActions.dataset.id;
+  function generateCardHtml(b, type) {
+    const typesStr = b.supply_types?.length ? b.supply_types.map(t => supplyTypes[t] || t).join(', ') : (supplyTypes[b.supply_type] || b.supply_type);
+    const oType = orderTypes[b.order_type] || b.order_type;
+    const compName = b.profiles?.company_name || 'Неизвестно';
     
-    let fieldName = '';
-    if (inputEl.classList.contains('inline-gate')) fieldName = 'gate_number';
-    else if (inputEl.classList.contains('inline-arr')) fieldName = 'arrival_time';
-    else if (inputEl.classList.contains('inline-dep')) fieldName = 'departure_time';
+    const borderColor = type === 'reserve' ? '#f59e0b' : '#3b82f6';
+    const bgColor = type === 'reserve' ? '#fffbeb' : '#f0f9ff';
+    const borderOuter = type === 'reserve' ? '#fcd34d' : '#bfdbfe';
 
-    let val = inputEl.value;
-    if (inputEl.type === 'time' && val) val = val + ':00'; 
+    const dataStr = encodeURIComponent(JSON.stringify({
+      id: b.id, hour: b.slot_hour, doc: b.order_number, 
+      sTypesRaw: b.supply_types || [b.supply_type], oTypeRaw: b.order_type, 
+      fullCompany: `${compName} (ИНН: ${b.profiles?.inn || ''})`,
+      is_tk: b.is_tk, comment: b.comment, registry_file_url: b.registry_file_url
+    }));
 
-    inputEl.style.borderColor = '#3b82f6'; 
-    
-    const { error } = await sb.from('bookings').update({ [fieldName]: val || null }).eq('id', id);
-    
-    if (error) {
-      inputEl.style.borderColor = '#ef4444';
-      alert('Ошибка автосохранения: ' + error.message);
-    } else {
-      inputEl.style.borderColor = '#10b981';
-      setTimeout(() => inputEl.style.borderColor = '#fca5a5', 1000);
-    }
+    return `
+      <div class="booking-card" data-info="${dataStr}" style="border-left-color: ${borderColor}; background: ${bgColor}; border-color: ${borderOuter};">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <strong style="color:#1f2937; margin-bottom:4px;">${compName}</strong>
+          <button class="btn-dots" title="Подробнее">⋮</button>
+        </div>
+        <div style="color:#64748b; font-size:13px; margin-bottom: 5px;">${oType} №${b.order_number} • ${typesStr}</div>
+        
+        <div class="card-actions" data-id="${b.id}">
+          <div class="inline-input-group">
+            <label>Прибыл</label>
+            <input type="time" class="inline-time inline-arr viewer-disable" value="${b.arrival_time ? b.arrival_time.substring(0,5) : ''}">
+          </div>
+          <div class="inline-input-group">
+            <label>Убыл</label>
+            <input type="time" class="inline-time inline-dep viewer-disable" value="${b.departure_time ? b.departure_time.substring(0,5) : ''}">
+          </div>
+          <div class="inline-input-group">
+            <label>Ворота</label>
+            <input type="text" class="inline-gate viewer-disable" value="${b.gate_number || ''}" placeholder="№">
+          </div>
+        </div>
+      </div>`;
   }
 
+  // --- АВТОСОХРАНЕНИЕ ПРИБЫЛ/УБЫЛ ---
+  if (!isViewer) {
+    container.addEventListener('change', async (e) => {
+      if (e.target.classList.contains('inline-gate') || e.target.classList.contains('inline-time')) {
+        const id = e.target.closest('.card-actions').dataset.id;
+        let fieldName = e.target.classList.contains('inline-gate') ? 'gate_number' : (e.target.classList.contains('inline-arr') ? 'arrival_time' : 'departure_time');
+        let val = e.target.value;
+        if (e.target.type === 'time' && val) val = val + ':00'; 
+        
+        e.target.style.borderColor = '#3b82f6';
+        const { error } = await sb.from('bookings').update({ [fieldName]: val || null }).eq('id', id);
+        e.target.style.borderColor = error ? '#ef4444' : '#10b981';
+      }
+    });
+  }
+
+  // --- ЛОГИКА МОДАЛЬНЫХ ОКОН ---
   const editModal = document.getElementById('editModal');
   const createModal = document.getElementById('createModal');
-  
   document.getElementById('closeEditModal').onclick = () => editModal.style.display = 'none';
   document.getElementById('closeCreateModal').onclick = () => createModal.style.display = 'none';
 
@@ -184,85 +176,144 @@ document.addEventListener('DOMContentLoaded', async () => {
       const data = JSON.parse(decodeURIComponent(card.dataset.info));
       
       document.getElementById('mId').value = data.id;
-      document.getElementById('mHour').value = data.hour;
-      document.getElementById('mDoc').value = data.doc;
-      
-      const sType = document.getElementById('mSupplyType');
-      if ([...sType.options].map(o => o.value).includes(data.sTypeRaw)) {
-        sType.value = data.sTypeRaw;
-      }
-      
-      document.getElementById('mOrderType').value = data.oTypeRaw;
       document.getElementById('mCompany').innerText = data.fullCompany;
+      document.getElementById('mDoc').value = data.doc;
+      document.getElementById('mOrderType').value = data.oTypeRaw;
+      document.getElementById('mIsTk').checked = data.is_tk;
+      document.getElementById('mComment').value = data.comment || '';
       
+      // Ссылка на файл
+      const fileLink = document.getElementById('mFileLink');
+      if (data.registry_file_url) {
+        fileLink.href = data.registry_file_url;
+        fileLink.style.display = 'inline-block';
+      } else {
+        fileLink.style.display = 'none';
+      }
+
+      // Галочки
+      document.querySelectorAll('#mSupplyTypesGroup input').forEach(cb => {
+        cb.checked = data.sTypesRaw.includes(cb.value);
+      });
+
+      // Динамический выпадающий список часов (скрываем переполненные)
+      const mHourSelect = document.getElementById('mHour');
+      mHourSelect.innerHTML = '';
+      
+      const isImOnly = data.sTypesRaw.length === 1 && data.sTypesRaw[0] === 'orders_im';
+
+      for (let h = settings.slot_start_hour; h <= settings.slot_end_hour; h++) {
+        const hourBookings = (bookings || []).filter(b => b.slot_hour === h);
+        let mUsed = 0, rUsed = 0;
+        
+        hourBookings.forEach(b => {
+          const t = b.supply_types?.length ? b.supply_types : [b.supply_type];
+          if (t.length === 1 && t[0] === 'orders_im') {
+            if (rUsed < (settings.reserve_slots_per_hour || 3)) rUsed++; else mUsed++;
+          } else {
+            mUsed++;
+          }
+        });
+
+        let canMove = false;
+        if (h === data.hour) {
+          canMove = true; // Свой же слот всегда доступен
+        } else if (isImOnly) {
+          canMove = (rUsed < (settings.reserve_slots_per_hour || 3)) || (mUsed < settings.slots_per_hour);
+        } else {
+          canMove = (mUsed < settings.slots_per_hour);
+        }
+
+        if (canMove) {
+          mHourSelect.innerHTML += `<option value="${h}" ${h === data.hour ? 'selected' : ''}>${h}:00 - ${h+1}:00</option>`;
+        }
+      }
+
       editModal.style.display = 'flex';
       return;
     }
 
     const addBtn = e.target.closest('.btn-add-slot');
-    if (addBtn) {
+    if (addBtn && !isViewer) {
       document.getElementById('cHour').value = addBtn.dataset.hour;
-      document.getElementById('cSupplierSearch').value = '';
-      document.getElementById('cDoc').value = '';
+      document.getElementById('createForm').reset();
       createModal.style.display = 'flex';
     }
   });
 
+  // --- ОБНОВЛЕНИЕ ЗАЯВКИ (АДМИН) ---
   document.getElementById('btnUpdate').onclick = async () => {
-    if (!confirm('Подтверждаете изменение записи?')) return;
-    const id = document.getElementById('mId').value;
+    if (!confirm('Подтверждаете изменение?')) return;
+    
+    const selectedTypes = Array.from(document.querySelectorAll('#mSupplyTypesGroup input:checked')).map(cb => cb.value);
+    if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
+
     const payload = {
       slot_hour: parseInt(document.getElementById('mHour').value),
       order_number: document.getElementById('mDoc').value.trim(),
-      supply_type: document.getElementById('mSupplyType').value,
-      order_type: document.getElementById('mOrderType').value
+      supply_types: selectedTypes,
+      order_type: document.getElementById('mOrderType').value,
+      is_tk: document.getElementById('mIsTk').checked,
+      comment: document.getElementById('mComment').value.trim()
     };
 
-    const { error } = await sb.from('bookings').update(payload).eq('id', id);
+    const { error } = await sb.from('bookings').update(payload).eq('id', document.getElementById('mId').value);
     if (error) alert('Ошибка обновления: ' + error.message);
     else window.location.reload();
   };
 
   document.getElementById('btnDelete').onclick = async () => {
-    if (!confirm('ВНИМАНИЕ! Вы точно хотите удалить эту запись поставщика?')) return;
-    const id = document.getElementById('mId').value;
-    const { error } = await sb.from('bookings').delete().eq('id', id);
-    if (error) alert('Ошибка удаления: ' + error.message);
-    else window.location.reload();
+    if (!confirm('Удалить запись?')) return;
+    await sb.from('bookings').delete().eq('id', document.getElementById('mId').value);
+    window.location.reload();
   };
 
-  document.getElementById('createForm').onsubmit = async (e) => {
-    e.preventDefault();
-    const searchVal = document.getElementById('cSupplierSearch').value.trim();
-    
-    const found = allProfiles.find(p => 
-      `${p.company_name} (ИНН: ${p.inn})` === searchVal || 
-      p.inn === searchVal || 
-      p.company_name.toLowerCase() === searchVal.toLowerCase()
-    );
+  // --- СОЗДАНИЕ ЗАЯВКИ (АДМИН) ---
+  if (document.getElementById('createForm')) {
+    document.getElementById('createForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const searchVal = document.getElementById('cSupplierSearch').value.trim();
+      const found = allProfiles.find(p => `${p.company_name} (ИНН: ${p.inn})` === searchVal);
+      if (!found) return alert('Поставщик не найден.');
 
-    if (!found) return alert('Поставщик не найден. Выберите из списка.');
+      const selectedTypes = Array.from(document.querySelectorAll('#cSupplyTypesGroup input:checked')).map(cb => cb.value);
+      if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
 
-    const btn = document.getElementById('btnCreate');
-    btn.disabled = true; btn.innerText = 'Запись...';
+      const btn = document.getElementById('btnCreate');
+      btn.innerText = 'Загрузка...'; btn.disabled = true;
 
-    const payload = {
-      profile_id: found.id,
-      slot_date: selectedDate,
-      slot_hour: parseInt(document.getElementById('cHour').value),
-      supply_type: document.getElementById('cSupplyType').value,
-      order_type: document.getElementById('cOrderType').value,
-      order_number: document.getElementById('cDoc').value.trim(),
-      status: 'active'
+      const fileInput = document.getElementById('cRegistryFile');
+      const file = fileInput.files[0];
+      let fileUrl = null;
+
+      if (file) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${found.id}_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await sb.storage.from('registries').upload(fileName, file);
+        if (uploadError) {
+          alert('Ошибка загрузки файла');
+          btn.innerText = 'Записать'; btn.disabled = false;
+          return;
+        }
+        fileUrl = sb.storage.from('registries').getPublicUrl(fileName).data.publicUrl;
+      }
+
+      const payload = {
+        profile_id: found.id,
+        slot_date: selectedDate,
+        slot_hour: parseInt(document.getElementById('cHour').value),
+        supply_types: selectedTypes,
+        order_type: document.getElementById('cOrderType').value,
+        order_number: document.getElementById('cDoc').value.trim(),
+        registry_file_url: fileUrl,
+        is_tk: document.getElementById('cIsTk').checked,
+        comment: document.getElementById('cComment').value.trim(),
+        status: 'active'
+      };
+
+      const { error } = await sb.from('bookings').insert([payload]);
+      if (error) alert('Ошибка записи: ' + error.message);
+      else window.location.reload();
     };
-
-    const { error: insertError } = await sb.from('bookings').insert([payload]);
-
-    if (insertError) {
-      alert('Ошибка записи: ' + insertError.message);
-      btn.disabled = false; btn.innerText = 'Записать поставщика';
-    } else {
-      window.location.reload();
-    }
-  };
+  }
 });
