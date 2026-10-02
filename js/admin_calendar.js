@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isAdmin = profile.role === 'admin';
   const isViewer = profile.role === 'viewer';
   
-  // Применяем блокировки интерфейса для наблюдателя
   if (isViewer) document.body.classList.add('role-viewer');
 
   const pastToggle = document.getElementById('showPastBtn');
@@ -23,7 +22,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault(); await sb.auth.signOut(); window.location.href = '../index.html';
   };
 
-  // ЗАГРУЗКА НАСТРОЕК
   const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
 
   const styleBlock = document.createElement('style');
@@ -33,7 +31,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   `;
   document.head.appendChild(styleBlock);
 
-  // Заполняем фильтр по типу поставки (select)
+  // Умный подбор иконки по названию (аналогично странице day)
+  const getSupplyIcon = (id, name) => {
+    const n = (name || '').toLowerCase();
+    if (id === 'orders_im' || n.includes('им')) return '📦';
+    if (id === 'return' || n.includes('возврат')) return '↩️';
+    if (id === 'mix' || n.includes('микс')) return '🔀';
+    if (n.includes('сток')) return '🏭';
+    if (n.includes('кросс')) return '🚚';
+    return '🏷️️'; 
+  };
+
   const filterSupplyType = document.getElementById('filterSupplyType');
   if (filterSupplyType && settings) {
     filterSupplyType.innerHTML = '<option value="">Все типы</option>';
@@ -42,7 +50,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Заполняем чекбоксы в модальном окне редактирования
   const fillCheckboxes = (containerId) => {
     const el = document.getElementById(containerId);
     if (!el || !settings) return;
@@ -53,7 +60,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
   fillCheckboxes('mSupplyTypesGroup');
 
-  // Заполняем выпадающий список часов в модалке
   const mHourSelect = document.getElementById('mHour');
   if (mHourSelect && settings) {
     mHourSelect.innerHTML = '';
@@ -67,7 +73,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const maxActiveDate = new Date(today);
   maxActiveDate.setDate(today.getDate() + 29);
 
-  // ГЛАВНАЯ ФУНКЦИЯ ОТРИСОВКИ
   const renderCalendar = async () => {
     const filterSupplier = document.getElementById('filterSupplier').value.trim();
     const filterDoc = document.getElementById('filterDoc').value.trim();
@@ -83,7 +88,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (filterOrder) query = query.eq('order_type', filterOrder);
     if (filterSupplier) query = query.or(`company_name.ilike.%${filterSupplier}%,inn.ilike.%${filterSupplier}%`, { foreignTable: 'profiles' });
     
-    // Если ищем по типу поставки - ищем совпадение внутри JSONB массива
     if (filterSupply) {
       query = query.contains('supply_types', [filterSupply]);
     }
@@ -91,7 +95,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { data: bookings } = await query;
     const bookedDates = new Set((bookings || []).map(b => b.slot_date));
 
-    // Отрисовка календаря
     const startDate = new Date(today);
     if (showPast) {
       startDate.setDate(today.getDate() - 30);
@@ -126,7 +129,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       grid.appendChild(cell);
     }
 
-    // Отрисовка списка записей внизу
     const listContainer = document.getElementById('upcomingBookingsList');
     listContainer.innerHTML = '';
     
@@ -145,8 +147,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       const dict = {}; settings.supply_types.forEach(st => dict[st.id] = st.name);
 
       upcoming.forEach(b => {
-        const typesStr = b.supply_types?.length ? b.supply_types.map(t => dict[t] || t).join(', ') : (dict[b.supply_type] || b.supply_type);
-        
+        // Формируем пиктограммы вместо текста типов поставок
+        const typesArr = b.supply_types?.length ? b.supply_types : [b.supply_type];
+        const iconsHtml = typesArr.map(t => {
+          const name = dict[t] || t;
+          return `<span title="${name}">${getSupplyIcon(t, name)}</span>`;
+        }).join(' ');
+
         const item = document.createElement('div');
         item.className = 'booking-item';
         
@@ -157,12 +164,20 @@ document.addEventListener('DOMContentLoaded', async () => {
           fullCompany: `${b.profiles.company_name} (ИНН: ${b.profiles.inn})`
         }));
         
-        const shortName = b.profiles.company_name.length > 18 ? b.profiles.company_name.substring(0,18) + '...' : b.profiles.company_name;
+        const compName = b.profiles.company_name || 'Неизвестно';
+        const dateFormatted = new Date(b.slot_date).toLocaleDateString('ru-RU');
+        const timeFormatted = `${b.slot_hour}:00 - ${b.slot_hour + 1}:00`;
         
+        // По ТЗ: Наименование поставщика, дата, время записи, пиктограммы тип поставки
         item.innerHTML = `
-          <div class="booking-date">${new Date(b.slot_date).toLocaleDateString('ru-RU')}</div>
-          <div style="font-size: 12px; color: var(--color-primary); font-weight: 600;">${shortName}</div>
-          <div class="booking-time">${b.slot_hour}:00 • ${typesStr}</div>
+          <div class="bi-company" title="${compName}">${compName}</div>
+          <div class="bi-top">
+            <span>📅 ${dateFormatted}</span>
+            <span>⏰ ${timeFormatted}</span>
+          </div>
+          <div class="bi-bottom">
+            <div class="bi-icons">${iconsHtml}</div>
+          </div>
         `;
         
         item.onclick = () => openEditModal(dataStr);
@@ -171,7 +186,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  // --- ЛОГИКА МОДАЛЬНОГО ОКНА ---
   const editModal = document.getElementById('editModal');
   document.getElementById('closeEditModal').onclick = () => editModal.style.display = 'none';
 
@@ -194,7 +208,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       fileLink.style.display = 'none';
     }
 
-    // Расстановка галочек
     document.querySelectorAll('#mSupplyTypesGroup input').forEach(cb => {
       cb.checked = data.sTypesRaw.includes(cb.value);
     });
@@ -202,7 +215,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     editModal.style.display = 'flex';
   }
 
-  // --- СОХРАНЕНИЕ / УДАЛЕНИЕ ---
   if (!isViewer) {
     document.getElementById('btnUpdate').onclick = async () => {
       if (!confirm('Подтверждаете изменение записи?')) return;
