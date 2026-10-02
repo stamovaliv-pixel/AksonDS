@@ -21,12 +21,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ЗАГРУЗКА ГЛОБАЛЬНЫХ НАСТРОЕК
   const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
 
-  // Внедряем строгие стили для неактивных дней
+  // Внедряем стили для неактивных дней (Они серые, но КЛИКАБЕЛЬНЫЕ для админа/оператора)
   const styleBlock = document.createElement('style');
   styleBlock.innerHTML = `
     .day-cell.inactive::before { display: none !important; }
-    .day-cell.inactive { background-color: #f1f5f9 !important; opacity: 0.6 !important; cursor: not-allowed; }
-    .day-cell.inactive.booked { cursor: pointer !important; }
+    .day-cell.inactive { background-color: #f1f5f9 !important; opacity: 0.6 !important; cursor: pointer !important; }
     .day-cell.inactive.booked::before { display: block !important; background-color: #ef4444 !important; }
   `;
   document.head.appendChild(styleBlock);
@@ -112,10 +111,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       cell.innerHTML = `<div class="date-text">${d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})}</div>`;
       
-      // Разрешаем клик, только если день активен ИЛИ в нем есть заявки
-      if (!(isPastOrFuture || !isAllowedDay) || bookedDates.has(isoDate)) {
-        cell.onclick = () => window.location.href = `admin_day.html?date=${isoDate}`;
-      }
+      // БЛОКИРОВКА КЛИКА УБРАНА. Админ может провалиться в любой день:
+      cell.onclick = () => window.location.href = `admin_day.html?date=${isoDate}`;
       
       grid.appendChild(cell);
     }
