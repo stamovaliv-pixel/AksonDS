@@ -11,14 +11,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('currentDateDisplay').innerText = new Date(selectedDate).toLocaleDateString('ru-RU');
 
-  // Выход
   document.getElementById('logoutBtn').onclick = async (e) => { 
     e.preventDefault(); await sb.auth.signOut(); window.location.href = '../index.html'; 
   };
 
   const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
   
-  // Заполнение чекбоксов
+  // Ссылка на шаблон
+  const templateBtn = document.getElementById('downloadTemplateBtn');
+  if (templateBtn) {
+    if (settings && settings.registry_template_url) {
+      templateBtn.href = settings.registry_template_url;
+    } else {
+      templateBtn.style.display = 'none';
+    }
+  }
+
   const typesContainer = document.getElementById('supplyTypesGroup');
   if (typesContainer && settings) {
     typesContainer.innerHTML = '';
@@ -41,22 +49,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isToday = new Date(selectedDate).toDateString() === now.toDateString();
   const isPastDay = new Date(selectedDate) < new Date(now.toDateString());
 
-  // ОТРИСОВКА СЛОТОВ
   for (let hour = settings.slot_start_hour; hour <= settings.slot_end_hour; hour++) {
     const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
     const myBooking = hourBookings.find(b => b.profile_id === user.id);
 
-    let reserveUsed = 0;
-    let mainUsed = 0;
+    let reserveUsed = 0, mainUsed = 0;
     
     hourBookings.forEach(b => {
       const types = b.supply_types?.length ? b.supply_types : [b.supply_type];
       const isImOnly = types.length === 1 && types[0] === 'orders_im';
-      if (isImOnly && reserveUsed < (settings.reserve_slots_per_hour || 3)) {
-        reserveUsed++;
-      } else {
-        mainUsed++;
-      }
+      if (isImOnly && reserveUsed < (settings.reserve_slots_per_hour || 3)) reserveUsed++; 
+      else mainUsed++;
     });
 
     const reserveLeft = (settings.reserve_slots_per_hour || 3) - reserveUsed;
@@ -68,8 +71,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const card = document.createElement('div');
     card.className = 'slot-card';
     
-    let statusHtml = '';
-    let btnHtml = '';
+    let statusHtml = '', btnHtml = '';
 
     if (isPast) {
       card.classList.add('inactive');
@@ -87,11 +89,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       btnHtml = `<button class="btn-disabled" disabled>Занято</button>`;
     } 
     else {
-      if (mainLeft > 0) {
-        statusHtml = `<span style="color: #10b981;">Свободно: ${mainLeft} осн. / ${reserveLeft} рез.</span>`;
-      } else {
-        statusHtml = `<span style="color: #f59e0b;">Осталось ${reserveLeft} (только Заказы ИМ)</span>`;
-      }
+      if (mainLeft > 0) statusHtml = `<span style="color: #10b981;">Свободно: ${mainLeft} осн. / ${reserveLeft} рез.</span>`;
+      else statusHtml = `<span style="color: #f59e0b;">Осталось ${reserveLeft} (только Заказы ИМ)</span>`;
       btnHtml = `<button class="btn-book">Записаться</button>`;
       card.onclick = () => openCreateModal(hour, mainLeft);
     }
@@ -100,7 +99,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     slotsContainer.appendChild(card);
   }
 
-  // --- ЛОГИКА СОЗДАНИЯ ---
   let currentMainLeft = 0;
   const createModal = document.getElementById('bookingModal');
   const hourInput = document.getElementById('selectedHour');
@@ -122,26 +120,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const isImOnly = selectedTypes.length === 1 && selectedTypes[0] === 'orders_im';
     
-    // Проверка мест
     if (!isImOnly && currentMainLeft <= 0) {
       return alert('В этом слоте закончились основные места. Запись доступна только для типа "Заказы ИМ".');
     }
 
-    // Правило 24 часов для Возврата
     if (selectedTypes.includes('return')) {
       const slotTime = new Date(selectedDate);
       slotTime.setHours(parseInt(hourInput.value), 0, 0, 0);
       const diffHours = (slotTime - new Date()) / (1000 * 60 * 60);
-      if (diffHours < 24) {
-        return alert('Для поставок, включающих "Возврат", запись возможна не ранее чем за 24 часа.');
-      }
+      if (diffHours < 24) return alert('Для поставок, включающих "Возврат", запись возможна не ранее чем за 24 часа.');
     }
 
     const btn = document.getElementById('submitBookingBtn');
     btn.innerText = 'Оформление...';
     btn.disabled = true;
 
-    // Загрузка файла
     const fileInput = document.getElementById('registryFile');
     const file = fileInput.files[0];
     let fileUrl = null;
@@ -183,7 +176,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // --- ЛОГИКА ПРОСМОТРА ---
   const detailsModal = document.getElementById('bookingDetailsModal');
   document.getElementById('closeDetailsModalBtn').onclick = () => detailsModal.style.display = 'none';
 
