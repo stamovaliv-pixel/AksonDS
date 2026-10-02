@@ -21,13 +21,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   settings.supply_types.forEach(st => supplyTypes[st.id] = st.name);
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
 
-  // Пиктограммы для типов поставок (подберите под свои ID)
+  // Пиктограммы для типов поставок 
   const typeIcons = {
     'orders_im': '📦',   // Заказы ИМ
     'return': '↩️',      // Возврат
     'mix': '🔀',         // МИКС
-    'stock': '🏭',       // Сток (если есть)
-    'cross_dock': '🚚'   // Кросс-док (если есть)
   };
 
   // Отрисовка чекбоксов
@@ -42,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   fillCheckboxes('mSupplyTypesGroup');
   fillCheckboxes('cSupplyTypesGroup');
 
-  // 1. Загрузка данных бронирований
+  // Загрузка данных бронирований
   const { data: bookings } = await sb
     .from('bookings')
     .select('id, slot_hour, order_number, order_type, supply_type, supply_types, arrival_time, departure_time, gate_number, is_tk, comment, registry_file_url, profiles(company_name, inn)')
@@ -53,6 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let selectedSupplier = null;
 
   if (!isViewer) {
+    // ОБНОВЛЕНО: Теперь поиск идет по ВСЕМ пользователям базы данных (убран фильтр .eq('role', 'supplier'))
     const { data: profilesData } = await sb.from('profiles').select('id, company_name, inn');
     if (profilesData) {
       allProfiles = profilesData;
@@ -103,7 +102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
           resultsContainer.style.display = 'block';
         } else {
-          resultsContainer.innerHTML = '<div style="padding: 10px; color: #ef4444; font-size: 13px; text-align: center;">Поставщик не найден</div>';
+          resultsContainer.innerHTML = '<div style="padding: 10px; color: #ef4444; font-size: 13px; text-align: center;">Пользователь не найден</div>';
           resultsContainer.style.display = 'block';
         }
       });
@@ -119,7 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const container = document.getElementById('hoursContainer');
   container.innerHTML = '';
   
-  // 2. ОТРИСОВКА СЕТКИ И ГОРИЗОНТАЛЬНЫХ СЛОТОВ
+  // 2. ОТРИСОВКА СЕТКИ СЛОТОВ
   for (let hour = settings.slot_start_hour; hour <= settings.slot_end_hour; hour++) {
     const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
     const block = document.createElement('div');
@@ -142,11 +141,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const limitMain = settings.slots_per_hour || 5;
     const limitRes = settings.reserve_slots_per_hour || 3;
 
-    // Генератор заполненной карточки
+    // Функция создания занятой карточки
     const generateBookedCardHtml = (b, cssClass) => {
       const typesArr = b.supply_types?.length ? b.supply_types : [b.supply_type];
       
-      // Рисуем пиктограммы
       const iconsHtml = typesArr.map(t => {
         const icon = typeIcons[t] || '🏷️';
         const title = supplyTypes[t] || t;
@@ -154,9 +152,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }).join(' ');
 
       const compName = b.profiles?.company_name || 'Неизвестно';
-      
-      // Мигающая точка ТК
-      const tkHtml = b.is_tk ? `<div class="tk-dot" title="Транспортная компания (ТК)"></div>` : `<div style="width:12px;"></div>`;
+      const tkHtml = b.is_tk ? `<div class="tk-dot" title="Транспортная компания (ТК)"></div>` : ``;
 
       const dataStr = encodeURIComponent(JSON.stringify({
         id: b.id, hour: b.slot_hour, doc: b.order_number, 
@@ -183,26 +179,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>`;
     };
 
-    // --- 1. Основные слоты (Слева) ---
+    // Отрисовка Основных слотов
     for(let i=0; i<limitMain; i++) {
       if (mainCards[i]) {
         cardsHtml += generateBookedCardHtml(mainCards[i], 'main-booked');
       } else {
         cardsHtml += `
           <div class="slot-box main-empty sb-empty ${isViewer ? 'viewer-hide' : ''}" data-hour="${hour}">
-            <div class="sb-empty-text">+ Осн. Слот<br><span style="font-size:10px; font-weight:normal;">Свободно</span></div>
+            <div class="sb-empty-text">+ Осн. слот<br><span style="font-size:11px; font-weight:normal;">Свободно</span></div>
           </div>`;
       }
     }
 
-    // --- 2. Резервные слоты (Справа) ---
+    // Отрисовка Резервных слотов
     for(let i=0; i<limitRes; i++) {
       if (reserveCards[i]) {
         cardsHtml += generateBookedCardHtml(reserveCards[i], 'res-booked');
       } else {
         cardsHtml += `
           <div class="slot-box res-empty sb-empty ${isViewer ? 'viewer-hide' : ''}" data-hour="${hour}">
-            <div class="sb-empty-text">+ Резерв<br><span style="font-size:10px; font-weight:normal;">(Только ИМ)</span></div>
+            <div class="sb-empty-text">+ Резерв<br><span style="font-size:11px; font-weight:normal;">Только ИМ</span></div>
           </div>`;
       }
     }
@@ -232,14 +228,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // --- ЛОГИКА КЛИКОВ (Пустые слоты и Точки) ---
+  // --- ЛОГИКА КЛИКОВ ---
   const editModal = document.getElementById('editModal');
   const createModal = document.getElementById('createModal');
   document.getElementById('closeEditModal').onclick = () => editModal.style.display = 'none';
   document.getElementById('closeCreateModal').onclick = () => createModal.style.display = 'none';
 
   container.addEventListener('click', (e) => {
-    // 1. Клик на "⋮" (Подробнее)
+    // 1. Клик на "⋮" (Редактировать)
     const dotsBtn = e.target.closest('.btn-dots');
     if (dotsBtn) {
       const card = dotsBtn.closest('.slot-box');
@@ -295,14 +291,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // 2. Клик на пустой слот (+ Добавить)
+    // 2. Клик на пустой слот
     const emptySlot = e.target.closest('.sb-empty');
     if (emptySlot && !isViewer) {
       document.getElementById('cHour').value = emptySlot.dataset.hour;
       document.getElementById('createForm').reset();
       selectedSupplier = null; 
       
-      // Если кликнули на пустой резервный слот, можно автоматически включить галочку "orders_im"
       if(emptySlot.classList.contains('res-empty')) {
          const imCb = document.querySelector('#cSupplyTypesGroup input[value="orders_im"]');
          if(imCb) imCb.checked = true;
@@ -354,8 +349,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         );
 
         if (matches.length === 1) selectedSupplier = matches[0];
-        else if (matches.length > 1) return alert('Найдено несколько поставщиков. Выберите конкретного из выпадающего списка под полем ввода.');
-        else return alert('Поставщик не найден. Уточните запрос.');
+        else if (matches.length > 1) return alert('Найдено несколько поставщиков. Выберите из списка.');
+        else return alert('Поставщик не найден.');
       }
 
       const selectedTypes = Array.from(document.querySelectorAll('#cSupplyTypesGroup input:checked')).map(cb => cb.value);
