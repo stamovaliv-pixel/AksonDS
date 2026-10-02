@@ -4,11 +4,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!user) return window.location.href = '../index.html';
 
   const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).single();
-  if (!profile || (profile.role !== 'operator' && profile.role !== 'admin')) {
+  if (!profile || !['admin', 'operator', 'viewer'].includes(profile.role)) {
     return window.location.href = 'calendar.html';
   }
 
   const isAdmin = profile.role === 'admin';
+  const isViewer = profile.role === 'viewer';
+  
+  // Применяем блокировки интерфейса для наблюдателя
+  if (isViewer) document.body.classList.add('role-viewer');
+
   const pastToggle = document.getElementById('showPastBtn');
   if (isAdmin && pastToggle) {
     document.getElementById('adminPastToggleContainer').style.display = 'flex';
@@ -18,10 +23,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault(); await sb.auth.signOut(); window.location.href = '../index.html';
   };
 
-  // ЗАГРУЗКА ГЛОБАЛЬНЫХ НАСТРОЕК
+  // ЗАГРУЗКА НАСТРОЕК
   const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
 
-  // ОБНОВЛЕНО: Показываем цветные полоски, делаем прозрачным, но оставляем кликабельным (cursor: pointer)
   const styleBlock = document.createElement('style');
   styleBlock.innerHTML = `
     .day-cell.inactive::before { display: block !important; }
@@ -29,29 +33,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   `;
   document.head.appendChild(styleBlock);
 
-  const fillSelects = (elementId) => {
-    const el = document.getElementById(elementId);
-    if (!el || !settings) return;
-    el.innerHTML = elementId === 'filterSupplyType' ? '<option value="">Все типы</option>' : '';
+  // Заполняем фильтр по типу поставки (select)
+  const filterSupplyType = document.getElementById('filterSupplyType');
+  if (filterSupplyType && settings) {
+    filterSupplyType.innerHTML = '<option value="">Все типы</option>';
     settings.supply_types.forEach(st => {
-      const opt = document.createElement('option');
-      opt.value = st.id;
-      opt.textContent = st.name;
-      el.appendChild(opt);
+      filterSupplyType.innerHTML += `<option value="${st.id}">${st.name}</option>`;
+    });
+  }
+
+  // Заполняем чекбоксы в модальном окне редактирования
+  const fillCheckboxes = (containerId) => {
+    const el = document.getElementById(containerId);
+    if (!el || !settings) return;
+    el.innerHTML = '';
+    settings.supply_types.forEach(st => {
+      el.innerHTML += `<label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" value="${st.id}"> ${st.name}</label>`;
     });
   };
-  
-  fillSelects('filterSupplyType');
-  fillSelects('mSupplyType');
+  fillCheckboxes('mSupplyTypesGroup');
 
+  // Заполняем выпадающий список часов в модалке
   const mHourSelect = document.getElementById('mHour');
   if (mHourSelect && settings) {
     mHourSelect.innerHTML = '';
     for (let h = settings.slot_start_hour; h <= settings.slot_end_hour; h++) {
-      const opt = document.createElement('option');
-      opt.value = h;
-      opt.textContent = `${h}:00 - ${h+1}:00`;
-      mHourSelect.appendChild(opt);
+      mHourSelect.innerHTML += `<option value="${h}">${h}:00 - ${h+1}:00</option>`;
     }
   }
 
@@ -60,6 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const maxActiveDate = new Date(today);
   maxActiveDate.setDate(today.getDate() + 29);
 
+  // ГЛАВНАЯ ФУНКЦИЯ ОТРИСОВКИ
   const renderCalendar = async () => {
     const filterSupplier = document.getElementById('filterSupplier').value.trim();
     const filterDoc = document.getElementById('filterDoc').value.trim();
@@ -69,16 +77,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const isSearchActive = filterSupplier !== '' || filterDoc !== '' || filterSupply !== '' || filterOrder !== '';
 
-    let query = sb.from('bookings').select('id, slot_date, slot_hour, order_number, order_type, supply_type, profiles!inner(company_name, inn)').eq('status', 'active');
+    let query = sb.from('bookings').select('id, slot_date, slot_hour, order_number, order_type, supply_type, supply_types, is_tk, comment, registry_file_url, profiles!inner(company_name, inn)').eq('status', 'active');
     
     if (filterDoc) query = query.ilike('order_number', `%${filterDoc}%`);
-    if (filterSupply) query = query.eq('supply_type', filterSupply);
     if (filterOrder) query = query.eq('order_type', filterOrder);
     if (filterSupplier) query = query.or(`company_name.ilike.%${filterSupplier}%,inn.ilike.%${filterSupplier}%`, { foreignTable: 'profiles' });
+    
+    // Если ищем по типу поставки - ищем совпадение внутри JSONB массива
+    if (filterSupply) {
+      query = query.contains('supply_types', [filterSupply]);
+    }
 
     const { data: bookings } = await query;
     const bookedDates = new Set((bookings || []).map(b => b.slot_date));
 
+    // Отрисовка календаря
     const startDate = new Date(today);
     if (showPast) {
       startDate.setDate(today.getDate() - 30);
@@ -108,13 +121,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (bookedDates.has(isoDate)) cell.classList.add('booked'); 
       
       cell.innerHTML = `<div class="date-text">${d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})}</div>`;
-      
-      // Клик разрешен всегда
       cell.onclick = () => window.location.href = `admin_day.html?date=${isoDate}`;
       
       grid.appendChild(cell);
     }
 
+    // Отрисовка списка записей внизу
     const listContainer = document.getElementById('upcomingBookingsList');
     listContainer.innerHTML = '';
     
@@ -130,20 +142,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (upcoming.length === 0) {
       listContainer.innerHTML = `<div style="grid-column: 1 / -1; color: var(--color-text-muted); font-size: 14px; text-align: center; padding: 20px;">По вашему запросу ничего не найдено.</div>`;
     } else {
+      const dict = {}; settings.supply_types.forEach(st => dict[st.id] = st.name);
+
       upcoming.forEach(b => {
+        const typesStr = b.supply_types?.length ? b.supply_types.map(t => dict[t] || t).join(', ') : (dict[b.supply_type] || b.supply_type);
+        
         const item = document.createElement('div');
         item.className = 'booking-item';
+        
         const dataStr = encodeURIComponent(JSON.stringify({
-          id: b.id, date: b.slot_date, hour: b.slot_hour, doc: b.order_number, sTypeRaw: b.supply_type, oTypeRaw: b.order_type, fullCompany: `${b.profiles.company_name} (ИНН: ${b.profiles.inn})`
+          id: b.id, date: b.slot_date, hour: b.slot_hour, doc: b.order_number, 
+          sTypesRaw: b.supply_types || [b.supply_type], oTypeRaw: b.order_type, 
+          is_tk: b.is_tk, comment: b.comment, registry_file_url: b.registry_file_url,
+          fullCompany: `${b.profiles.company_name} (ИНН: ${b.profiles.inn})`
         }));
+        
         const shortName = b.profiles.company_name.length > 18 ? b.profiles.company_name.substring(0,18) + '...' : b.profiles.company_name;
-        item.innerHTML = `<div class="booking-date">${new Date(b.slot_date).toLocaleDateString('ru-RU')}</div><div style="font-size: 12px; color: var(--color-primary); font-weight: 600;">${shortName}</div><div class="booking-time">${b.slot_hour}:00</div>`;
+        
+        item.innerHTML = `
+          <div class="booking-date">${new Date(b.slot_date).toLocaleDateString('ru-RU')}</div>
+          <div style="font-size: 12px; color: var(--color-primary); font-weight: 600;">${shortName}</div>
+          <div class="booking-time">${b.slot_hour}:00 • ${typesStr}</div>
+        `;
+        
         item.onclick = () => openEditModal(dataStr);
         listContainer.appendChild(item);
       });
     }
   };
 
+  // --- ЛОГИКА МОДАЛЬНОГО ОКНА ---
   const editModal = document.getElementById('editModal');
   document.getElementById('closeEditModal').onclick = () => editModal.style.display = 'none';
 
@@ -153,35 +181,57 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('mDate').value = data.date;
     document.getElementById('mHour').value = data.hour;
     document.getElementById('mDoc').value = data.doc;
-    
-    const sType = document.getElementById('mSupplyType');
-    if ([...sType.options].map(o => o.value).includes(data.sTypeRaw)) sType.value = data.sTypeRaw;
-    
     document.getElementById('mOrderType').value = data.oTypeRaw;
     document.getElementById('mCompany').innerText = data.fullCompany;
+    document.getElementById('mIsTk').checked = data.is_tk || false;
+    document.getElementById('mComment').value = data.comment || '';
+    
+    const fileLink = document.getElementById('mFileLink');
+    if (data.registry_file_url) {
+      fileLink.href = data.registry_file_url;
+      fileLink.style.display = 'inline-block';
+    } else {
+      fileLink.style.display = 'none';
+    }
+
+    // Расстановка галочек
+    document.querySelectorAll('#mSupplyTypesGroup input').forEach(cb => {
+      cb.checked = data.sTypesRaw.includes(cb.value);
+    });
+    
     editModal.style.display = 'flex';
   }
 
-  document.getElementById('btnUpdate').onclick = async () => {
-    if (!confirm('Подтверждаете изменение записи?')) return;
-    const payload = {
-      slot_date: document.getElementById('mDate').value,
-      slot_hour: parseInt(document.getElementById('mHour').value),
-      order_number: document.getElementById('mDoc').value.trim(),
-      supply_type: document.getElementById('mSupplyType').value,
-      order_type: document.getElementById('mOrderType').value
-    };
-    const { error } = await sb.from('bookings').update(payload).eq('id', document.getElementById('mId').value);
-    if (error) alert('Ошибка обновления: ' + error.message);
-    else { editModal.style.display = 'none'; renderCalendar(); }
-  };
+  // --- СОХРАНЕНИЕ / УДАЛЕНИЕ ---
+  if (!isViewer) {
+    document.getElementById('btnUpdate').onclick = async () => {
+      if (!confirm('Подтверждаете изменение записи?')) return;
+      
+      const selectedTypes = Array.from(document.querySelectorAll('#mSupplyTypesGroup input:checked')).map(cb => cb.value);
+      if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
 
-  document.getElementById('btnDelete').onclick = async () => {
-    if (!confirm('ВНИМАНИЕ! Вы точно хотите удалить эту запись поставщика?')) return;
-    const { error } = await sb.from('bookings').delete().eq('id', document.getElementById('mId').value);
-    if (error) alert('Ошибка удаления: ' + error.message);
-    else { editModal.style.display = 'none'; renderCalendar(); }
-  };
+      const payload = {
+        slot_date: document.getElementById('mDate').value,
+        slot_hour: parseInt(document.getElementById('mHour').value),
+        order_number: document.getElementById('mDoc').value.trim(),
+        supply_types: selectedTypes,
+        order_type: document.getElementById('mOrderType').value,
+        is_tk: document.getElementById('mIsTk').checked,
+        comment: document.getElementById('mComment').value.trim()
+      };
+      
+      const { error } = await sb.from('bookings').update(payload).eq('id', document.getElementById('mId').value);
+      if (error) alert('Ошибка обновления: ' + error.message);
+      else { editModal.style.display = 'none'; renderCalendar(); }
+    };
+
+    document.getElementById('btnDelete').onclick = async () => {
+      if (!confirm('ВНИМАНИЕ! Вы точно хотите удалить эту запись поставщика?')) return;
+      const { error } = await sb.from('bookings').delete().eq('id', document.getElementById('mId').value);
+      if (error) alert('Ошибка удаления: ' + error.message);
+      else { editModal.style.display = 'none'; renderCalendar(); }
+    };
+  }
 
   document.getElementById('applyFiltersBtn').onclick = renderCalendar;
   document.getElementById('resetFiltersBtn').onclick = () => {
