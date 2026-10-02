@@ -9,16 +9,11 @@
   <style>
     .app-header { margin-top: 0; box-shadow: none; border-bottom: none; padding-bottom: 15px; }
     .top-gradient-bar { width: 100%; height: 2px; background: linear-gradient(90deg, var(--color-gradient-start), var(--color-gradient-end)); margin-bottom: 20px; }
-    
     .header-nav { display: flex; gap: 20px; align-items: center; }
     .nav-icon { display: inline-flex; align-items: center; justify-content: center; padding: 5px; transition: transform 0.2s ease; text-decoration: none; }
     
-    .time-group { margin-bottom: 30px; }
-    .time-group-title { font-size: 18px; font-weight: 700; color: var(--color-text-main); margin-bottom: 15px; padding-bottom: 5px; border-bottom: 2px solid #f1f5f9; }
-    
-    .slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
-    .slot-card { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 20px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
-    .slot-card:hover:not(.inactive) { border-color: var(--color-primary); box-shadow: 0 8px 15px rgba(0,0,0,0.05); transform: translateY(-2px); }
+    .slot-card { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 20px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 15px; }
+    .slot-card:hover:not(.inactive) { border-color: var(--color-primary); box-shadow: 0 8px 15px rgba(0,0,0,0.05); transform: translateY(-2px); cursor: pointer; }
     .slot-card.inactive { background: #f8fafc; opacity: 0.7; pointer-events: none; border-color: #e2e8f0; }
     
     .slot-time { font-size: 18px; font-weight: 700; color: var(--color-text-main); margin-bottom: 4px; }
@@ -27,7 +22,6 @@
     .btn-book { background: #3b82f6; color: #fff; border: none; padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; transition: 0.2s; }
     .btn-book:hover { background: #2563eb; }
     .btn-cancel { background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; transition: 0.2s; }
-    .btn-cancel:hover { background: #e2e8f0; }
     .btn-disabled { background: #e2e8f0; color: #94a3b8; border: none; padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: not-allowed; }
 
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
@@ -37,15 +31,13 @@
     .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b; line-height: 1; }
     
     .form-group { margin-bottom: 18px; }
-    .form-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--color-text-main); }
-    .form-group input[type="text"], .form-group select, .form-group textarea { width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: 6px; box-sizing: border-box; font-size: 15px; transition: 0.2s; outline: none; }
-    .form-group input[type="text"]:focus, .form-group select:focus, .form-group textarea:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-    .form-group input[type="file"] { width: 100%; padding: 10px; border: 1px dashed var(--color-border); border-radius: 6px; background: #f8fafc; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--color-text-main); }
+    .form-group input[type="text"], .form-group select, .form-group textarea { width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: 6px; box-sizing: border-box; font-size: 15px; outline: none; }
+    .form-group input[type="text"]:focus, .form-group select:focus, .form-group textarea:focus { border-color: #3b82f6; }
     
     .btn-save { background: #10b981; color: #fff; border: none; padding: 14px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600; font-size: 16px; margin-top: 10px; transition: 0.2s; }
     .btn-save:hover { background: #059669; }
-    .btn-red { background: #ef4444; color: #fff; border: none; padding: 14px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600; font-size: 16px; margin-top: 10px; transition: 0.2s; }
-    .btn-red:hover { background: #dc2626; }
+    .btn-red { background: #ef4444; color: #fff; border: none; padding: 14px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600; font-size: 16px; margin-top: 10px; }
     
     .detail-row { margin-bottom: 12px; font-size: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
     .detail-label { color: var(--color-text-muted); font-size: 13px; margin-bottom: 4px; }
@@ -67,13 +59,11 @@
       <a href="calendar.html" style="color: #3b82f6; text-decoration: none; font-weight: 600; font-size: 16px;">&larr; Назад в календарь</a>
       <h2 style="margin: 0; font-size: 22px;">Слоты на <span id="currentDateDisplay" style="color: var(--color-primary);"></span></h2>
     </div>
-    
     <div id="slotsContainer">
       <div style="padding: 40px; text-align: center; color: var(--color-text-muted);">Загрузка расписания...</div>
     </div>
   </main>
 
-  <!-- Модальное окно СОЗДАНИЯ -->
   <div class="modal-overlay" id="bookingModal">
     <div class="modal-content">
       <div class="modal-header">
@@ -85,9 +75,7 @@
         
         <div class="form-group">
           <label>Тип поставки (можно выбрать несколько)</label>
-          <div id="supplyTypesGroup" style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <!-- Заполняется JS -->
-          </div>
+          <div id="supplyTypesGroup" style="display: flex; gap: 12px; flex-wrap: wrap;"></div>
         </div>
 
         <div style="display: flex; gap: 15px;">
@@ -106,15 +94,19 @@
         </div>
 
         <div class="form-group">
-          <label>Реестр поставки (.csv) 
-            <a href="data:text/csv;charset=utf-8,%EF%BB%BF%D0%A3%D0%9F%D0%94;%D0%93%D0%BE%D1%80%D0%BE%D0%B4%0A" download="Шаблон_Реестра.csv" style="float: right; color: #3b82f6; text-decoration: none; font-weight: normal; font-size: 13px;">📥 Скачать шаблон</a>
-          </label>
-          <input type="file" id="registryFile" accept=".csv" required>
+          <label>Реестр поставки (.csv)</label>
+          <div style="display: flex; gap: 10px; align-items: center; margin-top: 4px;">
+            <input type="file" id="registryFile" accept=".csv" required style="flex:1; border: 1px solid #cbd5e1; padding: 8px; border-radius: 4px; background: #fff; font-size: 13px; outline: none;">
+            <a id="downloadTemplateBtn" href="#" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; text-decoration: none; color: #475569; font-size: 13px; font-weight: 500; transition: 0.2s; white-space: nowrap;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Шаблон
+            </a>
+          </div>
         </div>
 
         <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
           <input type="checkbox" id="isTk" style="width: 18px; height: 18px; margin: 0; cursor: pointer;">
-          <label style="margin: 0; font-size: 15px; cursor: pointer;" for="isTk">Признак ТК</label>
+          <label style="margin: 0; font-size: 15px; cursor: pointer;" for="isTk">Привезет транспортная компания</label>
         </div>
 
         <div class="form-group">
@@ -127,7 +119,6 @@
     </div>
   </div>
 
-  <!-- Модальное окно ПРОСМОТРА ДЕТАЛЕЙ -->
   <div class="modal-overlay" id="bookingDetailsModal">
     <div class="modal-content">
       <div class="modal-header">
@@ -147,6 +138,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js"></script>
-  <script src="../js/day.js"></script>
+  <script src="../js/day.js?v=6"></script>
 </body>
 </html>
