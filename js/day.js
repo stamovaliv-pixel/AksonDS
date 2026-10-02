@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault(); await sb.auth.signOut(); window.location.href = '../index.html'; 
   };
 
-  // --- ЛОГИКА НАВИГАЦИИ ПО ДНЯМ ИЗ V1 ---
   function getLocalDateString(d) {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -48,13 +47,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (nextDate > maxDate) nextBtn.disabled = true;
   else nextBtn.onclick = () => window.location.href = `day.html?date=${getLocalDateString(nextDate)}`;
 
-  // --- ЗАГРУЗКА ДАННЫХ ИЗ V2 ---
   const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
   
+  // ПРИНУДИТЕЛЬНОЕ ОТОБРАЖЕНИЕ КНОПКИ ШАБЛОНА
   const templateBtn = document.getElementById('downloadTemplateBtn');
   if (templateBtn) {
     if (settings && settings.registry_template_url) {
       templateBtn.href = settings.registry_template_url;
+      templateBtn.style.display = 'inline-flex';
     } else {
       templateBtn.style.display = 'none';
     }
@@ -112,7 +112,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const slotsContainer = document.getElementById('slotsContainer');
   slotsContainer.innerHTML = ''; 
   
-  // --- ВИЗУАЛЬНЫЕ ГРУППЫ ИЗ V1 ---
   const groups = {
     morning: { title: '☕ Утро (до 12:00)', el: null },
     afternoon: { title: '☀️ День (12:00 - 16:00)', el: null },
@@ -128,8 +127,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const currentHour = now.getHours();
-  const isToday = selectedMidnight.getTime() === todayMidnight.getTime();
-  const isPastDay = selectedMidnight < todayMidnight;
 
   for (let hour = settings.slot_start_hour; hour <= settings.slot_end_hour; hour++) {
     const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
@@ -179,20 +176,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     card.innerHTML = `<div><div class="slot-time">${hour}:00 - ${hour + 1}:00</div><div class="slot-status">${statusHtml}</div></div>${btnHtml}`;
     
-    // Распределение по группам
     if (hour < 12) groups.morning.el.appendChild(card);
     else if (hour < 17) groups.afternoon.el.appendChild(card);
     else groups.evening.el.appendChild(card);
   }
 
-  // Скрытие пустых групп
   for (const key in groups) {
     if (groups[key].el.children.length === 0) {
       groups[key].el.parentElement.style.display = 'none';
     }
   }
 
-  // --- ЛОГИКА МОДАЛЬНЫХ ОКОН ИЗ V2 ---
   let currentMainLeft = 0;
   const createModal = document.getElementById('bookingModal');
   const hourInput = document.getElementById('selectedHour');
@@ -217,6 +211,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('bookingForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    const file = registryFile.files[0];
+    if (!file) {
+      return alert('Пожалуйста, загрузите реестр поставки (.csv)');
+    }
+
     const selectedTypes = Array.from(document.querySelectorAll('#supplyTypesGroup input:checked')).map(cb => cb.value);
     if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
 
@@ -237,22 +236,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.innerText = 'Оформление...';
     btn.disabled = true;
 
-    const file = registryFile.files[0];
-    let fileUrl = null;
-
-    if (file) {
-      const fileExt = file.name.split('.').pop();
-      const newFileName = `${user.id}_${Date.now()}.${fileExt}`;
-      const { data: uploadData, error: uploadError } = await sb.storage.from('registries').upload(newFileName, file);
-      
-      if (uploadError) {
-        alert('Ошибка загрузки файла: ' + uploadError.message);
-        btn.innerText = 'Подтвердить запись';
-        btn.disabled = false;
-        return;
-      }
-      fileUrl = sb.storage.from('registries').getPublicUrl(newFileName).data.publicUrl;
+    const fileExt = file.name.split('.').pop();
+    const newFileName = `${user.id}_${Date.now()}.${fileExt}`;
+    const { data: uploadData, error: uploadError } = await sb.storage.from('registries').upload(newFileName, file);
+    
+    if (uploadError) {
+      alert('Ошибка загрузки файла: ' + uploadError.message);
+      btn.innerText = 'Подтвердить запись';
+      btn.disabled = false;
+      return;
     }
+    const fileUrl = sb.storage.from('registries').getPublicUrl(newFileName).data.publicUrl;
 
     const payload = {
       profile_id: user.id,
