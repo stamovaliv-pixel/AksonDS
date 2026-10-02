@@ -34,17 +34,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Обновление названия загруженного файла
+  // Обновление названия загруженного файла и цвета текста
   const cRegistryFile = document.getElementById('cRegistryFile');
   const cFileName = document.getElementById('cFileName');
   if (cRegistryFile && cFileName) {
     cRegistryFile.addEventListener('change', (e) => {
       if (e.target.files.length > 0) {
         cFileName.textContent = e.target.files[0].name;
-        cFileName.style.color = '#10b981';
+        cFileName.style.color = '#059669'; // Более темный зеленый для выбранного файла
       } else {
         cFileName.textContent = 'Загрузить реестр';
-        cFileName.style.color = '#475569';
+        cFileName.style.color = ''; // Возврат к дефолтному CSS цвету
       }
     });
   }
@@ -365,7 +365,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       if (cFileName) {
         cFileName.textContent = 'Загрузить реестр';
-        cFileName.style.color = '#475569';
+        cFileName.style.color = '';
       }
 
       isTkCreateModal = false;
