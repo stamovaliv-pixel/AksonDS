@@ -1,197 +1,391 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Управление днем - AKSon Logistics</title>
-  <link rel="stylesheet" href="../css/theme.css">
-  <link rel="stylesheet" href="../css/main.css">
-  <style>
-    .app-header { margin-top: 0; box-shadow: none; border-bottom: none; padding-bottom: 15px; }
-    .top-gradient-bar { width: 100%; height: 2px; background: linear-gradient(90deg, var(--color-gradient-start), var(--color-gradient-end)); margin-bottom: 20px; }
-    .header-nav { display: flex; gap: 20px; align-items: center; }
-    .nav-icon { display: inline-flex; align-items: center; justify-content: center; padding: 5px; transition: transform 0.2s ease; text-decoration: none; }
-    
-    .hour-block { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 15px; padding: 15px; }
-    .hour-header { display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: 700; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
-    
-    .cards-container { display: flex; flex-direction: column; gap: 10px; }
-    
-    .booking-card { border: 1px solid var(--color-border); border-left: 4px solid var(--color-primary); border-radius: var(--radius-sm); padding: 12px; font-size: 14px; position: relative; transition: 0.2s; }
-    
-    .card-actions { display: flex; gap: 8px; margin-top: 12px; border-top: 1px dashed var(--color-border); padding-top: 10px; }
-    .inline-input-group { display: flex; flex-direction: column; flex: 1; gap: 4px; }
-    .inline-input-group label { font-size: 11px; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; }
-    .inline-input-group input { width: 100%; height: 24px; padding: 0 4px; border: 1px solid var(--color-border); border-radius: 4px; font-size: 12px; text-align: center; background: #fff; outline: none; box-sizing: border-box; }
-    .inline-input-group input:focus { border-color: #3b82f6; }
-    
-    .btn-dots { background: none; border: none; font-size: 20px; line-height: 1; cursor: pointer; color: var(--color-text-muted); padding: 0 5px; border-radius: 4px; }
-    .btn-dots:hover { background: #f1f5f9; color: var(--color-primary); }
+document.addEventListener('DOMContentLoaded', async () => {
+  const sb = window.supabaseClient;
+  const urlParams = new URLSearchParams(window.location.search);
+  const selectedDate = urlParams.get('date');
+  if (!selectedDate) return window.location.href = 'admin_calendar.html';
 
-    .btn-add-slot { background: #f0f9ff; border: 1px dashed #3b82f6; color: #3b82f6; border-radius: var(--radius-sm); padding: 10px; cursor: pointer; text-align: center; font-weight: 600; transition: 0.2s; }
-    .btn-add-slot:hover { background: #e0f2fe; }
+  const dateObj = new Date(selectedDate);
+  document.getElementById('dateDisplay').innerText = dateObj.toLocaleDateString('ru-RU');
 
-    .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
-    .modal-content { background: #fff; padding: 25px; border-radius: var(--radius-md); width: 100%; max-width: 550px; position: relative; max-height: 90vh; overflow-y: auto; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--color-border); padding-bottom: 10px; }
-    .modal-header h3 { margin: 0; font-size: 18px; }
-    
-    .form-group { margin-bottom: 15px; }
-    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; color: var(--color-text-main); }
-    .form-group input[type="text"], .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 4px; box-sizing: border-box; font-size: 14px; outline: none; }
-    .form-group input[type="text"]:focus, .form-group select:focus, .form-group textarea:focus { border-color: #3b82f6; }
-    
-    .btn-red { background: #ef4444; color: #fff; border: none; padding: 12px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600; margin-top: 10px; }
-    .btn-save { background: #10b981; color: #fff; border: none; padding: 12px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600; margin-top: 20px; }
-
-    /* Ограничения для роли VIEWER (применяются через JS) */
-    body.role-viewer .viewer-hide { display: none !important; }
-    body.role-viewer .viewer-disable { pointer-events: none !important; opacity: 0.6 !important; }
-  </style>
-</head>
-<body class="app-body">
-  <header class="app-header">
-    <div class="header-logo"><img src="../assets/logistic-logo.svg" alt="АКСОН Логистика" class="app-logo"></div>
-    <div class="header-nav">
-      <a href="admin_calendar.html" class="nav-icon" title="Календарь"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></a>
-      <a href="suppliers.html" class="nav-icon viewer-hide" title="Пользователи"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></a>
-      <a href="analytics.html" class="nav-icon viewer-hide" title="Аналитика"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><polyline points="3 3 3 21 21 21"></polyline><polyline points="3 17 9 11 13 15 21 7"></polyline></svg></a>
-      <a href="settings.html" class="nav-icon viewer-hide" title="Настройки"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></a>
-      <a href="#" id="logoutBtn" class="nav-icon" title="Выйти"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></a>
-    </div>
-  </header>
-  <div class="top-gradient-bar"></div>
+  // Инициализация роли
+  const { data: { user } } = await sb.auth.getUser();
+  const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).single();
+  const isViewer = profile?.role === 'viewer';
   
-  <main class="container" style="max-width: 800px; margin: 0 auto;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <a href="admin_calendar.html" style="color: #3b82f6; text-decoration: none; font-weight: 500;">&larr; Назад</a>
-      <h2 style="margin: 0; font-size: 20px;">Слоты на: <span id="dateDisplay" style="color: var(--color-primary);">...</span></h2>
-    </div>
-    <div id="hoursContainer">
-      <div style="padding: 40px; text-align: center; color: var(--color-text-muted);">Загрузка расписания...</div>
-    </div>
-  </main>
+  if (isViewer) {
+    document.body.classList.add('role-viewer');
+  }
 
-  <!-- Модальное окно РЕДАКТИРОВАНИЯ (Подробностей) -->
-  <div class="modal-overlay" id="editModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="mTitle">Подробности записи</h3>
-        <button id="closeEditModal" style="border:none; background:none; font-size:24px; cursor:pointer; color: #64748b;">&times;</button>
-      </div>
-      
-      <input type="hidden" id="mId">
-      
-      <div class="form-group" style="background: #f8fafc; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0;">
-        <label>Поставщик</label>
-        <div id="mCompany" style="font-weight: 600; color: #1e293b;"></div>
-      </div>
-      
-      <div class="form-group">
-        <label>Номер документа</label>
-        <input type="text" id="mDoc" class="viewer-disable">
-      </div>
+  const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
+  const supplyTypes = {};
+  settings.supply_types.forEach(st => supplyTypes[st.id] = st.name);
+  const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
 
-      <div class="form-group">
-        <label>Тип поставки</label>
-        <div id="mSupplyTypesGroup" style="display: flex; gap: 10px; flex-wrap: wrap;" class="viewer-disable"></div>
-      </div>
+  // Отрисовка чекбоксов
+  const fillCheckboxes = (containerId) => {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    el.innerHTML = '';
+    settings.supply_types.forEach(st => {
+      el.innerHTML += `<label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" value="${st.id}"> ${st.name}</label>`;
+    });
+  };
+  fillCheckboxes('mSupplyTypesGroup');
+  fillCheckboxes('cSupplyTypesGroup');
 
-      <div style="display: flex; gap: 10px;">
-        <div class="form-group" style="flex: 1;">
-          <label>Тип документа</label>
-          <select id="mOrderType" class="viewer-disable">
-            <option value="order">Заказ</option>
-            <option value="upd">УПД</option>
-            <option value="etrn">ЭТрН</option>
-          </select>
+  // 1. Загрузка данных
+  const { data: bookings } = await sb
+    .from('bookings')
+    .select('id, slot_hour, order_number, order_type, supply_type, supply_types, arrival_time, departure_time, gate_number, is_tk, comment, registry_file_url, profiles(company_name, inn)')
+    .eq('slot_date', selectedDate)
+    .eq('status', 'active');
+
+  let allProfiles = [];
+  let selectedSupplier = null; // Для хранения выбранного поставщика в умном поиске
+
+  if (!isViewer) {
+    const { data: profilesData } = await sb.from('profiles').select('id, company_name, inn').eq('role', 'supplier');
+    if (profilesData) {
+      allProfiles = profilesData;
+    }
+
+    // --- УМНЫЙ ПОИСК ПОСТАВЩИКА ---
+    const searchInput = document.getElementById('cSupplierSearch');
+    if (searchInput) {
+      searchInput.removeAttribute('list'); // Отключаем стандартный кривой datalist
+      
+      // Создаем контейнер для красивого выпадающего списка
+      const resultsContainer = document.createElement('div');
+      resultsContainer.style.cssText = 'position: absolute; background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; max-height: 200px; overflow-y: auto; width: 100%; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: none; margin-top: 4px; left: 0; box-sizing: border-box;';
+      
+      const parent = searchInput.parentElement;
+      parent.style.position = 'relative';
+      parent.appendChild(resultsContainer);
+
+      searchInput.addEventListener('input', (e) => {
+        const val = e.target.value.toLowerCase().trim();
+        resultsContainer.innerHTML = '';
+        selectedSupplier = null; // Сброс при каждом изменении
+
+        if (!val) {
+          resultsContainer.style.display = 'none';
+          return;
+        }
+
+        const matches = allProfiles.filter(p => 
+          (p.company_name && p.company_name.toLowerCase().includes(val)) || 
+          (p.inn && p.inn.toLowerCase().includes(val))
+        );
+
+        if (matches.length > 0) {
+          matches.forEach(p => {
+            const item = document.createElement('div');
+            item.style.cssText = 'padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 14px; transition: 0.2s;';
+            item.innerHTML = `<strong style="color: #1e293b;">${p.company_name}</strong> <div style="color:#64748b; font-size:12px;">ИНН: ${p.inn}</div>`;
+            
+            item.onmouseover = () => item.style.background = '#f8fafc';
+            item.onmouseout = () => item.style.background = '#fff';
+            
+            item.onclick = () => {
+              searchInput.value = `${p.company_name} (ИНН: ${p.inn})`;
+              selectedSupplier = p; // Сохраняем точный профиль
+              resultsContainer.style.display = 'none';
+            };
+            resultsContainer.appendChild(item);
+          });
+          resultsContainer.style.display = 'block';
+        } else {
+          resultsContainer.innerHTML = '<div style="padding: 10px; color: #ef4444; font-size: 13px; text-align: center;">Совпадений не найдено</div>';
+          resultsContainer.style.display = 'block';
+        }
+      });
+
+      // Скрытие списка при клике в пустое место
+      document.addEventListener('click', (e) => {
+        if (e.target !== searchInput && e.target !== resultsContainer) {
+          resultsContainer.style.display = 'none';
+        }
+      });
+    }
+  }
+
+  const container = document.getElementById('hoursContainer');
+  container.innerHTML = '';
+  
+  // 2. Отрисовка сетки
+  for (let hour = settings.slot_start_hour; hour <= settings.slot_end_hour; hour++) {
+    const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
+    const block = document.createElement('div');
+    block.className = 'hour-block';
+    
+    let reserveCards = [];
+    let mainCards = [];
+
+    hourBookings.forEach(b => {
+      const types = b.supply_types?.length ? b.supply_types : [b.supply_type];
+      const isImOnly = types.length === 1 && types[0] === 'orders_im';
+      if (isImOnly && reserveCards.length < (settings.reserve_slots_per_hour || 3)) {
+        reserveCards.push(b);
+      } else {
+        mainCards.push(b);
+      }
+    });
+
+    let cardsHtml = '';
+
+    // Занятые резервные (Оранжевые)
+    reserveCards.forEach(b => cardsHtml += generateCardHtml(b, 'reserve'));
+    
+    // Свободные резервные (Серые)
+    const freeReserve = (settings.reserve_slots_per_hour || 3) - reserveCards.length;
+    for(let i=0; i<freeReserve; i++) {
+      cardsHtml += `
+        <div class="booking-card ${isViewer ? 'viewer-hide' : ''}" style="border-left-color: #94a3b8; background: #f8fafc; border-color: #cbd5e1; cursor: pointer;" onclick="document.querySelector('.btn-add-slot[data-hour=\\'${hour}\\']').click()">
+          <div style="color: #475569; font-weight: 600;">Резервный слот (Только Заказы ИМ)</div>
+        </div>`;
+    }
+
+    // Занятые основные (Красные)
+    mainCards.forEach(b => cardsHtml += generateCardHtml(b, 'main'));
+
+    // Кнопка добавить (Свободные основные)
+    const freeMain = settings.slots_per_hour - mainCards.length;
+    if (freeMain > 0) {
+      cardsHtml += `<div class="btn-add-slot viewer-hide" data-hour="${hour}" style="margin-top:10px;">+ Добавить запись (${freeMain} мест)</div>`;
+    }
+
+    const occupancyColor = mainCards.length === settings.slots_per_hour ? '#ef4444' : '#10b981';
+    block.innerHTML = `
+      <div class="hour-header">
+        <span>${hour}:00 - ${hour+1}:00</span>
+        <span style="font-size:14px; color:#64748b; font-weight:normal;">Занято осн.: <strong style="color:${occupancyColor}">${mainCards.length}/${settings.slots_per_hour}</strong></span>
+      </div>
+      <div class="cards-container">${cardsHtml}</div>
+    `;
+    container.appendChild(block);
+  }
+
+  function generateCardHtml(b, type) {
+    const typesStr = b.supply_types?.length ? b.supply_types.map(t => supplyTypes[t] || t).join(', ') : (supplyTypes[b.supply_type] || b.supply_type);
+    const oType = orderTypes[b.order_type] || b.order_type;
+    const compName = b.profiles?.company_name || 'Неизвестно';
+    
+    const borderColor = type === 'reserve' ? '#f59e0b' : '#3b82f6';
+    const bgColor = type === 'reserve' ? '#fffbeb' : '#f0f9ff';
+    const borderOuter = type === 'reserve' ? '#fcd34d' : '#bfdbfe';
+
+    const dataStr = encodeURIComponent(JSON.stringify({
+      id: b.id, hour: b.slot_hour, doc: b.order_number, 
+      sTypesRaw: b.supply_types || [b.supply_type], oTypeRaw: b.order_type, 
+      fullCompany: `${compName} (ИНН: ${b.profiles?.inn || ''})`,
+      is_tk: b.is_tk, comment: b.comment, registry_file_url: b.registry_file_url
+    }));
+
+    return `
+      <div class="booking-card" data-info="${dataStr}" style="border-left-color: ${borderColor}; background: ${bgColor}; border-color: ${borderOuter};">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <strong style="color:#1f2937; margin-bottom:4px;">${compName}</strong>
+          <button class="btn-dots" title="Подробнее">⋮</button>
         </div>
-        <div class="form-group" style="flex: 1;">
-          <label>Время слота</label>
-          <!-- Выпадающий список, фильтрующий занятые слоты -->
-          <select id="mHour" class="viewer-disable"></select>
-        </div>
-      </div>
-
-      <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-        <input type="checkbox" id="mIsTk" class="viewer-disable" style="width: 16px; height: 16px;">
-        <label style="margin:0;">Признак ТК</label>
-      </div>
-
-      <div class="form-group">
-        <label>Комментарий</label>
-        <textarea id="mComment" class="viewer-disable" rows="2" maxlength="320"></textarea>
-      </div>
-
-      <div class="form-group">
-        <label>Реестр поставки</label>
-        <a id="mFileLink" href="#" target="_blank" style="color: #3b82f6; display: none; margin-bottom: 10px;">Скачать текущий файл (.csv)</a>
-      </div>
-
-      <button class="btn-save viewer-hide" id="btnUpdate">Сохранить изменения</button>
-      <button class="btn-red viewer-hide" id="btnDelete">Удалить запись</button>
-    </div>
-  </div>
-
-  <!-- Модальное окно СОЗДАНИЯ (Только Админ/Оператор) -->
-  <div class="modal-overlay" id="createModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Добавить запись</h3>
-        <button id="closeCreateModal" style="border:none; background:none; font-size:24px; cursor:pointer; color: #64748b;">&times;</button>
-      </div>
-      
-      <form id="createForm">
-        <input type="hidden" id="cHour">
+        <div style="color:#64748b; font-size:13px; margin-bottom: 5px;">${oType} №${b.order_number} • ${typesStr}</div>
         
-        <div class="form-group">
-          <label>Поставщик (ИНН/Название)</label>
-          <input type="text" id="cSupplierSearch" list="suppliersList" required autocomplete="off">
-          <datalist id="suppliersList"></datalist>
-        </div>
-
-        <div class="form-group">
-          <label>Тип поставки</label>
-          <div id="cSupplyTypesGroup" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
-        </div>
-
-        <div style="display: flex; gap: 10px;">
-          <div class="form-group" style="flex: 1;">
-            <label>Тип документа</label>
-            <select id="cOrderType" required>
-              <option value="order">Заказ</option>
-              <option value="upd">УПД</option>
-              <option value="etrn">ЭТрН</option>
-            </select>
+        <div class="card-actions" data-id="${b.id}">
+          <div class="inline-input-group">
+            <label>Прибыл</label>
+            <input type="time" class="inline-time inline-arr viewer-disable" value="${b.arrival_time ? b.arrival_time.substring(0,5) : ''}">
           </div>
-          <div class="form-group" style="flex: 1;">
-            <label>Номер документа</label>
-            <input type="text" id="cDoc" required>
+          <div class="inline-input-group">
+            <label>Убыл</label>
+            <input type="time" class="inline-time inline-dep viewer-disable" value="${b.departure_time ? b.departure_time.substring(0,5) : ''}">
+          </div>
+          <div class="inline-input-group">
+            <label>Ворота</label>
+            <input type="text" class="inline-gate viewer-disable" value="${b.gate_number || ''}" placeholder="№">
           </div>
         </div>
+      </div>`;
+  }
 
-        <div class="form-group">
-          <label>Реестр поставки (.csv)</label>
-          <input type="file" id="cRegistryFile" accept=".csv">
-        </div>
+  // --- АВТОСОХРАНЕНИЕ ПРИБЫЛ/УБЫЛ ---
+  if (!isViewer) {
+    container.addEventListener('change', async (e) => {
+      if (e.target.classList.contains('inline-gate') || e.target.classList.contains('inline-time')) {
+        const id = e.target.closest('.card-actions').dataset.id;
+        let fieldName = e.target.classList.contains('inline-gate') ? 'gate_number' : (e.target.classList.contains('inline-arr') ? 'arrival_time' : 'departure_time');
+        let val = e.target.value;
+        if (e.target.type === 'time' && val) val = val + ':00'; 
+        
+        e.target.style.borderColor = '#3b82f6';
+        const { error } = await sb.from('bookings').update({ [fieldName]: val || null }).eq('id', id);
+        e.target.style.borderColor = error ? '#ef4444' : '#10b981';
+      }
+    });
+  }
 
-        <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-          <input type="checkbox" id="cIsTk" style="width: 16px; height: 16px;">
-          <label style="margin:0;">Признак ТК</label>
-        </div>
+  // --- ЛОГИКА МОДАЛЬНЫХ ОКОН ---
+  const editModal = document.getElementById('editModal');
+  const createModal = document.getElementById('createModal');
+  document.getElementById('closeEditModal').onclick = () => editModal.style.display = 'none';
+  document.getElementById('closeCreateModal').onclick = () => createModal.style.display = 'none';
 
-        <div class="form-group">
-          <label>Комментарий</label>
-          <textarea id="cComment" rows="2" maxlength="320"></textarea>
-        </div>
+  container.addEventListener('click', (e) => {
+    const dotsBtn = e.target.closest('.btn-dots');
+    if (dotsBtn) {
+      const card = dotsBtn.closest('.booking-card');
+      const data = JSON.parse(decodeURIComponent(card.dataset.info));
+      
+      document.getElementById('mId').value = data.id;
+      document.getElementById('mCompany').innerText = data.fullCompany;
+      document.getElementById('mDoc').value = data.doc;
+      document.getElementById('mOrderType').value = data.oTypeRaw;
+      document.getElementById('mIsTk').checked = data.is_tk;
+      document.getElementById('mComment').value = data.comment || '';
+      
+      const fileLink = document.getElementById('mFileLink');
+      if (data.registry_file_url) {
+        fileLink.href = data.registry_file_url;
+        fileLink.style.display = 'inline-block';
+      } else {
+        fileLink.style.display = 'none';
+      }
 
-        <button type="submit" class="btn-save" id="btnCreate">Записать поставщика</button>
-      </form>
-    </div>
-  </div>
+      document.querySelectorAll('#mSupplyTypesGroup input').forEach(cb => {
+        cb.checked = data.sTypesRaw.includes(cb.value);
+      });
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="../js/supabase-client.js"></script>
-  <script src="../js/admin_day.js"></script>
-</body>
-</html>
+      const mHourSelect = document.getElementById('mHour');
+      mHourSelect.innerHTML = '';
+      const isImOnly = data.sTypesRaw.length === 1 && data.sTypesRaw[0] === 'orders_im';
+
+      for (let h = settings.slot_start_hour; h <= settings.slot_end_hour; h++) {
+        const hourBookings = (bookings || []).filter(b => b.slot_hour === h);
+        let mUsed = 0, rUsed = 0;
+        
+        hourBookings.forEach(b => {
+          const t = b.supply_types?.length ? b.supply_types : [b.supply_type];
+          if (t.length === 1 && t[0] === 'orders_im') {
+            if (rUsed < (settings.reserve_slots_per_hour || 3)) rUsed++; else mUsed++;
+          } else {
+            mUsed++;
+          }
+        });
+
+        let canMove = false;
+        if (h === data.hour) {
+          canMove = true; 
+        } else if (isImOnly) {
+          canMove = (rUsed < (settings.reserve_slots_per_hour || 3)) || (mUsed < settings.slots_per_hour);
+        } else {
+          canMove = (mUsed < settings.slots_per_hour);
+        }
+
+        if (canMove) {
+          mHourSelect.innerHTML += `<option value="${h}" ${h === data.hour ? 'selected' : ''}>${h}:00 - ${h+1}:00</option>`;
+        }
+      }
+
+      editModal.style.display = 'flex';
+      return;
+    }
+
+    const addBtn = e.target.closest('.btn-add-slot');
+    if (addBtn && !isViewer) {
+      document.getElementById('cHour').value = addBtn.dataset.hour;
+      document.getElementById('createForm').reset();
+      selectedSupplier = null; // Сбрасываем поставщика при открытии окна
+      createModal.style.display = 'flex';
+    }
+  });
+
+  // --- ОБНОВЛЕНИЕ ЗАЯВКИ (АДМИН) ---
+  if (!isViewer) {
+    document.getElementById('btnUpdate').onclick = async () => {
+      if (!confirm('Подтверждаете изменение?')) return;
+      
+      const selectedTypes = Array.from(document.querySelectorAll('#mSupplyTypesGroup input:checked')).map(cb => cb.value);
+      if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
+
+      const payload = {
+        slot_hour: parseInt(document.getElementById('mHour').value),
+        order_number: document.getElementById('mDoc').value.trim(),
+        supply_types: selectedTypes,
+        order_type: document.getElementById('mOrderType').value,
+        is_tk: document.getElementById('mIsTk').checked,
+        comment: document.getElementById('mComment').value.trim()
+      };
+
+      const { error } = await sb.from('bookings').update(payload).eq('id', document.getElementById('mId').value);
+      if (error) alert('Ошибка обновления: ' + error.message);
+      else window.location.reload();
+    };
+
+    document.getElementById('btnDelete').onclick = async () => {
+      if (!confirm('Удалить запись?')) return;
+      await sb.from('bookings').delete().eq('id', document.getElementById('mId').value);
+      window.location.reload();
+    };
+  }
+
+  // --- СОЗДАНИЕ ЗАЯВКИ (АДМИН) ---
+  if (document.getElementById('createForm')) {
+    document.getElementById('createForm').onsubmit = async (e) => {
+      e.preventDefault();
+      
+      // Авто-додумывание, если пользователь не кликнул по списку, а просто ввел текст
+      if (!selectedSupplier) {
+        const searchVal = document.getElementById('cSupplierSearch').value.trim().toLowerCase();
+        const matches = allProfiles.filter(p => 
+          (p.company_name && p.company_name.toLowerCase().includes(searchVal)) || 
+          (p.inn && p.inn.toLowerCase().includes(searchVal))
+        );
+
+        if (matches.length === 1) {
+          selectedSupplier = matches[0];
+        } else if (matches.length > 1) {
+          return alert('Найдено несколько поставщиков. Выберите конкретного из выпадающего списка под полем ввода.');
+        } else {
+          return alert('Поставщик не найден. Уточните запрос.');
+        }
+      }
+
+      const selectedTypes = Array.from(document.querySelectorAll('#cSupplyTypesGroup input:checked')).map(cb => cb.value);
+      if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
+
+      const btn = document.getElementById('btnCreate');
+      btn.innerText = 'Загрузка...'; btn.disabled = true;
+
+      const fileInput = document.getElementById('cRegistryFile');
+      const file = fileInput.files[0];
+      let fileUrl = null;
+
+      if (file) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${selectedSupplier.id}_${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await sb.storage.from('registries').upload(fileName, file);
+        if (uploadError) {
+          alert('Ошибка загрузки файла');
+          btn.innerText = 'Записать поставщика'; btn.disabled = false;
+          return;
+        }
+        fileUrl = sb.storage.from('registries').getPublicUrl(fileName).data.publicUrl;
+      }
+
+      const payload = {
+        profile_id: selectedSupplier.id,
+        slot_date: selectedDate,
+        slot_hour: parseInt(document.getElementById('cHour').value),
+        supply_types: selectedTypes,
+        order_type: document.getElementById('cOrderType').value,
+        order_number: document.getElementById('cDoc').value.trim(),
+        registry_file_url: fileUrl,
+        is_tk: document.getElementById('cIsTk').checked,
+        comment: document.getElementById('cComment').value.trim(),
+        status: 'active'
+      };
+
+      const { error } = await sb.from('bookings').insert([payload]);
+      if (error) alert('Ошибка записи: ' + error.message);
+      else window.location.reload();
+    };
+  }
+});
