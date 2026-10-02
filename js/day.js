@@ -9,15 +9,48 @@ document.addEventListener('DOMContentLoaded', async () => {
   const selectedDate = urlParams.get('date');
   if (!selectedDate) return window.location.href = 'calendar.html';
 
-  document.getElementById('currentDateDisplay').innerText = new Date(selectedDate).toLocaleDateString('ru-RU');
+  const dateObj = new Date(selectedDate);
+  document.getElementById('currentDateDisplay').innerText = dateObj.toLocaleDateString('ru-RU');
 
   document.getElementById('logoutBtn').onclick = async (e) => { 
     e.preventDefault(); await sb.auth.signOut(); window.location.href = '../index.html'; 
   };
 
+  // --- ЛОГИКА НАВИГАЦИИ ПО ДНЯМ ИЗ V1 ---
+  function getLocalDateString(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
+  const now = new Date();
+  const todayMidnight = new Date(now);
+  todayMidnight.setHours(0, 0, 0, 0);
+  
+  const selectedMidnight = new Date(selectedDate);
+  selectedMidnight.setHours(0, 0, 0, 0);
+
+  const prevDate = new Date(selectedMidnight);
+  prevDate.setDate(selectedMidnight.getDate() - 1);
+  const nextDate = new Date(selectedMidnight);
+  nextDate.setDate(selectedMidnight.getDate() + 1);
+
+  const maxDate = new Date(todayMidnight);
+  maxDate.setDate(todayMidnight.getDate() + 29);
+
+  const prevBtn = document.getElementById('prevDayBtn');
+  const nextBtn = document.getElementById('nextDayBtn');
+
+  if (prevDate < todayMidnight) prevBtn.disabled = true;
+  else prevBtn.onclick = () => window.location.href = `day.html?date=${getLocalDateString(prevDate)}`;
+
+  if (nextDate > maxDate) nextBtn.disabled = true;
+  else nextBtn.onclick = () => window.location.href = `day.html?date=${getLocalDateString(nextDate)}`;
+
+  // --- ЗАГРУЗКА ДАННЫХ ИЗ V2 ---
   const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
   
-  // Ссылка на шаблон
   const templateBtn = document.getElementById('downloadTemplateBtn');
   if (templateBtn) {
     if (settings && settings.registry_template_url) {
@@ -27,12 +60,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  const registryFile = document.getElementById('registryFile');
+  const fileName = document.getElementById('fileName');
+  if (registryFile && fileName) {
+    registryFile.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        fileName.textContent = e.target.files[0].name;
+        fileName.style.color = '#10b981';
+      } else {
+        fileName.textContent = 'Загрузить реестр';
+        fileName.style.color = '#475569';
+      }
+    });
+  }
+
+  const getSupplyIcon = (id, name) => {
+    const n = name.toLowerCase();
+    if (id === 'orders_im' || n.includes('им')) return '📦';
+    if (id === 'return' || n.includes('возврат')) return '↩️';
+    if (id === 'mix' || n.includes('микс')) return '🔀';
+    if (n.includes('сток')) return '🏭';
+    if (n.includes('кросс')) return '🚚';
+    return '🏷'; 
+  };
+
   const typesContainer = document.getElementById('supplyTypesGroup');
   if (typesContainer && settings) {
     typesContainer.innerHTML = '';
     settings.supply_types.forEach(st => {
-      typesContainer.innerHTML += `<label style="display:flex; align-items:center; gap:5px; cursor:pointer;"><input type="checkbox" value="${st.id}" style="width:16px; height:16px; cursor:pointer;"> ${st.name}</label>`;
+      const icon = getSupplyIcon(st.id, st.name);
+      typesContainer.innerHTML += `<label style="display:flex; align-items:center; gap:5px; cursor:pointer; white-space:nowrap;"><input type="checkbox" value="${st.id}" style="width:16px; height:16px; cursor:pointer;"> ${icon} ${st.name}</label>`;
     });
+  }
+
+  let isTkModal = false;
+  const tkWrapper = document.getElementById('tkWrapper');
+  const tkDot = document.getElementById('tkDot');
+  if(tkWrapper) {
+    tkWrapper.onclick = () => {
+      isTkModal = !isTkModal;
+      tkDot.className = isTkModal ? 'tk-dot-modal active' : 'tk-dot-modal inactive';
+    };
   }
 
   const { data: bookings } = await sb
@@ -44,10 +112,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   const slotsContainer = document.getElementById('slotsContainer');
   slotsContainer.innerHTML = ''; 
   
-  const now = new Date();
+  // --- ВИЗУАЛЬНЫЕ ГРУППЫ ИЗ V1 ---
+  const groups = {
+    morning: { title: '☕ Утро (до 12:00)', el: null },
+    afternoon: { title: '☀️ День (12:00 - 16:00)', el: null },
+    evening: { title: '🌙 Вечер (от 17:00)', el: null }
+  };
+
+  for (const key in groups) {
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'time-group';
+    groupDiv.innerHTML = `<div class="time-group-title">${groups[key].title}</div><div class="slot-grid"></div>`;
+    groups[key].el = groupDiv.querySelector('.slot-grid');
+    slotsContainer.appendChild(groupDiv);
+  }
+
   const currentHour = now.getHours();
-  const isToday = new Date(selectedDate).toDateString() === now.toDateString();
-  const isPastDay = new Date(selectedDate) < new Date(now.toDateString());
+  const isToday = selectedMidnight.getTime() === todayMidnight.getTime();
+  const isPastDay = selectedMidnight < todayMidnight;
 
   for (let hour = settings.slot_start_hour; hour <= settings.slot_end_hour; hour++) {
     const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
@@ -89,16 +171,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       btnHtml = `<button class="btn-disabled" disabled>Занято</button>`;
     } 
     else {
-      if (mainLeft > 0) statusHtml = `<span style="color: #10b981;">Свободно: ${mainLeft} осн. / ${reserveLeft} рез.</span>`;
-      else statusHtml = `<span style="color: #f59e0b;">Осталось ${reserveLeft} (только Заказы ИМ)</span>`;
+      if (mainLeft > 0) statusHtml = `<span style="color: #10b981;">Свободно: <br/>${mainLeft} осн. / ${reserveLeft} рез.</span>`;
+      else statusHtml = `<span style="color: #f59e0b;">Осталось ${reserveLeft}<br/>(только ИМ)</span>`;
       btnHtml = `<button class="btn-book">Записаться</button>`;
       card.onclick = () => openCreateModal(hour, mainLeft);
     }
 
     card.innerHTML = `<div><div class="slot-time">${hour}:00 - ${hour + 1}:00</div><div class="slot-status">${statusHtml}</div></div>${btnHtml}`;
-    slotsContainer.appendChild(card);
+    
+    // Распределение по группам
+    if (hour < 12) groups.morning.el.appendChild(card);
+    else if (hour < 17) groups.afternoon.el.appendChild(card);
+    else groups.evening.el.appendChild(card);
   }
 
+  // Скрытие пустых групп
+  for (const key in groups) {
+    if (groups[key].el.children.length === 0) {
+      groups[key].el.parentElement.style.display = 'none';
+    }
+  }
+
+  // --- ЛОГИКА МОДАЛЬНЫХ ОКОН ИЗ V2 ---
   let currentMainLeft = 0;
   const createModal = document.getElementById('bookingModal');
   const hourInput = document.getElementById('selectedHour');
@@ -107,6 +201,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     hourInput.value = hour;
     currentMainLeft = mainLeft;
     document.getElementById('bookingForm').reset();
+    
+    if (fileName) {
+      fileName.textContent = 'Загрузить реестр';
+      fileName.style.color = '#475569';
+    }
+    isTkModal = false;
+    if(tkDot) tkDot.className = 'tk-dot-modal inactive';
+
     createModal.style.display = 'flex';
   }
 
@@ -135,14 +237,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.innerText = 'Оформление...';
     btn.disabled = true;
 
-    const fileInput = document.getElementById('registryFile');
-    const file = fileInput.files[0];
+    const file = registryFile.files[0];
     let fileUrl = null;
 
     if (file) {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
-      const { data: uploadData, error: uploadError } = await sb.storage.from('registries').upload(fileName, file);
+      const newFileName = `${user.id}_${Date.now()}.${fileExt}`;
+      const { data: uploadData, error: uploadError } = await sb.storage.from('registries').upload(newFileName, file);
       
       if (uploadError) {
         alert('Ошибка загрузки файла: ' + uploadError.message);
@@ -150,7 +251,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         btn.disabled = false;
         return;
       }
-      fileUrl = sb.storage.from('registries').getPublicUrl(fileName).data.publicUrl;
+      fileUrl = sb.storage.from('registries').getPublicUrl(newFileName).data.publicUrl;
     }
 
     const payload = {
@@ -161,7 +262,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       order_type: document.getElementById('orderType').value,
       order_number: document.getElementById('orderNumber').value,
       registry_file_url: fileUrl,
-      is_tk: document.getElementById('isTk').checked,
+      is_tk: isTkModal,
       comment: document.getElementById('bookingComment').value.trim(),
       status: 'active'
     };
@@ -181,12 +282,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function openDetailsModal(b, hour) {
     const supplyDict = {}; settings.supply_types.forEach(st => supplyDict[st.id] = st.name);
-    const typesStr = b.supply_types?.length ? b.supply_types.map(t => supplyDict[t] || t).join(', ') : (supplyDict[b.supply_type] || b.supply_type);
+    const typesStr = b.supply_types?.length ? b.supply_types.map(t => `${getSupplyIcon(t, supplyDict[t]||t)} ${supplyDict[t] || t}`).join(', ') : `${getSupplyIcon(b.supply_type, supplyDict[b.supply_type]||b.supply_type)} ${supplyDict[b.supply_type] || b.supply_type}`;
     
     document.getElementById('modalDate').innerText = new Date(selectedDate).toLocaleDateString('ru-RU');
     document.getElementById('modalTime').innerText = `${hour}:00 - ${hour+1}:00`;
-    document.getElementById('modalType').innerText = typesStr;
-    document.getElementById('modalDoc').innerText = `№${b.order_number}`;
+    document.getElementById('modalType').innerHTML = typesStr;
+    const oTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
+    document.getElementById('modalDoc').innerText = `${oTypes[b.order_type] || b.order_type} №${b.order_number}`;
     document.getElementById('modalTk').innerText = b.is_tk ? 'Да' : 'Нет';
     document.getElementById('modalComment').innerText = b.comment || 'Нет комментария';
     
@@ -207,4 +309,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
     detailsModal.style.display = 'flex';
   }
+  
+  window.onclick = (e) => { 
+    if (e.target === createModal) createModal.style.display = 'none';
+    if (e.target === detailsModal) detailsModal.style.display = 'none';
+  };
 });
