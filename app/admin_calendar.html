@@ -94,8 +94,10 @@
     .btn-copy { background: none; border: none; cursor: pointer; color: #64748b; padding: 5px; border-radius: 4px; transition: 0.2s; }
     .btn-copy:hover { background: #e2e8f0; color: #3b82f6; }
 
-    .btn-red { background: #ef4444; color: #fff; border: none; padding: 12px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600; margin-top: 10px; }
-    .btn-save { background: #10b981; color: #fff; border: none; padding: 12px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600; margin-top: 20px; }
+    /* Стили для переключателя ТК из admin_day */
+    .tk-dot-modal { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #cbd5e1; transition: 0.2s; }
+    .tk-dot-modal.active { background: #f59e0b; border-color: #f59e0b; }
+    .tk-dot-modal.inactive { background: #fff; }
 
     #adminPastToggleContainer { display: none; margin-bottom: 15px; font-size: 14px; align-items: center; gap: 8px; }
 
@@ -179,80 +181,101 @@
     </div>
   </main>
 
-  <!-- Модальное окно РЕДАКТИРОВАНИЯ записи из списка -->
+  <!-- Модальное окно РЕДАКТИРОВАНИЯ записи из списка (В стиле admin_day) -->
   <div class="modal-overlay" id="editModal">
     <div class="modal-content">
       <div class="modal-header">
         <h3 style="margin:0; font-size: 18px;">Детали записи</h3>
-        <button id="closeEditModal" style="border:none; background:none; font-size:24px; cursor:pointer; color: #64748b;">&times;</button>
+        <div style="display: flex; gap: 15px; align-items: center;">
+          <!-- Иконка редактирования -->
+          <button id="btnEditIcon" style="border:none; background:none; font-size:18px; cursor:pointer;" title="Редактировать">✏️</button>
+          
+          <!-- Иконка сохранения (использует ID btnUpdate для совместимости с admin_calendar.js) -->
+          <button class="viewer-hide" id="btnUpdate" style="display:none; background:none; border:none; font-size:20px; cursor:pointer; padding:0;" title="Сохранить">💾</button>
+          
+          <!-- Иконка удаления (использует ID btnDelete) -->
+          <button class="viewer-hide" id="btnDelete" style="background:none; border:none; font-size:20px; cursor:pointer; padding:0;" title="Удалить">🗑️</button>
+          
+          <button id="closeEditModal" style="border:none; background:none; font-size:24px; cursor:pointer; color: #64748b;">&times;</button>
+        </div>
       </div>
       
       <input type="hidden" id="mId">
       
-      <div class="form-group">
-        <label>Поставщик (Организация и ИНН)</label>
-        <div class="copy-box">
-          <span class="copy-text" id="mCompany"></span>
-          <button class="btn-copy" title="Копировать" onclick="copyText('mCompany')">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          </button>
+      <!-- Fieldset для блокировки полей по умолчанию -->
+      <fieldset id="mFieldset" disabled style="border: none; padding: 0; margin: 0;">
+        <div class="form-group">
+          <label>Поставщик (Организация и ИНН)</label>
+          <div class="copy-box">
+            <span class="copy-text" id="mCompany"></span>
+            <button class="btn-copy" type="button" title="Копировать" onclick="copyText('mCompany')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+          </div>
         </div>
-      </div>
-      
-      <div class="form-group">
-        <label>Тип документа</label>
-        <select id="mOrderType" class="viewer-disable">
-          <option value="order">Заказ</option>
-          <option value="upd">УПД</option>
-          <option value="etrn">ЭТрН</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Номер документа</label>
-        <div class="copy-box viewer-disable" style="background: #fff; padding: 0; border: none;">
-          <input type="text" id="mDoc" style="border-radius: 4px 0 0 4px;">
-          <button class="btn-copy" style="background: #f1f5f9; border: 1px solid var(--color-border); border-left: none; padding: 10px; border-radius: 0 4px 4px 0;" title="Копировать" onclick="copyInput('mDoc')">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          </button>
+        
+        <div class="form-group">
+          <label>Тип документа</label>
+          <select id="mOrderType" class="viewer-disable">
+            <option value="order">Заказ</option>
+            <option value="upd">УПД</option>
+            <option value="etrn">ЭТрН</option>
+          </select>
         </div>
-      </div>
 
-      <div class="form-group">
-        <label>Тип поставки</label>
-        <div id="mSupplyTypesGroup" style="display: flex; gap: 10px; flex-wrap: wrap;" class="viewer-disable">
-          <!-- Галочки динамически -->
+        <div class="form-group">
+          <label>Номер документа</label>
+          <div class="copy-box viewer-disable" style="background: #fff; padding: 0; border: none;">
+            <input type="text" id="mDoc" style="border-radius: 4px 0 0 4px;">
+            <button class="btn-copy" type="button" style="background: #f1f5f9; border: 1px solid var(--color-border); border-left: none; padding: 10px; border-radius: 0 4px 4px 0;" title="Копировать" onclick="copyInput('mDoc')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div style="display: flex; gap: 10px;">
-        <div class="form-group" style="flex: 1;">
-          <label>Дата</label>
-          <input type="date" id="mDate" class="viewer-disable datetime-field">
+        <div class="form-group">
+          <label>Тип поставки</label>
+          <div id="mSupplyTypesGroup" style="display: flex; gap: 10px; flex-wrap: wrap;" class="viewer-disable">
+            <!-- Галочки динамически -->
+          </div>
         </div>
-        <div class="form-group" style="flex: 1;">
-          <label>Время</label>
-          <select id="mHour" class="viewer-disable datetime-field"></select>
+
+        <div style="display: flex; gap: 10px;">
+          <div class="form-group" style="flex: 1;">
+            <label>Дата</label>
+            <input type="date" id="mDate" class="viewer-disable datetime-field">
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label>Время</label>
+            <select id="mHour" class="viewer-disable datetime-field"></select>
+          </div>
         </div>
-      </div>
 
-      <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-        <input type="checkbox" id="mIsTk" class="viewer-disable" style="width: 16px; height: 16px;">
-        <label style="margin:0;">Признак ТК</label>
-      </div>
+        <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+          <!-- Скрытый системный чекбокс для работы admin_calendar.js -->
+          <input type="checkbox" id="mIsTk" class="viewer-disable" style="display: none;">
+          <!-- Визуальный кастомный переключатель-точка -->
+          <div id="mTkWrapper" style="cursor:pointer; display:flex; align-items:center; gap:8px;" 
+               onclick="if(!document.getElementById('mFieldset').disabled) { 
+                 const cb = document.getElementById('mIsTk'); 
+                 cb.checked = !cb.checked; 
+                 document.getElementById('mTkDot').className = cb.checked ? 'tk-dot-modal active' : 'tk-dot-modal inactive'; 
+               }">
+            <div id="mTkDot" class="tk-dot-modal inactive"></div>
+            <label style="margin:0; cursor:pointer;">Признак ТК</label>
+          </div>
+        </div>
 
-      <div class="form-group">
-        <label>Комментарий</label>
-        <textarea id="mComment" class="viewer-disable" rows="2" maxlength="320" style="resize: none;"></textarea>
-      </div>
+        <div class="form-group">
+          <label>Комментарий</label>
+          <textarea id="mComment" class="viewer-disable" rows="2" maxlength="320" style="resize: none;"></textarea>
+        </div>
 
-      <div class="form-group">
-        <label>Реестр поставки</label>
-        <a id="mFileLink" href="#" target="_blank" style="color: #3b82f6; display: none; margin-bottom: 10px;">Скачать файл (.csv)</a>
-      </div>
-
-      <button class="btn-save viewer-hide" id="btnUpdate">Сохранить изменения</button>
-      <button class="btn-red viewer-hide" id="btnDelete">Удалить запись</button>
+        <div class="form-group">
+          <label>Реестр поставки</label>
+          <a id="mFileLink" href="#" target="_blank" style="color: #3b82f6; display: none; margin-bottom: 10px;">Скачать файл (.csv)</a>
+        </div>
+      </fieldset>
     </div>
   </div>
 
@@ -267,6 +290,31 @@
       const text = document.getElementById(elementId).value;
       navigator.clipboard.writeText(text).then(() => alert('Скопировано: ' + text));
     }
+
+    // Вспомогательный скрипт для работы визуального интерфейса, который синхронизирует иконки и fieldset
+    document.getElementById('btnEditIcon').onclick = function() {
+      document.getElementById('mFieldset').disabled = false;
+      this.style.display = 'none';
+      document.getElementById('btnUpdate').style.display = 'block';
+    };
+
+    // При открытии модального окна скриптом admin_calendar.js, приводим UI к стартовому виду
+    const modalObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.target.style.display === 'flex') {
+          document.getElementById('mFieldset').disabled = true;
+          document.getElementById('btnEditIcon').style.display = 'block';
+          document.getElementById('btnUpdate').style.display = 'none';
+          
+          // Даем микро-задержку, чтобы внешний JS (admin_calendar.js) успел задать значение скрытому чекбоксу mIsTk
+          setTimeout(() => {
+            const isTkChecked = document.getElementById('mIsTk').checked;
+            document.getElementById('mTkDot').className = isTkChecked ? 'tk-dot-modal active' : 'tk-dot-modal inactive';
+          }, 50);
+        }
+      });
+    });
+    modalObserver.observe(document.getElementById('editModal'), { attributes: true, attributeFilter: ['style'] });
   </script>
   <script src="../js/admin_calendar.js?v=4"></script>
 </body>
