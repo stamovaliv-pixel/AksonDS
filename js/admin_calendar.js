@@ -1,7 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
-  if (!sb) return;
-
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return window.location.href = '../index.html';
 
@@ -32,7 +30,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     supply_types: []
   };
 
-  // Стили для неактивных дней в календаре
   const styleBlock = document.createElement('style');
   styleBlock.innerHTML = `
     .day-cell.inactive::before { display: block !important; }
@@ -40,6 +37,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   `;
   document.head.appendChild(styleBlock);
 
+  // Умный подбор иконки (один в один как в admin_day.js)
   const getSupplyIcon = (id, name) => {
     const n = (name || '').toLowerCase();
     if (id === 'orders_im' || n.includes('им')) return '📦';
@@ -58,13 +56,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Отрисовка чекбоксов С ПИКТОГРАММАМИ (один в один как в admin_day.js)
   const fillCheckboxes = (containerId) => {
     const el = document.getElementById(containerId);
     if (!el || !settings.supply_types) return;
     el.innerHTML = '';
     settings.supply_types.forEach(st => {
       const icon = getSupplyIcon(st.id, st.name);
-      el.innerHTML += `<label style="display:flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap;"><input type="checkbox" value="${st.id}"> ${icon} ${st.name}</label>`;
+      el.innerHTML += `<label class="checkbox-label" style="display:flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap;"><input type="checkbox" value="${st.id}"> ${icon} ${st.name}</label>`;
     });
   };
   fillCheckboxes('mSupplyTypesGroup');
@@ -104,7 +103,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { data: bookings } = await query;
     const bookedDates = new Set((bookings || []).map(b => b.slot_date));
 
-    // 1. ОТРИСОВКА СЕТКИ КАЛЕНДАРЯ
     const startDate = new Date(today);
     if (showPast) {
       startDate.setDate(today.getDate() - 30);
@@ -141,7 +139,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    // 2. ОТРИСОВКА БЛОКА "НАЙДЕННЫЕ ЗАПИСИ"
     const listContainer = document.getElementById('upcomingBookingsList');
     if (!listContainer) return;
     listContainer.innerHTML = '';
@@ -240,7 +237,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!confirm('Подтверждаете изменение записи?')) return;
         
         const selectedTypes = Array.from(document.querySelectorAll('#mSupplyTypesGroup input:checked')).map(cb => cb.value);
-        if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
+        if (selectedTypes.length === 0) return alert('Выберите хотя бай один тип поставки');
 
         const payload = {
           slot_date: document.getElementById('mDate').value,
@@ -258,7 +255,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       };
     }
 
-    const btnDelete = document.getElementById('deleteBookingBtn');
+    const btnDelete = document.getElementById('btnDelete');
     if (btnDelete) {
       btnDelete.onclick = async () => {
         if (!confirm('ВНИМАНИЕ! Вы точно хотите удалить эту запись поставщика?')) return;
