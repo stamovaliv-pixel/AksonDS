@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return window.location.href = '../index.html';
 
-  // Проверка прав администратора
   const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).single();
   if (!profile || profile.role !== 'admin') {
     alert('Доступ запрещен. Страница доступна только Администратору.');
@@ -29,14 +28,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
+  // Генерируем опции для селектов
   generateOptions('edit_startHour', 0, 23, true);
   generateOptions('edit_endHour', 0, 23, true);
   generateOptions('edit_slotsPer', 1, 12, false);
+  generateOptions('edit_reserveSlots', 0, 12, false); // Генерируем для резервных слотов
   generateOptions('edit_deadline', 1, 48, false);
 
   const dayNames = { 1:'Пн', 2:'Вт', 3:'Ср', 4:'Чт', 5:'Пт', 6:'Сб', 7:'Вс' };
 
-  // Загрузка настроек с защитой от ошибок
   const loadSettings = async () => {
     try {
       const { data, error } = await sb.from('app_settings').select('*').eq('id', 1).single();
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentSettings = data;
       localSupplyTypes = JSON.parse(JSON.stringify(data.supply_types || []));
 
-      // Защита от null с помощью ?? (значения по умолчанию)
+      // Инициализация значений
       const sHour = data.slot_start_hour ?? 9;
       document.getElementById('view_startHour').textContent = `${sHour}:00`;
       document.getElementById('edit_startHour').value = sHour;
@@ -62,6 +62,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const sPer = data.slots_per_hour ?? 5;
       document.getElementById('view_slotsPer').textContent = sPer;
       document.getElementById('edit_slotsPer').value = sPer;
+
+      // Резервные слоты
+      const rPer = data.reserve_slots_per_hour ?? 3;
+      document.getElementById('view_reserveSlots').textContent = rPer;
+      document.getElementById('edit_reserveSlots').value = rPer;
 
       const dLine = data.booking_deadline_hours ?? 1;
       document.getElementById('view_deadline').textContent = dLine;
@@ -125,6 +130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     { key: 'startHour', db: 'slot_start_hour' },
     { key: 'endHour', db: 'slot_end_hour' },
     { key: 'slotsPer', db: 'slots_per_hour' },
+    { key: 'reserveSlots', db: 'reserve_slots_per_hour' }, // Связываем кнопку с базой
     { key: 'deadline', db: 'booking_deadline_hours' },
     { key: 'days', db: 'available_days' }
   ];
