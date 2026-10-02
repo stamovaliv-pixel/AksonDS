@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (id === 'mix' || n.includes('микс')) return '🔀';
     if (n.includes('сток')) return '🏭';
     if (n.includes('кросс')) return '🚚';
-    return '🏷'; 
+    return '🏷️'; 
   };
 
   const filterSupplyType = document.getElementById('filterSupplyType');
@@ -49,12 +49,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Заполняем чекбоксы в модальном окне с пиктограммами
   const fillCheckboxes = (containerId) => {
     const el = document.getElementById(containerId);
     if (!el || !settings) return;
     el.innerHTML = '';
     settings.supply_types.forEach(st => {
-      el.innerHTML += `<label style="display:flex; align-items:center; gap:4px; cursor:pointer;"><input type="checkbox" value="${st.id}"> ${st.name}</label>`;
+      const icon = getSupplyIcon(st.id, st.name);
+      el.innerHTML += `<label style="display:flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap;"><input type="checkbox" value="${st.id}"> ${icon} ${st.name}</label>`;
     });
   };
   fillCheckboxes('mSupplyTypesGroup');
@@ -166,7 +168,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const dateFormatted = new Date(b.slot_date).toLocaleDateString('ru-RU');
         const timeFormatted = `${b.slot_hour}:00 - ${b.slot_hour + 1}:00`;
         
-        // Без пиктограмм календаря и часов: только Поставщик, Дата, Время, Пиктограммы
         item.innerHTML = `
           <div class="bi-company" title="${compName}">${compName}</div>
           <div class="bi-top">
@@ -235,7 +236,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       else { editModal.style.display = 'none'; renderCalendar(); }
     };
 
-    document.getElementById('btnDelete').onclick = async () => {
+    document.getElementById('deleteBookingBtn').onclick = async () => {
       if (!confirm('ВНИМАНИЕ! Вы точно хотите удалить эту запись поставщика?')) return;
       const { error } = await sb.from('bookings').delete().eq('id', document.getElementById('mId').value);
       if (error) alert('Ошибка удаления: ' + error.message);
