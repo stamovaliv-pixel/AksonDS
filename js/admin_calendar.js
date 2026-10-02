@@ -1,5 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
+  if (!sb) return;
+
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return window.location.href = '../index.html';
 
@@ -22,8 +24,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault(); await sb.auth.signOut(); window.location.href = '../index.html';
   };
 
-  const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
+  const { data: settingsData } = await sb.from('app_settings').select('*').eq('id', 1).single();
+  const settings = settingsData || {
+    slot_start_hour: 9,
+    slot_end_hour: 17,
+    available_days: [1, 2, 3, 4, 5, 6, 7],
+    supply_types: []
+  };
 
+  // Стили для неактивных дней в календаре
   const styleBlock = document.createElement('style');
   styleBlock.innerHTML = `
     .day-cell.inactive::before { display: block !important; }
@@ -42,17 +51,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const filterSupplyType = document.getElementById('filterSupplyType');
-  if (filterSupplyType && settings) {
+  if (filterSupplyType && settings.supply_types) {
     filterSupplyType.innerHTML = '<option value="">Все типы</option>';
     settings.supply_types.forEach(st => {
       filterSupplyType.innerHTML += `<option value="${st.id}">${st.name}</option>`;
     });
   }
 
-  // Заполняем чекбоксы в модальном окне с пиктограммами
   const fillCheckboxes = (containerId) => {
     const el = document.getElementById(containerId);
-    if (!el || !settings) return;
+    if (!el || !settings.supply_types) return;
     el.innerHTML = '';
     settings.supply_types.forEach(st => {
       const icon = getSupplyIcon(st.id, st.name);
@@ -62,9 +70,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   fillCheckboxes('mSupplyTypesGroup');
 
   const mHourSelect = document.getElementById('mHour');
-  if (mHourSelect && settings) {
+  if (mHourSelect) {
     mHourSelect.innerHTML = '';
-    for (let h = settings.slot_start_hour; h <= settings.slot_end_hour; h++) {
+    for (let h = (settings.slot_start_hour ?? 9); h <= (settings.slot_end_hour ?? 17); h++) {
       mHourSelect.innerHTML += `<option value="${h}">${h}:00 - ${h+1}:00</option>`;
     }
   }
@@ -96,6 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { data: bookings } = await query;
     const bookedDates = new Set((bookings || []).map(b => b.slot_date));
 
+    // 1. ОТРИСОВКА СЕТКИ КАЛЕНДАРЯ
     const startDate = new Date(today);
     if (showPast) {
       startDate.setDate(today.getDate() - 30);
@@ -106,36 +115,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const totalDays = showPast ? 60 : 35;
     const grid = document.getElementById('calendarGrid');
-    grid.innerHTML = '';
-
-    for (let i = 0; i < totalDays; i++) {
-      const d = new Date(startDate);
-      d.setDate(startDate.getDate() + i);
-      const isoDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      
-      const cell = document.createElement('div');
-      cell.className = 'day-cell';
-      
-      const isPastOrFuture = d < today || d > maxActiveDate;
-      const jsDay = d.getDay();
-      const dbDay = jsDay === 0 ? 7 : jsDay;
-      const isAllowedDay = settings.available_days ? settings.available_days.includes(dbDay) : true;
-      
-      if (isPastOrFuture || !isAllowedDay) cell.classList.add('inactive'); 
-      if (bookedDates.has(isoDate)) cell.classList.add('booked'); 
-      
-      cell.innerHTML = `<div class="date-text">${d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})}</div>`;
-      cell.onclick = () => window.location.href = `admin_day.html?date=${isoDate}`;
-      
-      grid.appendChild(cell);
+    if (grid) {
+      grid.innerHTML = '';
+      for (let i = 0; i < totalDays; i++) {
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + i);
+        const isoDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        
+        const cell = document.createElement('div');
+        cell.className = 'day-cell';
+        
+        const isPastOrFuture = d < today || d > maxActiveDate;
+        const jsDay = d.getDay();
+        const dbDay = jsDay === 0 ? 7 : jsDay;
+        const allowedDays = settings.available_days || [1,2,3,4,5,6,7];
+        const isAllowedDay = allowedDays.includes(dbDay);
+        
+        if (isPastOrFuture || !isAllowedDay) cell.classList.add('inactive'); 
+        if (bookedDates.has(isoDate)) cell.classList.add('booked'); 
+        
+        cell.innerHTML = `<div class="date-text">${d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})}</div>`;
+        cell.onclick = () => window.location.href = `admin_day.html?date=${isoDate}`;
+        
+        grid.appendChild(cell);
+      }
     }
 
+    // 2. ОТРИСОВКА БЛОКА "НАЙДЕННЫЕ ЗАПИСИ"
     const listContainer = document.getElementById('upcomingBookingsList');
+    if (!listContainer) return;
     listContainer.innerHTML = '';
     
     if (!isSearchActive) {
-      for (let i = 0; i < 14; i++) {
-        listContainer.innerHTML += `<div class="booking-item empty"><div style="color: #94a3b8; font-size: 13px; font-weight: 500;">Нет данных</div></div>`;
+      for (let i = 0; i < 7; i++) {
+        listContainer.innerHTML += `<div class="booking-item empty"><div style="color: #94a3b8; font-size: 13px; font-weight: 500;">Введите параметры поиска</div></div>`;
       }
       return; 
     }
@@ -145,7 +158,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (upcoming.length === 0) {
       listContainer.innerHTML = `<div style="grid-column: 1 / -1; color: var(--color-text-muted); font-size: 14px; text-align: center; padding: 20px;">По вашему запросу ничего не найдено.</div>`;
     } else {
-      const dict = {}; settings.supply_types.forEach(st => dict[st.id] = st.name);
+      const dict = {}; 
+      if (settings.supply_types) {
+        settings.supply_types.forEach(st => dict[st.id] = st.name);
+      }
 
       upcoming.forEach(b => {
         const typesArr = b.supply_types?.length ? b.supply_types : [b.supply_type];
@@ -186,7 +202,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const editModal = document.getElementById('editModal');
-  document.getElementById('closeEditModal').onclick = () => editModal.style.display = 'none';
+  const closeEditModalBtn = document.getElementById('closeEditModal');
+  if (closeEditModalBtn) closeEditModalBtn.onclick = () => editModal.style.display = 'none';
 
   function openEditModal(dataStr) {
     const data = JSON.parse(decodeURIComponent(dataStr));
@@ -200,11 +217,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('mComment').value = data.comment || '';
     
     const fileLink = document.getElementById('mFileLink');
-    if (data.registry_file_url) {
-      fileLink.href = data.registry_file_url;
-      fileLink.style.display = 'inline-block';
-    } else {
-      fileLink.style.display = 'none';
+    if (fileLink) {
+      if (data.registry_file_url) {
+        fileLink.href = data.registry_file_url;
+        fileLink.style.display = 'inline-block';
+      } else {
+        fileLink.style.display = 'none';
+      }
     }
 
     document.querySelectorAll('#mSupplyTypesGroup input').forEach(cb => {
@@ -215,37 +234,45 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   if (!isViewer) {
-    document.getElementById('btnUpdate').onclick = async () => {
-      if (!confirm('Подтверждаете изменение записи?')) return;
-      
-      const selectedTypes = Array.from(document.querySelectorAll('#mSupplyTypesGroup input:checked')).map(cb => cb.value);
-      if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
+    const btnUpdate = document.getElementById('btnUpdate');
+    if (btnUpdate) {
+      btnUpdate.onclick = async () => {
+        if (!confirm('Подтверждаете изменение записи?')) return;
+        
+        const selectedTypes = Array.from(document.querySelectorAll('#mSupplyTypesGroup input:checked')).map(cb => cb.value);
+        if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
 
-      const payload = {
-        slot_date: document.getElementById('mDate').value,
-        slot_hour: parseInt(document.getElementById('mHour').value),
-        order_number: document.getElementById('mDoc').value.trim(),
-        supply_types: selectedTypes,
-        order_type: document.getElementById('mOrderType').value,
-        is_tk: document.getElementById('mIsTk').checked,
-        comment: document.getElementById('mComment').value.trim()
+        const payload = {
+          slot_date: document.getElementById('mDate').value,
+          slot_hour: parseInt(document.getElementById('mHour').value),
+          order_number: document.getElementById('mDoc').value.trim(),
+          supply_types: selectedTypes,
+          order_type: document.getElementById('mOrderType').value,
+          is_tk: document.getElementById('mIsTk').checked,
+          comment: document.getElementById('mComment').value.trim()
+        };
+        
+        const { error } = await sb.from('bookings').update(payload).eq('id', document.getElementById('mId').value);
+        if (error) alert('Ошибка обновления: ' + error.message);
+        else { editModal.style.display = 'none'; renderCalendar(); }
       };
-      
-      const { error } = await sb.from('bookings').update(payload).eq('id', document.getElementById('mId').value);
-      if (error) alert('Ошибка обновления: ' + error.message);
-      else { editModal.style.display = 'none'; renderCalendar(); }
-    };
+    }
 
-    document.getElementById('deleteBookingBtn').onclick = async () => {
-      if (!confirm('ВНИМАНИЕ! Вы точно хотите удалить эту запись поставщика?')) return;
-      const { error } = await sb.from('bookings').delete().eq('id', document.getElementById('mId').value);
-      if (error) alert('Ошибка удаления: ' + error.message);
-      else { editModal.style.display = 'none'; renderCalendar(); }
-    };
+    const btnDelete = document.getElementById('deleteBookingBtn');
+    if (btnDelete) {
+      btnDelete.onclick = async () => {
+        if (!confirm('ВНИМАНИЕ! Вы точно хотите удалить эту запись поставщика?')) return;
+        const { error } = await sb.from('bookings').delete().eq('id', document.getElementById('mId').value);
+        if (error) alert('Ошибка удаления: ' + error.message);
+        else { editModal.style.display = 'none'; renderCalendar(); }
+      };
+    }
   }
 
-  document.getElementById('applyFiltersBtn').onclick = renderCalendar;
-  document.getElementById('resetFiltersBtn').onclick = () => {
+  const applyBtn = document.getElementById('applyFiltersBtn');
+  const resetBtn = document.getElementById('resetFiltersBtn');
+  if (applyBtn) applyBtn.onclick = renderCalendar;
+  if (resetBtn) resetBtn.onclick = () => {
     document.getElementById('filterSupplier').value = '';
     document.getElementById('filterDoc').value = '';
     document.getElementById('filterSupplyType').value = '';
