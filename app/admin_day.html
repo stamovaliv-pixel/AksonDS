@@ -71,18 +71,17 @@
     .form-group input[type="text"], .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 4px; box-sizing: border-box; font-size: 14px; outline: none; transition: 0.2s; resize: none; }
     .form-group input[type="text"]:focus, .form-group select:focus, .form-group textarea:focus { border-color: #3b82f6; }
     
-    /* Стили для отключенных (read-only) полей внутри fieldset */
     fieldset:disabled input[type="text"], fieldset:disabled select, fieldset:disabled textarea { background: #f8fafc; color: #475569; cursor: not-allowed; border-color: #e2e8f0; }
     fieldset:disabled .checkbox-label { opacity: 0.7; cursor: not-allowed; }
 
     .btn-save { background: #10b981; color: #fff; border: none; padding: 12px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600; margin-top: 20px; transition: 0.2s; }
     .btn-save:hover { background: #059669; }
 
-    /* Стили для новых нейтральных кнопок файлов */
-    .file-wrapper { display: flex; gap: 10px; align-items: stretch; margin-top: 4px; }
-    .custom-file-upload { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 4px; cursor: pointer; color: #475569; font-size: 13px; font-weight: 500; transition: 0.2s; }
+    /* Выровненные стили для новых кнопок файлов */
+    .file-wrapper { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+    .custom-file-upload { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 4px; cursor: pointer; color: #475569; font-size: 13px; font-weight: 500; transition: 0.2s; height: 42px; box-sizing: border-box; }
     .custom-file-upload:hover { background: #f1f5f9; border-color: #94a3b8; }
-    .template-btn { display: flex; align-items: center; gap: 6px; padding: 10px 15px; background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; text-decoration: none; color: #475569; font-size: 13px; font-weight: 500; transition: 0.2s; white-space: nowrap; }
+    .template-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 15px; background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; text-decoration: none; color: #475569; font-size: 13px; font-weight: 500; transition: 0.2s; white-space: nowrap; height: 42px; box-sizing: border-box; }
     .template-btn:hover { background: #f8fafc; border-color: #94a3b8; color: #1e293b; }
 
     @media (max-width: 1400px) { .cards-grid { grid-template-columns: repeat(4, 1fr); } }
@@ -179,7 +178,10 @@
       </fieldset>
 
       <div class="form-group" style="margin-top: 10px;">
-        <a id="mFileLink" href="#" target="_blank" style="color: #3b82f6; display: none; font-weight: 500;">📥 Скачать реестр поставки (.csv)</a>
+        <a id="mFileLink" href="#" target="_blank" class="template-btn" style="display: none; width: max-content;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Скачать текущий реестр
+        </a>
       </div>
     </div>
   </div>
@@ -230,7 +232,6 @@
           <textarea id="cComment" rows="2" maxlength="320"></textarea>
         </div>
 
-        <!-- Окно загрузки и скачивания шаблона -->
         <div class="form-group">
           <label>Реестр поставки (.csv)</label>
           <div class="file-wrapper">
@@ -241,7 +242,7 @@
             </label>
             <a id="cDownloadTemplateBtn" href="#" target="_blank" class="template-btn">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              Шаблон
+              Скачать шаблон
             </a>
           </div>
         </div>
@@ -253,6 +254,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js"></script>
-  <script src="../js/admin_day.js?v=28"></script>
+  <script src="../js/admin_day.js?v=30"></script>
 </body>
 </html>
