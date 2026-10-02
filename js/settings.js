@@ -28,11 +28,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  // Генерируем опции для селектов
   generateOptions('edit_startHour', 0, 23, true);
   generateOptions('edit_endHour', 0, 23, true);
   generateOptions('edit_slotsPer', 1, 12, false);
-  generateOptions('edit_reserveSlots', 0, 12, false); // Генерируем для резервных слотов
+  generateOptions('edit_reserveSlots', 0, 12, false); 
   generateOptions('edit_deadline', 1, 48, false);
 
   const dayNames = { 1:'Пн', 2:'Вт', 3:'Ср', 4:'Чт', 5:'Пт', 6:'Сб', 7:'Вс' };
@@ -43,14 +42,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       if (error || !data) {
         document.querySelectorAll('.setting-value, .days-view').forEach(el => el.textContent = '⚠️ Ошибка БД');
-        console.error('Ошибка БД:', error);
-        return alert('База данных не вернула настройки. Убедитесь, что вы выполнили SQL-запрос для создания таблицы app_settings!');
+        return alert('База данных не вернула настройки.');
       }
       
       currentSettings = data;
       localSupplyTypes = JSON.parse(JSON.stringify(data.supply_types || []));
 
-      // Инициализация значений
       const sHour = data.slot_start_hour ?? 9;
       document.getElementById('view_startHour').textContent = `${sHour}:00`;
       document.getElementById('edit_startHour').value = sHour;
@@ -63,7 +60,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('view_slotsPer').textContent = sPer;
       document.getElementById('edit_slotsPer').value = sPer;
 
-      // Резервные слоты
       const rPer = data.reserve_slots_per_hour ?? 3;
       document.getElementById('view_reserveSlots').textContent = rPer;
       document.getElementById('edit_reserveSlots').value = rPer;
@@ -77,13 +73,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('view_days').textContent = activeDaysText || 'Нет активных дней';
       
       const checkboxes = document.querySelectorAll('#edit_days input[type="checkbox"]');
-      checkboxes.forEach(cb => {
-        cb.checked = daysArr.includes(parseInt(cb.value));
-      });
+      checkboxes.forEach(cb => { cb.checked = daysArr.includes(parseInt(cb.value)); });
+
+      if (data.registry_template_url) {
+        const link = document.getElementById('view_templateLink');
+        if(link) {
+          link.href = data.registry_template_url;
+          link.style.display = 'inline-flex';
+          document.getElementById('view_noTemplate').style.display = 'none';
+        }
+      }
 
       renderSupplyTypes();
     } catch (err) {
-      console.error('Критическая ошибка скрипта:', err);
+      console.error(err);
       document.querySelectorAll('.setting-value, .days-view').forEach(el => el.textContent = '⚠️ Ошибка скрипта');
     }
   };
@@ -130,7 +133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     { key: 'startHour', db: 'slot_start_hour' },
     { key: 'endHour', db: 'slot_end_hour' },
     { key: 'slotsPer', db: 'slots_per_hour' },
-    { key: 'reserveSlots', db: 'reserve_slots_per_hour' }, // Связываем кнопку с базой
+    { key: 'reserveSlots', db: 'reserve_slots_per_hour' }, 
     { key: 'deadline', db: 'booking_deadline_hours' },
     { key: 'days', db: 'available_days' }
   ];
@@ -217,6 +220,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('supplyAddRow').style.display = 'none';
         renderSupplyTypes();
       }
+    };
+  }
+
+  const templateInput = document.getElementById('templateFileInput');
+  const btnUploadTemplate = document.getElementById('btnUploadTemplate');
+  
+  if (btnUploadTemplate) {
+    btnUploadTemplate.onclick = async () => {
+      const file = templateInput.files[0];
+      if (!file) return alert('Пожалуйста, выберите файл шаблона');
+      
+      btnUploadTemplate.innerText = 'Загрузка...';
+      btnUploadTemplate.disabled = true;
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `template_${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await sb.storage.from('registries').upload('templates/' + fileName, file);
+      
+      if (uploadError) {
+        alert('Ошибка загрузки файла: ' + uploadError.message);
+      } else {
+        const fileUrl = sb.storage.from('registries').getPublicUrl('templates/' + fileName).data.publicUrl;
+        const { error: dbError } = await sb.from('app_settings').update({ registry_template_url: fileUrl }).eq('id', 1);
+        if (dbError) alert('Ошибка сохранения в БД: ' + dbError.message);
+        else { alert('Шаблон успешно обновлен!'); window.location.reload(); }
+      }
+      btnUploadTemplate.innerText = 'Обновить шаблон';
+      btnUploadTemplate.disabled = false;
     };
   }
 
