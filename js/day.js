@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
   
-  // ПРИНУДИТЕЛЬНОЕ ОТОБРАЖЕНИЕ КНОПКИ ШАБЛОНА
+  // Кнопка шаблона
   const templateBtn = document.getElementById('downloadTemplateBtn');
   if (templateBtn) {
     if (settings && settings.registry_template_url) {
@@ -126,7 +126,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     slotsContainer.appendChild(groupDiv);
   }
 
+  // ВОССТАНОВЛЕННЫЕ ПЕРЕМЕННЫЕ ДЛЯ ПРОВЕРКИ ВРЕМЕНИ
   const currentHour = now.getHours();
+  const isToday = selectedMidnight.getTime() === todayMidnight.getTime();
+  const isPastDay = selectedMidnight < todayMidnight;
 
   for (let hour = settings.slot_start_hour; hour <= settings.slot_end_hour; hour++) {
     const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
