@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   fillCheckboxes('mSupplyTypesGroup');
   fillCheckboxes('cSupplyTypesGroup');
 
-  // 1. Загрузка данных
+  // 1. Загрузка данных бронирований
   const { data: bookings } = await sb
     .from('bookings')
     .select('id, slot_hour, order_number, order_type, supply_type, supply_types, arrival_time, departure_time, gate_number, is_tk, comment, registry_file_url, profiles(company_name, inn)')
@@ -41,12 +41,69 @@ document.addEventListener('DOMContentLoaded', async () => {
     .eq('status', 'active');
 
   let allProfiles = [];
+  let selectedSupplier = null; // Переменная для выбранного поставщика в умном поиске
+
   if (!isViewer) {
     const { data: profilesData } = await sb.from('profiles').select('id, company_name, inn').eq('role', 'supplier');
     if (profilesData) {
       allProfiles = profilesData;
-      const dataList = document.getElementById('suppliersList');
-      profilesData.forEach(p => dataList.innerHTML += `<option value="${p.company_name} (ИНН: ${p.inn})">`);
+    }
+
+    // --- УМНЫЙ ПОИСК ПОСТАВЩИКА ---
+    const searchInput = document.getElementById('cSupplierSearch');
+    if (searchInput) {
+      searchInput.removeAttribute('list'); // Отключаем стандартный datalist
+      
+      const resultsContainer = document.createElement('div');
+      resultsContainer.style.cssText = 'position: absolute; background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; max-height: 200px; overflow-y: auto; width: 100%; z-index: 99999; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: none; margin-top: 4px; left: 0; box-sizing: border-box;';
+      
+      const parent = searchInput.parentElement;
+      parent.style.position = 'relative';
+      parent.appendChild(resultsContainer);
+
+      searchInput.addEventListener('input', (e) => {
+        const val = e.target.value.toLowerCase().trim();
+        resultsContainer.innerHTML = '';
+        selectedSupplier = null;
+
+        if (!val) {
+          resultsContainer.style.display = 'none';
+          return;
+        }
+
+        const matches = allProfiles.filter(p => 
+          (p.company_name && p.company_name.toLowerCase().includes(val)) || 
+          (p.inn && p.inn.toLowerCase().includes(val))
+        );
+
+        if (matches.length > 0) {
+          matches.forEach(p => {
+            const item = document.createElement('div');
+            item.style.cssText = 'padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #f1f5f9; font-size: 14px; transition: 0.2s;';
+            item.innerHTML = `<strong style="color: #1e293b;">${p.company_name}</strong> <div style="color:#64748b; font-size:12px;">ИНН: ${p.inn}</div>`;
+            
+            item.onmouseover = () => item.style.background = '#f8fafc';
+            item.onmouseout = () => item.style.background = '#fff';
+            
+            item.onclick = () => {
+              searchInput.value = `${p.company_name} (ИНН: ${p.inn})`;
+              selectedSupplier = p;
+              resultsContainer.style.display = 'none';
+            };
+            resultsContainer.appendChild(item);
+          });
+          resultsContainer.style.display = 'block';
+        } else {
+          resultsContainer.innerHTML = '<div style="padding: 10px; color: #ef4444; font-size: 13px; text-align: center;">Поставщик не найден</div>';
+          resultsContainer.style.display = 'block';
+        }
+      });
+
+      document.addEventListener('click', (e) => {
+        if (e.target !== searchInput && e.target !== resultsContainer) {
+          resultsContainer.style.display = 'none';
+        }
+      });
     }
   }
 
@@ -182,7 +239,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('mIsTk').checked = data.is_tk;
       document.getElementById('mComment').value = data.comment || '';
       
-      // Ссылка на файл
       const fileLink = document.getElementById('mFileLink');
       if (data.registry_file_url) {
         fileLink.href = data.registry_file_url;
@@ -191,15 +247,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         fileLink.style.display = 'none';
       }
 
-      // Галочки
       document.querySelectorAll('#mSupplyTypesGroup input').forEach(cb => {
         cb.checked = data.sTypesRaw.includes(cb.value);
       });
 
-      // Динамический выпадающий список часов (скрываем переполненные)
       const mHourSelect = document.getElementById('mHour');
       mHourSelect.innerHTML = '';
-      
       const isImOnly = data.sTypesRaw.length === 1 && data.sTypesRaw[0] === 'orders_im';
 
       for (let h = settings.slot_start_hour; h <= settings.slot_end_hour; h++) {
@@ -217,7 +270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         let canMove = false;
         if (h === data.hour) {
-          canMove = true; // Свой же слот всегда доступен
+          canMove = true; 
         } else if (isImOnly) {
           canMove = (rUsed < (settings.reserve_slots_per_hour || 3)) || (mUsed < settings.slots_per_hour);
         } else {
@@ -237,44 +290,61 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (addBtn && !isViewer) {
       document.getElementById('cHour').value = addBtn.dataset.hour;
       document.getElementById('createForm').reset();
+      selectedSupplier = null; // Сбрасываем выбранного поставщика при открытии окна
       createModal.style.display = 'flex';
     }
   });
 
   // --- ОБНОВЛЕНИЕ ЗАЯВКИ (АДМИН) ---
-  document.getElementById('btnUpdate').onclick = async () => {
-    if (!confirm('Подтверждаете изменение?')) return;
-    
-    const selectedTypes = Array.from(document.querySelectorAll('#mSupplyTypesGroup input:checked')).map(cb => cb.value);
-    if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
+  if (!isViewer) {
+    document.getElementById('btnUpdate').onclick = async () => {
+      if (!confirm('Подтверждаете изменение?')) return;
+      
+      const selectedTypes = Array.from(document.querySelectorAll('#mSupplyTypesGroup input:checked')).map(cb => cb.value);
+      if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
 
-    const payload = {
-      slot_hour: parseInt(document.getElementById('mHour').value),
-      order_number: document.getElementById('mDoc').value.trim(),
-      supply_types: selectedTypes,
-      order_type: document.getElementById('mOrderType').value,
-      is_tk: document.getElementById('mIsTk').checked,
-      comment: document.getElementById('mComment').value.trim()
+      const payload = {
+        slot_hour: parseInt(document.getElementById('mHour').value),
+        order_number: document.getElementById('mDoc').value.trim(),
+        supply_types: selectedTypes,
+        order_type: document.getElementById('mOrderType').value,
+        is_tk: document.getElementById('mIsTk').checked,
+        comment: document.getElementById('mComment').value.trim()
+      };
+
+      const { error } = await sb.from('bookings').update(payload).eq('id', document.getElementById('mId').value);
+      if (error) alert('Ошибка обновления: ' + error.message);
+      else window.location.reload();
     };
 
-    const { error } = await sb.from('bookings').update(payload).eq('id', document.getElementById('mId').value);
-    if (error) alert('Ошибка обновления: ' + error.message);
-    else window.location.reload();
-  };
-
-  document.getElementById('btnDelete').onclick = async () => {
-    if (!confirm('Удалить запись?')) return;
-    await sb.from('bookings').delete().eq('id', document.getElementById('mId').value);
-    window.location.reload();
-  };
+    document.getElementById('btnDelete').onclick = async () => {
+      if (!confirm('Удалить запись?')) return;
+      await sb.from('bookings').delete().eq('id', document.getElementById('mId').value);
+      window.location.reload();
+    };
+  }
 
   // --- СОЗДАНИЕ ЗАЯВКИ (АДМИН) ---
   if (document.getElementById('createForm')) {
     document.getElementById('createForm').onsubmit = async (e) => {
       e.preventDefault();
-      const searchVal = document.getElementById('cSupplierSearch').value.trim();
-      const found = allProfiles.find(p => `${p.company_name} (ИНН: ${p.inn})` === searchVal);
-      if (!found) return alert('Поставщик не найден.');
+      
+      // Авто-подбор, если пользователь не кликнул по списку, а просто ввел текст
+      if (!selectedSupplier) {
+        const searchVal = document.getElementById('cSupplierSearch').value.trim().toLowerCase();
+        const matches = allProfiles.filter(p => 
+          (p.company_name && p.company_name.toLowerCase().includes(searchVal)) || 
+          (p.inn && p.inn.toLowerCase().includes(searchVal))
+        );
+
+        if (matches.length === 1) {
+          selectedSupplier = matches[0];
+        } else if (matches.length > 1) {
+          return alert('Найдено несколько поставщиков. Выберите конкретного из выпадающего списка под полем ввода.');
+        } else {
+          return alert('Поставщик не найден. Уточните запрос.');
+        }
+      }
 
       const selectedTypes = Array.from(document.querySelectorAll('#cSupplyTypesGroup input:checked')).map(cb => cb.value);
       if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
@@ -288,18 +358,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (file) {
         const fileExt = file.name.split('.').pop();
-        const fileName = `${found.id}_${Date.now()}.${fileExt}`;
+        const fileName = `${selectedSupplier.id}_${Date.now()}.${fileExt}`;
         const { error: uploadError } = await sb.storage.from('registries').upload(fileName, file);
         if (uploadError) {
           alert('Ошибка загрузки файла');
-          btn.innerText = 'Записать'; btn.disabled = false;
+          btn.innerText = 'Записать поставщика'; btn.disabled = false;
           return;
         }
         fileUrl = sb.storage.from('registries').getPublicUrl(fileName).data.publicUrl;
       }
 
       const payload = {
-        profile_id: found.id,
+        profile_id: selectedSupplier.id,
         slot_date: selectedDate,
         slot_hour: parseInt(document.getElementById('cHour').value),
         supply_types: selectedTypes,
