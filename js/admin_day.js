@@ -110,7 +110,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let selectedSupplier = null;
 
   if (!isViewer) {
-    const { data: profilesData } = await sb.from('profiles').select('id, company_name, inn');
+    // ЗАПРОС ТОЛЬКО С РОЛЬЮ SUPPLIER
+    const { data: profilesData } = await sb.from('profiles').select('id, company_name, inn').eq('role', 'supplier');
     if (profilesData) allProfiles = profilesData;
 
     const searchInput = document.getElementById('cSupplierSearch');
@@ -152,7 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
           resultsContainer.style.display = 'block';
         } else {
-          resultsContainer.innerHTML = '<div style="padding: 10px; color: #ef4444; font-size: 13px; text-align: center;">Пользователь не найден</div>';
+          resultsContainer.innerHTML = '<div style="padding: 10px; color: #ef4444; font-size: 13px; text-align: center;">Поставщик не найден</div>';
           resultsContainer.style.display = 'block';
         }
       });
@@ -288,7 +289,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const fileLink = document.getElementById('mFileLink');
       if (data.registry_file_url) {
         fileLink.href = data.registry_file_url;
-        fileLink.style.display = 'flex';
+        fileLink.style.display = 'inline-flex';
       } else {
         fileLink.style.display = 'none';
       }
@@ -428,7 +429,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           );
           if (matches.length === 1) selectedSupplier = matches[0];
           else if (matches.length > 1) return alert('Найдено несколько пользователей. Выберите из списка.');
-          else return alert('Пользователь не найден.');
+          else return alert('Поставщик не найден.');
         }
 
         const selectedTypes = Array.from(document.querySelectorAll('#cSupplyTypesGroup input:checked')).map(cb => cb.value);
