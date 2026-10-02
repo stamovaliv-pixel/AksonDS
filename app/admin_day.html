@@ -77,11 +77,14 @@
     .btn-save { background: #10b981; color: #fff; border: none; padding: 12px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600; margin-top: 20px; transition: 0.2s; }
     .btn-save:hover { background: #059669; }
 
-    /* Выровненные стили для новых кнопок файлов */
-    .file-wrapper { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
-    .custom-file-upload { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 4px; cursor: pointer; color: #475569; font-size: 13px; font-weight: 500; transition: 0.2s; height: 42px; box-sizing: border-box; }
-    .custom-file-upload:hover { background: #f1f5f9; border-color: #94a3b8; }
-    .template-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 15px; background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; text-decoration: none; color: #475569; font-size: 13px; font-weight: 500; transition: 0.2s; white-space: nowrap; height: 42px; box-sizing: border-box; }
+    /* ОДИНАКОВЫЕ КНОПКИ ЗАГРУЗКИ И ШАБЛОНА */
+    .file-wrapper { display: flex; gap: 10px; align-items: stretch; margin-top: 4px; width: 100%; }
+    .file-wrapper .custom-file-upload, .file-wrapper .template-btn { flex: 1; }
+    
+    .custom-file-upload { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; background: transparent; border: 1px solid #6ee7b7; border-radius: 4px; cursor: pointer; color: #10b981; font-size: 13px; font-weight: 500; transition: 0.2s; height: 42px; box-sizing: border-box; }
+    .custom-file-upload:hover { background: #ecfdf5; border-color: #10b981; }
+    
+    .template-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 15px; background: transparent; border: 1px solid #cbd5e1; border-radius: 4px; text-decoration: none; color: #475569; font-size: 13px; font-weight: 500; transition: 0.2s; white-space: nowrap; height: 42px; box-sizing: border-box; }
     .template-btn:hover { background: #f8fafc; border-color: #94a3b8; color: #1e293b; }
 
     @media (max-width: 1400px) { .cards-grid { grid-template-columns: repeat(4, 1fr); } }
@@ -115,7 +118,6 @@
     </div>
   </main>
 
-  <!-- Модальное окно РЕДАКТИРОВАНИЯ (Подробностей) -->
   <div class="modal-overlay" id="editModal">
     <div class="modal-content">
       <div class="modal-header">
@@ -186,7 +188,6 @@
     </div>
   </div>
 
-  <!-- Модальное окно СОЗДАНИЯ -->
   <div class="modal-overlay" id="createModal">
     <div class="modal-content">
       <div class="modal-header">
@@ -254,6 +255,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js"></script>
-  <script src="../js/admin_day.js?v=30"></script>
+  <script src="../js/admin_day.js?v=32"></script>
 </body>
 </html>
