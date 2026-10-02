@@ -12,13 +12,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
   if (!settings) return console.error('Не удалось загрузить настройки');
 
-  // Внедряем строгие стили для неактивных дней (убираем синюю полоску и запрещаем клик)
+  // ОБНОВЛЕНО: Принудительно показываем цветные полоски даже для неактивных дней
   const styleBlock = document.createElement('style');
   styleBlock.innerHTML = `
-    .day-cell.inactive::before { display: none !important; }
-    .day-cell.inactive { background-color: #f1f5f9 !important; opacity: 0.6 !important; cursor: not-allowed !important; pointer-events: none; }
+    .day-cell.inactive::before { display: block !important; }
+    .day-cell.inactive { background-color: #f1f5f9 !important; opacity: 0.5 !important; cursor: not-allowed !important; pointer-events: none !important; }
     .day-cell.inactive.booked { pointer-events: auto !important; cursor: pointer !important; }
-    .day-cell.inactive.booked::before { display: block !important; background-color: #ef4444 !important; }
   `;
   document.head.appendChild(styleBlock);
 
@@ -121,11 +120,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       let isActive = d >= today && d <= endActiveDate;
       
-      // СТРОГАЯ ПРОВЕРКА ДНЕЙ НЕДЕЛИ ИЗ НАСТРОЕК
       const jsDay = d.getDay();
       const dbDay = jsDay === 0 ? 7 : jsDay;
       if (settings.available_days && !settings.available_days.includes(dbDay)) {
-        isActive = false; // День отключен администратором
+        isActive = false; 
       }
       
       let isFull = (dateCapacities[isoDate] || 0) >= maxCapacityPerDay;
@@ -145,14 +143,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         isClickable = true;
       }
 
-      // Подсветка выходных, если они разрешены
       if ((jsDay === 0 || jsDay === 6) && isActive && !isFull) {
         dayCell.style.backgroundColor = '#f8fafc';
       }
 
       dayCell.innerHTML = `<div class="date-text">${d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}</div>`;
 
-      // Навешиваем клик только если день активен или есть наша запись
       if (isClickable || bookedDates.has(isoDate)) {
         dayCell.addEventListener('click', () => {
           window.location.href = `day.html?date=${isoDate}`;
