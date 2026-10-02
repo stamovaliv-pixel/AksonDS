@@ -79,11 +79,11 @@
     .form-group input[type="date"], .form-group select.datetime-field { 
       width: 100%; 
       height: 40px; 
-      padding: 4px 6px; 
+      padding: 6px 8px; 
       border: 1px solid var(--color-border); 
       border-radius: 4px; 
       box-sizing: border-box; 
-      font-size: 11px; 
+      font-size: 12px; 
       background: #fff; 
       outline: none; 
       text-align: center;
@@ -179,7 +179,7 @@
     </div>
   </main>
 
-  <!-- Модальное окно РЕДАКТИРОВАНИЯ записи из списка (Один в один как в admin_day.html) -->
+  <!-- Модальное окно РЕДАКТИРОВАНИЯ записи из списка -->
   <div class="modal-overlay" id="editModal">
     <div class="modal-content">
       <div class="modal-header">
@@ -199,7 +199,6 @@
         </div>
       </div>
       
-      <!-- Тип документа поднян НАД номером документа -->
       <div class="form-group">
         <label>Тип документа</label>
         <select id="mOrderType" class="viewer-disable">
@@ -222,7 +221,7 @@
       <div class="form-group">
         <label>Тип поставки</label>
         <div id="mSupplyTypesGroup" style="display: flex; gap: 10px; flex-wrap: wrap;" class="viewer-disable">
-          <!-- Галочки с пиктограммами динамически -->
+          <!-- Галочки динамически -->
         </div>
       </div>
 
