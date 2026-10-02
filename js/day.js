@@ -49,12 +49,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
   
-  // Обновленная логика кнопки шаблона (Всегда видна)
+  // Кнопка шаблона (всегда видна, но предупреждает, если шаблона нет)
   const templateBtn = document.getElementById('downloadTemplateBtn');
   if (templateBtn) {
     if (settings && settings.registry_template_url) {
       templateBtn.href = settings.registry_template_url;
+      templateBtn.style.display = 'inline-flex';
     } else {
+      templateBtn.style.display = 'inline-flex';
       templateBtn.onclick = (e) => {
         e.preventDefault();
         alert('Шаблон реестра еще не загружен администратором в настройках системы.');
@@ -128,9 +130,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     slotsContainer.appendChild(groupDiv);
   }
 
+  // --- ИСПРАВЛЕНИЕ: Восстановленные переменные времени ---
   const currentHour = now.getHours();
+  const isToday = selectedMidnight.getTime() === todayMidnight.getTime();
+  const isPastDay = selectedMidnight < todayMidnight;
+  
+  const startHour = settings?.slot_start_hour ?? 9;
+  const endHour = settings?.slot_end_hour ?? 17;
 
-  for (let hour = settings.slot_start_hour; hour <= settings.slot_end_hour; hour++) {
+  for (let hour = startHour; hour <= endHour; hour++) {
     const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
     const myBooking = hourBookings.find(b => b.profile_id === user.id);
 
@@ -144,10 +152,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     const reserveLeft = (settings.reserve_slots_per_hour || 3) - reserveUsed;
-    const mainLeft = settings.slots_per_hour - mainUsed;
+    const mainLeft = (settings.slots_per_hour || 5) - mainUsed;
 
     let isPast = isPastDay;
-    if (isToday && currentHour >= hour - settings.booking_deadline_hours) isPast = true;
+    if (isToday && currentHour >= hour - (settings.booking_deadline_hours || 1)) isPast = true;
 
     const card = document.createElement('div');
     card.className = 'slot-card';
@@ -213,7 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('bookingForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // ПРОВЕРКА ФАЙЛА
+    // ПРОВЕРКА ФАЙЛА НА УРОВНЕ JAVASCRIPT
     const file = registryFile.files[0];
     if (!file) {
       return alert('Пожалуйста, загрузите реестр поставки (.csv)');
