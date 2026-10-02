@@ -20,7 +20,7 @@
     .nav-btn:hover:not(:disabled) { background: #f1f5f9; border-color: #cbd5e1; }
     .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-    /* Группировка слотов из v1 */
+    /* Группировка слотов */
     .time-group { margin-bottom: 25px; }
     .time-group-title { font-size: 16px; font-weight: 700; color: var(--color-text-main); margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
     
@@ -38,7 +38,7 @@
     .btn-cancel:hover { background-color: #e2e8f0; }
     .btn-disabled { background-color: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
 
-    /* Модальные окна из v2 */
+    /* Модальные окна */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
     .modal-content { background: #fff; padding: 30px; border-radius: var(--radius-md); width: 100%; max-width: 500px; position: relative; max-height: 90vh; overflow-y: auto; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
@@ -141,9 +141,9 @@
             <label class="custom-file-upload">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
               <span id="fileName">Загрузить реестр</span>
-              <input type="file" id="registryFile" accept=".csv" required style="display: none;">
+              <input type="file" id="registryFile" accept=".csv" style="display: none;">
             </label>
-            <a id="downloadTemplateBtn" href="#" target="_blank" class="template-btn">
+            <a id="downloadTemplateBtn" href="#" target="_blank" class="template-btn" style="display: none;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               Шаблон
             </a>
@@ -185,6 +185,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js"></script>
-  <script src="../js/day.js?v=8"></script>
+  <script src="../js/day.js?v=10"></script>
 </body>
 </html>
