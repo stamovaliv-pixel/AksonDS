@@ -31,7 +31,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   `;
   document.head.appendChild(styleBlock);
 
-  // Умный подбор иконки по названию (аналогично странице day)
   const getSupplyIcon = (id, name) => {
     const n = (name || '').toLowerCase();
     if (id === 'orders_im' || n.includes('им')) return '📦';
@@ -39,7 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (id === 'mix' || n.includes('микс')) return '🔀';
     if (n.includes('сток')) return '🏭';
     if (n.includes('кросс')) return '🚚';
-    return '🏷️️'; 
+    return '🏷'; 
   };
 
   const filterSupplyType = document.getElementById('filterSupplyType');
@@ -147,7 +146,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const dict = {}; settings.supply_types.forEach(st => dict[st.id] = st.name);
 
       upcoming.forEach(b => {
-        // Формируем пиктограммы вместо текста типов поставок
         const typesArr = b.supply_types?.length ? b.supply_types : [b.supply_type];
         const iconsHtml = typesArr.map(t => {
           const name = dict[t] || t;
@@ -168,12 +166,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const dateFormatted = new Date(b.slot_date).toLocaleDateString('ru-RU');
         const timeFormatted = `${b.slot_hour}:00 - ${b.slot_hour + 1}:00`;
         
-        // По ТЗ: Наименование поставщика, дата, время записи, пиктограммы тип поставки
+        // Без пиктограмм календаря и часов: только Поставщик, Дата, Время, Пиктограммы
         item.innerHTML = `
           <div class="bi-company" title="${compName}">${compName}</div>
           <div class="bi-top">
-            <span>📅 ${dateFormatted}</span>
-            <span>⏰ ${timeFormatted}</span>
+            <span>${dateFormatted}</span>
+            <span>${timeFormatted}</span>
           </div>
           <div class="bi-bottom">
             <div class="bi-icons">${iconsHtml}</div>
