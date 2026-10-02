@@ -17,7 +17,6 @@
     .settings-section-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 15px; }
     .settings-section-header h3 { margin: 0; font-size: 18px; color: var(--color-text-main); }
     
-    /* Стили строк настроек */
     .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed #e2e8f0; }
     .setting-row:last-child { border-bottom: none; }
     .setting-info { display: flex; flex-direction: column; gap: 4px; flex: 1; }
@@ -32,7 +31,6 @@
     .btn-icon.save { color: #10b981; border-color: #10b981; background: #ecfdf5; display: none; }
     .btn-icon.save:hover { background: #d1fae5; }
     
-    /* Дни недели (Чипы) */
     .days-view { font-size: 15px; color: var(--color-text-main); font-weight: 500; }
     .days-chips { display: none; gap: 8px; flex-wrap: wrap; }
     .days-chips label { cursor: pointer; }
@@ -40,7 +38,6 @@
     .days-chips span { display: inline-block; padding: 6px 14px; border: 1px solid #cbd5e1; border-radius: 20px; color: #64748b; font-size: 13px; font-weight: 600; transition: 0.2s; user-select: none; }
     .days-chips input:checked + span { background: #3b82f6; color: #fff; border-color: #3b82f6; }
     
-    /* Типы поставок */
     .supply-list { list-style: none; padding: 0; margin: 0; }
     .supply-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px; font-size: 14px; font-weight: 500; }
     .btn-trash { background: none; border: none; color: #ef4444; cursor: pointer; display: none; padding: 4px; border-radius: 4px; }
@@ -50,7 +47,6 @@
     .supply-add-row input { flex: 1; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; font-size: 14px; }
     .btn-add { background: #3b82f6; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 5px; }
     .btn-add:hover { background: #2563eb; }
-
   </style>
 </head>
 <body class="app-body">
@@ -70,8 +66,6 @@
     <h2 style="margin-top: 0;">Системные настройки</h2>
     
     <div class="settings-card">
-      
-      <!-- Секция 1: Часы и лимиты -->
       <div class="settings-section">
         <div class="settings-section-header">
           <h3>Временные интервалы и лимиты</h3>
@@ -115,6 +109,18 @@
 
         <div class="setting-row">
           <div class="setting-info">
+            <span class="setting-label">Резервных слотов (только ИМ)</span>
+            <span class="setting-value" id="view_reserveSlots">Загрузка...</span>
+            <select class="setting-edit-input" id="edit_reserveSlots"></select>
+          </div>
+          <div class="setting-actions">
+            <button class="btn-icon" id="btnEdit_reserveSlots" title="Редактировать"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+            <button class="btn-icon save" id="btnSave_reserveSlots" title="Сохранить"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg></button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
             <span class="setting-label">Дедлайн записи (час)</span>
             <span class="setting-value" id="view_deadline">Загрузка...</span>
             <select class="setting-edit-input" id="edit_deadline"></select>
@@ -126,7 +132,6 @@
         </div>
       </div>
 
-      <!-- Секция 2: Дни недели -->
       <div class="settings-section">
         <div class="settings-section-header">
           <h3>Доступные дни недели</h3>
@@ -147,7 +152,6 @@
         </div>
       </div>
 
-      <!-- Секция 3: Типы поставок -->
       <div class="settings-section" style="margin-bottom: 0;">
         <div class="settings-section-header">
           <h3>Типы поставок</h3>
@@ -169,12 +173,12 @@
           </button>
         </div>
       </div>
-
     </div>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js"></script>
-  <script src="../js/settings.js"></script>
+  <!-- Добавляем параметр ?v=3 для надежной перезагрузки кэша браузера -->
+  <script src="../js/settings.js?v=3"></script> 
 </body>
 </html>
