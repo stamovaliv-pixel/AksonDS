@@ -21,6 +21,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   settings.supply_types.forEach(st => supplyTypes[st.id] = st.name);
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
 
+  // Пиктограммы для типов поставок (подберите под свои ID)
+  const typeIcons = {
+    'orders_im': '📦',   // Заказы ИМ
+    'return': '↩️',      // Возврат
+    'mix': '🔀',         // МИКС
+    'stock': '🏭',       // Сток (если есть)
+    'cross_dock': '🚚'   // Кросс-док (если есть)
+  };
+
   // Отрисовка чекбоксов
   const fillCheckboxes = (containerId) => {
     const el = document.getElementById(containerId);
@@ -41,10 +50,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     .eq('status', 'active');
 
   let allProfiles = [];
-  let selectedSupplier = null; // Переменная для выбранного поставщика в умном поиске
+  let selectedSupplier = null;
 
   if (!isViewer) {
-    const { data: profilesData } = await sb.from('profiles').select('id, company_name, inn').eq('role', 'supplier');
+    const { data: profilesData } = await sb.from('profiles').select('id, company_name, inn');
     if (profilesData) {
       allProfiles = profilesData;
     }
@@ -52,7 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- УМНЫЙ ПОИСК ПОСТАВЩИКА ---
     const searchInput = document.getElementById('cSupplierSearch');
     if (searchInput) {
-      searchInput.removeAttribute('list'); // Отключаем стандартный datalist
+      searchInput.removeAttribute('list'); 
       
       const resultsContainer = document.createElement('div');
       resultsContainer.style.cssText = 'position: absolute; background: #fff; border: 1px solid #cbd5e1; border-radius: 4px; max-height: 200px; overflow-y: auto; width: 100%; z-index: 99999; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: none; margin-top: 4px; left: 0; box-sizing: border-box;';
@@ -110,7 +119,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const container = document.getElementById('hoursContainer');
   container.innerHTML = '';
   
-  // 2. Отрисовка сетки
+  // 2. ОТРИСОВКА СЕТКИ И ГОРИЗОНТАЛЬНЫХ СЛОТОВ
   for (let hour = settings.slot_start_hour; hour <= settings.slot_end_hour; hour++) {
     const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
     const block = document.createElement('div');
@@ -130,84 +139,87 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     let cardsHtml = '';
+    const limitMain = settings.slots_per_hour || 5;
+    const limitRes = settings.reserve_slots_per_hour || 3;
 
-    // Занятые резервные (Оранжевые)
-    reserveCards.forEach(b => cardsHtml += generateCardHtml(b, 'reserve'));
-    
-    // Свободные резервные (Серые)
-    const freeReserve = (settings.reserve_slots_per_hour || 3) - reserveCards.length;
-    for(let i=0; i<freeReserve; i++) {
-      cardsHtml += `
-        <div class="booking-card ${isViewer ? 'viewer-hide' : ''}" style="border-left-color: #94a3b8; background: #f8fafc; border-color: #cbd5e1; cursor: pointer;" onclick="document.querySelector('.btn-add-slot[data-hour=\\'${hour}\\']').click()">
-          <div style="color: #475569; font-weight: 600;">Резервный слот (Только Заказы ИМ)</div>
+    // Генератор заполненной карточки
+    const generateBookedCardHtml = (b, cssClass) => {
+      const typesArr = b.supply_types?.length ? b.supply_types : [b.supply_type];
+      
+      // Рисуем пиктограммы
+      const iconsHtml = typesArr.map(t => {
+        const icon = typeIcons[t] || '🏷️';
+        const title = supplyTypes[t] || t;
+        return `<span title="${title}">${icon}</span>`;
+      }).join(' ');
+
+      const compName = b.profiles?.company_name || 'Неизвестно';
+      
+      // Мигающая точка ТК
+      const tkHtml = b.is_tk ? `<div class="tk-dot" title="Транспортная компания (ТК)"></div>` : `<div style="width:12px;"></div>`;
+
+      const dataStr = encodeURIComponent(JSON.stringify({
+        id: b.id, hour: b.slot_hour, doc: b.order_number, 
+        sTypesRaw: b.supply_types || [b.supply_type], oTypeRaw: b.order_type, 
+        fullCompany: `${compName} (ИНН: ${b.profiles?.inn || ''})`,
+        is_tk: b.is_tk, comment: b.comment, registry_file_url: b.registry_file_url
+      }));
+
+      return `
+        <div class="slot-box ${cssClass}" data-info="${dataStr}">
+          <div class="sb-header">
+            <div class="sb-title" title="${compName}">${compName}</div>
+            <button class="btn-dots">⋮</button>
+          </div>
+          <div class="sb-icons">
+            <div style="display:flex; gap:4px; font-size:16px;">${iconsHtml}</div>
+            ${tkHtml}
+          </div>
+          <div class="card-actions" data-id="${b.id}">
+            <div class="inline-input-group"><label>Приб.</label><input type="time" class="inline-arr viewer-disable" value="${b.arrival_time ? b.arrival_time.substring(0,5) : ''}"></div>
+            <div class="inline-input-group"><label>Убыл</label><input type="time" class="inline-dep viewer-disable" value="${b.departure_time ? b.departure_time.substring(0,5) : ''}"></div>
+            <div class="inline-input-group"><label>Вор.</label><input type="text" class="inline-gate viewer-disable" value="${b.gate_number || ''}"></div>
+          </div>
         </div>`;
+    };
+
+    // --- 1. Основные слоты (Слева) ---
+    for(let i=0; i<limitMain; i++) {
+      if (mainCards[i]) {
+        cardsHtml += generateBookedCardHtml(mainCards[i], 'main-booked');
+      } else {
+        cardsHtml += `
+          <div class="slot-box main-empty sb-empty ${isViewer ? 'viewer-hide' : ''}" data-hour="${hour}">
+            <div class="sb-empty-text">+ Осн. Слот<br><span style="font-size:10px; font-weight:normal;">Свободно</span></div>
+          </div>`;
+      }
     }
 
-    // Занятые основные (Красные)
-    mainCards.forEach(b => cardsHtml += generateCardHtml(b, 'main'));
-
-    // Кнопка добавить (Свободные основные)
-    const freeMain = settings.slots_per_hour - mainCards.length;
-    if (freeMain > 0) {
-      cardsHtml += `<div class="btn-add-slot viewer-hide" data-hour="${hour}" style="margin-top:10px;">+ Добавить запись (${freeMain} мест)</div>`;
+    // --- 2. Резервные слоты (Справа) ---
+    for(let i=0; i<limitRes; i++) {
+      if (reserveCards[i]) {
+        cardsHtml += generateBookedCardHtml(reserveCards[i], 'res-booked');
+      } else {
+        cardsHtml += `
+          <div class="slot-box res-empty sb-empty ${isViewer ? 'viewer-hide' : ''}" data-hour="${hour}">
+            <div class="sb-empty-text">+ Резерв<br><span style="font-size:10px; font-weight:normal;">(Только ИМ)</span></div>
+          </div>`;
+      }
     }
 
-    const occupancyColor = mainCards.length === settings.slots_per_hour ? '#ef4444' : '#10b981';
     block.innerHTML = `
       <div class="hour-header">
         <span>${hour}:00 - ${hour+1}:00</span>
-        <span style="font-size:14px; color:#64748b; font-weight:normal;">Занято осн.: <strong style="color:${occupancyColor}">${mainCards.length}/${settings.slots_per_hour}</strong></span>
       </div>
-      <div class="cards-container">${cardsHtml}</div>
+      <div class="cards-grid">${cardsHtml}</div>
     `;
     container.appendChild(block);
-  }
-
-  function generateCardHtml(b, type) {
-    const typesStr = b.supply_types?.length ? b.supply_types.map(t => supplyTypes[t] || t).join(', ') : (supplyTypes[b.supply_type] || b.supply_type);
-    const oType = orderTypes[b.order_type] || b.order_type;
-    const compName = b.profiles?.company_name || 'Неизвестно';
-    
-    const borderColor = type === 'reserve' ? '#f59e0b' : '#3b82f6';
-    const bgColor = type === 'reserve' ? '#fffbeb' : '#f0f9ff';
-    const borderOuter = type === 'reserve' ? '#fcd34d' : '#bfdbfe';
-
-    const dataStr = encodeURIComponent(JSON.stringify({
-      id: b.id, hour: b.slot_hour, doc: b.order_number, 
-      sTypesRaw: b.supply_types || [b.supply_type], oTypeRaw: b.order_type, 
-      fullCompany: `${compName} (ИНН: ${b.profiles?.inn || ''})`,
-      is_tk: b.is_tk, comment: b.comment, registry_file_url: b.registry_file_url
-    }));
-
-    return `
-      <div class="booking-card" data-info="${dataStr}" style="border-left-color: ${borderColor}; background: ${bgColor}; border-color: ${borderOuter};">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-          <strong style="color:#1f2937; margin-bottom:4px;">${compName}</strong>
-          <button class="btn-dots" title="Подробнее">⋮</button>
-        </div>
-        <div style="color:#64748b; font-size:13px; margin-bottom: 5px;">${oType} №${b.order_number} • ${typesStr}</div>
-        
-        <div class="card-actions" data-id="${b.id}">
-          <div class="inline-input-group">
-            <label>Прибыл</label>
-            <input type="time" class="inline-time inline-arr viewer-disable" value="${b.arrival_time ? b.arrival_time.substring(0,5) : ''}">
-          </div>
-          <div class="inline-input-group">
-            <label>Убыл</label>
-            <input type="time" class="inline-time inline-dep viewer-disable" value="${b.departure_time ? b.departure_time.substring(0,5) : ''}">
-          </div>
-          <div class="inline-input-group">
-            <label>Ворота</label>
-            <input type="text" class="inline-gate viewer-disable" value="${b.gate_number || ''}" placeholder="№">
-          </div>
-        </div>
-      </div>`;
   }
 
   // --- АВТОСОХРАНЕНИЕ ПРИБЫЛ/УБЫЛ ---
   if (!isViewer) {
     container.addEventListener('change', async (e) => {
-      if (e.target.classList.contains('inline-gate') || e.target.classList.contains('inline-time')) {
+      if (e.target.classList.contains('inline-gate') || e.target.classList.contains('inline-arr') || e.target.classList.contains('inline-dep')) {
         const id = e.target.closest('.card-actions').dataset.id;
         let fieldName = e.target.classList.contains('inline-gate') ? 'gate_number' : (e.target.classList.contains('inline-arr') ? 'arrival_time' : 'departure_time');
         let val = e.target.value;
@@ -220,16 +232,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // --- ЛОГИКА МОДАЛЬНЫХ ОКОН ---
+  // --- ЛОГИКА КЛИКОВ (Пустые слоты и Точки) ---
   const editModal = document.getElementById('editModal');
   const createModal = document.getElementById('createModal');
   document.getElementById('closeEditModal').onclick = () => editModal.style.display = 'none';
   document.getElementById('closeCreateModal').onclick = () => createModal.style.display = 'none';
 
   container.addEventListener('click', (e) => {
+    // 1. Клик на "⋮" (Подробнее)
     const dotsBtn = e.target.closest('.btn-dots');
     if (dotsBtn) {
-      const card = dotsBtn.closest('.booking-card');
+      const card = dotsBtn.closest('.slot-box');
       const data = JSON.parse(decodeURIComponent(card.dataset.info));
       
       document.getElementById('mId').value = data.id;
@@ -269,13 +282,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         let canMove = false;
-        if (h === data.hour) {
-          canMove = true; 
-        } else if (isImOnly) {
-          canMove = (rUsed < (settings.reserve_slots_per_hour || 3)) || (mUsed < settings.slots_per_hour);
-        } else {
-          canMove = (mUsed < settings.slots_per_hour);
-        }
+        if (h === data.hour) canMove = true; 
+        else if (isImOnly) canMove = (rUsed < (settings.reserve_slots_per_hour || 3)) || (mUsed < settings.slots_per_hour);
+        else canMove = (mUsed < settings.slots_per_hour);
 
         if (canMove) {
           mHourSelect.innerHTML += `<option value="${h}" ${h === data.hour ? 'selected' : ''}>${h}:00 - ${h+1}:00</option>`;
@@ -286,11 +295,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const addBtn = e.target.closest('.btn-add-slot');
-    if (addBtn && !isViewer) {
-      document.getElementById('cHour').value = addBtn.dataset.hour;
+    // 2. Клик на пустой слот (+ Добавить)
+    const emptySlot = e.target.closest('.sb-empty');
+    if (emptySlot && !isViewer) {
+      document.getElementById('cHour').value = emptySlot.dataset.hour;
       document.getElementById('createForm').reset();
-      selectedSupplier = null; // Сбрасываем выбранного поставщика при открытии окна
+      selectedSupplier = null; 
+      
+      // Если кликнули на пустой резервный слот, можно автоматически включить галочку "orders_im"
+      if(emptySlot.classList.contains('res-empty')) {
+         const imCb = document.querySelector('#cSupplyTypesGroup input[value="orders_im"]');
+         if(imCb) imCb.checked = true;
+      }
+      
       createModal.style.display = 'flex';
     }
   });
@@ -329,7 +346,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('createForm').onsubmit = async (e) => {
       e.preventDefault();
       
-      // Авто-подбор, если пользователь не кликнул по списку, а просто ввел текст
       if (!selectedSupplier) {
         const searchVal = document.getElementById('cSupplierSearch').value.trim().toLowerCase();
         const matches = allProfiles.filter(p => 
@@ -337,13 +353,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           (p.inn && p.inn.toLowerCase().includes(searchVal))
         );
 
-        if (matches.length === 1) {
-          selectedSupplier = matches[0];
-        } else if (matches.length > 1) {
-          return alert('Найдено несколько поставщиков. Выберите конкретного из выпадающего списка под полем ввода.');
-        } else {
-          return alert('Поставщик не найден. Уточните запрос.');
-        }
+        if (matches.length === 1) selectedSupplier = matches[0];
+        else if (matches.length > 1) return alert('Найдено несколько поставщиков. Выберите конкретного из выпадающего списка под полем ввода.');
+        else return alert('Поставщик не найден. Уточните запрос.');
       }
 
       const selectedTypes = Array.from(document.querySelectorAll('#cSupplyTypesGroup input:checked')).map(cb => cb.value);
