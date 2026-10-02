@@ -19,22 +19,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   settings.supply_types.forEach(st => supplyTypes[st.id] = st.name);
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
 
-  // Пиктограммы для типов поставок 
-  const typeIcons = {
-    'orders_im': '📦',   
-    'return': '↩️',      
-    'mix': '🔀',         
-    'stock': '🏭',       
-    'cross_dock': '🚚'   
+  // УМНЫЙ ПОДБОР ИКОНОК ПО НАЗВАНИЮ
+  const getSupplyIcon = (id, name) => {
+    const n = name.toLowerCase();
+    if (id === 'orders_im' || n.includes('им')) return '📦';
+    if (id === 'return' || n.includes('возврат')) return '↩️';
+    if (id === 'mix' || n.includes('микс')) return '🔀';
+    if (n.includes('сток')) return '🏭';
+    if (n.includes('кросс')) return '🚚';
+    return '🏷️'; // Стандартная иконка для всех остальных новых типов
   };
 
-  // Отрисовка чекбоксов с пиктограммами и запретом переноса строки (white-space: nowrap)
+  // Отрисовка чекбоксов с пиктограммами
   const fillCheckboxes = (containerId) => {
     const el = document.getElementById(containerId);
     if (!el) return;
     el.innerHTML = '';
     settings.supply_types.forEach(st => {
-      const icon = typeIcons[st.id] || '🏷️';
+      const icon = getSupplyIcon(st.id, st.name);
       el.innerHTML += `<label class="checkbox-label" style="display:flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap;"><input type="checkbox" value="${st.id}"> ${icon} ${st.name}</label>`;
     });
   };
@@ -55,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   tkEditWrapper.onclick = () => {
-    if (document.getElementById('mFieldset').disabled) return; // В режиме просмотра клик заблокирован
+    if (document.getElementById('mFieldset').disabled) return; 
     isTkEditModal = !isTkEditModal;
     updateTkDot(tkEditDot, isTkEditModal);
   };
@@ -159,7 +161,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const generateBookedCardHtml = (b, cssClass) => {
       const typesArr = b.supply_types?.length ? b.supply_types : [b.supply_type];
-      const iconsHtml = typesArr.map(t => `<span title="${supplyTypes[t] || t}">${typeIcons[t] || '🏷️'}</span>`).join(' ');
+      
+      const iconsHtml = typesArr.map(t => {
+        const title = supplyTypes[t] || t;
+        const icon = getSupplyIcon(t, title);
+        return `<span title="${title}">${icon}</span>`;
+      }).join(' ');
+
       const compName = b.profiles?.company_name || 'Неизвестно';
       const tkHtml = b.is_tk ? `<div class="tk-dot" title="Транспортная компания (ТК)"></div>` : `<div style="width:10px;"></div>`;
 
@@ -196,7 +204,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     container.appendChild(block);
   }
 
-  // --- АВТОСОХРАНЕНИЕ ПРИБЫЛ/УБЫЛ ---
   if (!isViewer) {
     container.addEventListener('change', async (e) => {
       if (e.target.classList.contains('inline-gate') || e.target.classList.contains('inline-arr') || e.target.classList.contains('inline-dep')) {
@@ -211,19 +218,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // --- ЛОГИКА МОДАЛЬНЫХ ОКОН (Режим просмотра и редактирования) ---
   const editModal = document.getElementById('editModal');
   const createModal = document.getElementById('createModal');
   document.getElementById('closeEditModal').onclick = () => editModal.style.display = 'none';
   document.getElementById('closeCreateModal').onclick = () => createModal.style.display = 'none';
 
-  // Кнопки-иконки
   const btnEditIcon = document.getElementById('btnEditIcon');
   const btnSaveIcon = document.getElementById('btnSaveIcon');
   const btnDeleteIcon = document.getElementById('btnDeleteIcon');
   const fieldset = document.getElementById('mFieldset');
 
-  // Включение режима редактирования
   btnEditIcon.onclick = () => {
     fieldset.disabled = false;
     btnEditIcon.style.display = 'none';
@@ -231,13 +235,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   container.addEventListener('click', (e) => {
-    // 1. Клик на карточку - Открытие окна Подробностей
     const dotsBtn = e.target.closest('.btn-dots');
     if (dotsBtn) {
       const card = dotsBtn.closest('.slot-box');
       const data = JSON.parse(decodeURIComponent(card.dataset.info));
       
-      // Сброс модального окна в режим "Только чтение"
       fieldset.disabled = true;
       if(!isViewer) {
         btnEditIcon.style.display = 'flex';
@@ -324,7 +326,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // 2. Клик на пустой слот (Создание)
     const emptySlot = e.target.closest('.sb-empty');
     if (emptySlot && !isViewer) {
       document.getElementById('cHour').value = emptySlot.dataset.hour;
@@ -342,7 +343,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // --- СОХРАНЕНИЕ / УДАЛЕНИЕ (ЧЕРЕЗ ИКОНКИ) ---
   if (!isViewer) {
     btnSaveIcon.onclick = async () => {
       if (!confirm('Подтверждаете изменение?')) return;
@@ -381,7 +381,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       window.location.reload();
     };
 
-    // --- СОЗДАНИЕ НОВОЙ ЗАЯВКИ ---
     if (document.getElementById('createForm')) {
       document.getElementById('createForm').onsubmit = async (e) => {
         e.preventDefault();
