@@ -49,7 +49,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
   
-  // Кнопка шаблона (всегда видна, но предупреждает, если шаблона нет)
   const templateBtn = document.getElementById('downloadTemplateBtn');
   if (templateBtn) {
     if (settings && settings.registry_template_url) {
@@ -130,7 +129,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     slotsContainer.appendChild(groupDiv);
   }
 
-  // --- ИСПРАВЛЕНИЕ: Восстановленные переменные времени ---
   const currentHour = now.getHours();
   const isToday = selectedMidnight.getTime() === todayMidnight.getTime();
   const isPastDay = selectedMidnight < todayMidnight;
@@ -197,13 +195,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // Переменные состояния для редактирования
   let currentMainLeft = 0;
+  let currentEditBookingId = null;
+  let existingFileUrl = null;
+
   const createModal = document.getElementById('bookingModal');
   const hourInput = document.getElementById('selectedHour');
 
   function openCreateModal(hour, mainLeft) {
+    currentEditBookingId = null;
+    existingFileUrl = null;
     hourInput.value = hour;
     currentMainLeft = mainLeft;
+    
+    document.getElementById('bookingModalTitle').innerText = 'Оформление записи';
+    document.getElementById('submitBookingBtn').innerText = 'Подтвердить запись';
     document.getElementById('bookingForm').reset();
     
     if (fileName) {
@@ -216,14 +223,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     createModal.style.display = 'flex';
   }
 
+  function openEditModal(b, hour) {
+    currentEditBookingId = b.id;
+    existingFileUrl = b.registry_file_url;
+    hourInput.value = hour; // Не изменяем время, сохраняем текущий час
+
+    document.getElementById('bookingModalTitle').innerText = 'Редактирование записи';
+    document.getElementById('submitBookingBtn').innerText = 'Сохранить изменения';
+    document.getElementById('bookingForm').reset();
+
+    // Заполнение чекбоксов типов поставки
+    const types = b.supply_types?.length ? b.supply_types : [b.supply_type];
+    document.querySelectorAll('#supplyTypesGroup input').forEach(cb => {
+      cb.checked = types.includes(cb.value);
+    });
+
+    document.getElementById('orderType').value = b.order_type || 'order';
+    document.getElementById('orderNumber').value = b.order_number || '';
+    document.getElementById('bookingComment').value = b.comment || '';
+
+    isTkModal = !!b.is_tk;
+    if(tkDot) tkDot.className = isTkModal ? 'tk-dot-modal active' : 'tk-dot-modal inactive';
+
+    if (fileName) {
+      fileName.textContent = b.registry_file_url ? 'Файл прикреплен (нажмите, чтобы заменить)' : 'Загрузить реестр';
+      fileName.style.color = '#10b981';
+    }
+
+    createModal.style.display = 'flex';
+  }
+
   document.getElementById('closeModalBtn').onclick = () => createModal.style.display = 'none';
 
   document.getElementById('bookingForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // ПРОВЕРКА ФАЙЛА НА УРОВНЕ JAVASCRIPT
     const file = registryFile.files[0];
-    if (!file) {
+    
+    // Файл обязателен только при создании. При редактировании можно оставить старый.
+    if (!currentEditBookingId && !file) {
       return alert('Пожалуйста, загрузите реестр поставки (.csv)');
     }
 
@@ -232,7 +270,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const isImOnly = selectedTypes.length === 1 && selectedTypes[0] === 'orders_im';
     
-    if (!isImOnly && currentMainLeft <= 0) {
+    // Если создаем запись и кончились места, блокируем
+    if (!currentEditBookingId && !isImOnly && currentMainLeft <= 0) {
       return alert('В этом слоте закончились основные места. Запись доступна только для типа "Заказы ИМ".');
     }
 
@@ -244,38 +283,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const btn = document.getElementById('submitBookingBtn');
-    btn.innerText = 'Оформление...';
+    btn.innerText = 'Сохранение...';
     btn.disabled = true;
 
-    const fileExt = file.name.split('.').pop();
-    const newFileName = `${user.id}_${Date.now()}.${fileExt}`;
-    const { data: uploadData, error: uploadError } = await sb.storage.from('registries').upload(newFileName, file);
-    
-    if (uploadError) {
-      alert('Ошибка загрузки файла: ' + uploadError.message);
-      btn.innerText = 'Подтвердить запись';
-      btn.disabled = false;
-      return;
+    let finalFileUrl = existingFileUrl;
+
+    // Если загружен новый файл, обновляем
+    if (file) {
+      const fileExt = file.name.split('.').pop();
+      const newFileName = `${user.id}_${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await sb.storage.from('registries').upload(newFileName, file);
+      
+      if (uploadError) {
+        alert('Ошибка загрузки файла: ' + uploadError.message);
+        btn.innerText = currentEditBookingId ? 'Сохранить изменения' : 'Подтвердить запись';
+        btn.disabled = false;
+        return;
+      }
+      finalFileUrl = sb.storage.from('registries').getPublicUrl(newFileName).data.publicUrl;
     }
-    const fileUrl = sb.storage.from('registries').getPublicUrl(newFileName).data.publicUrl;
 
     const payload = {
-      profile_id: user.id,
-      slot_date: selectedDate,
-      slot_hour: parseInt(hourInput.value),
       supply_types: selectedTypes,
       order_type: document.getElementById('orderType').value,
       order_number: document.getElementById('orderNumber').value,
-      registry_file_url: fileUrl,
+      registry_file_url: finalFileUrl,
       is_tk: isTkModal,
-      comment: document.getElementById('bookingComment').value.trim(),
-      status: 'active'
+      comment: document.getElementById('bookingComment').value.trim()
     };
 
-    const { error } = await sb.from('bookings').insert([payload]);
-    if (error) {
-      alert('Ошибка записи: ' + error.message);
-      btn.innerText = 'Подтвердить запись';
+    let errorResult;
+
+    if (currentEditBookingId) {
+      // Редактирование
+      const { error } = await sb.from('bookings').update(payload).eq('id', currentEditBookingId);
+      errorResult = error;
+    } else {
+      // Создание
+      payload.profile_id = user.id;
+      payload.slot_date = selectedDate;
+      payload.slot_hour = parseInt(hourInput.value);
+      payload.status = 'active';
+      const { error } = await sb.from('bookings').insert([payload]);
+      errorResult = error;
+    }
+
+    if (errorResult) {
+      alert('Ошибка записи: ' + errorResult.message);
+      btn.innerText = currentEditBookingId ? 'Сохранить изменения' : 'Подтвердить запись';
       btn.disabled = false;
     } else {
       window.location.reload(); 
@@ -304,6 +359,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       fileLink.style.display = 'inline-block';
     } else {
       fileLink.style.display = 'none';
+    }
+    
+    const editBtn = document.getElementById('editBookingBtn');
+    if (isPastDay) {
+      // Редактирование в прошедших датах недоступно
+      editBtn.style.display = 'none';
+    } else {
+      editBtn.style.display = 'block';
+      editBtn.onclick = () => {
+        detailsModal.style.display = 'none';
+        openEditModal(b, hour);
+      };
     }
     
     document.getElementById('deleteBookingBtn').onclick = async () => {
