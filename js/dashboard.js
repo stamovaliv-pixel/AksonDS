@@ -17,25 +17,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  const orgInn = document.getElementById('orgInn');
-  const orgName = document.getElementById('orgName');
-  
+  const pageTitle = document.querySelector('.page-title');
   const profileNameInput = document.getElementById('profileName');
   const profilePhoneInput = document.getElementById('profilePhone');
   const profileEmailInput = document.getElementById('profileEmail');
 
   let contactId = null;
 
-  // 1. Загружаем реквизиты из profiles
+  // 1. Загружаем реквизиты из profiles и выводим в заголовок страницы
   const { data: profile } = await sb
     .from('profiles')
     .select('inn, company_name')
     .eq('id', user.id)
     .single();
 
-  if (profile) {
-    orgInn.innerText = profile.inn || 'Не указан';
-    orgName.innerText = profile.company_name || 'Не указано';
+  if (profile && pageTitle) {
+    const inn = profile.inn || 'Не указан';
+    const name = profile.company_name || 'Не указано';
+    pageTitle.innerText = `Личный кабинет: ${name} (${inn})`;
+  } else if (pageTitle) {
+    pageTitle.innerText = `Личный кабинет`;
   }
 
   // 2. Загружаем контакты из contacts
@@ -134,7 +135,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const dateStr = thirtyDaysAgo.toISOString().split('T')[0]; // YYYY-MM-DD
 
     // Получаем записи за последние 30 дней.
-    // (Адаптируйте условие is_late / status, если в вашей БД статусы называются иначе)
     const { data: bookings } = await sb
       .from('bookings')
       .select('status, is_late') 
@@ -148,8 +148,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (bookings) {
       total = bookings.length;
       bookings.forEach(b => {
-        // Логика определения срыва и опоздания 
-        // (Предполагается, что 'noshow' или 'canceled_noshow' это срыв)
         if (b.status === 'noshow' || b.status === 'срыв') {
           noshow++;
         } else if (b.status === 'late' || b.status === 'опоздание' || b.is_late === true) {
@@ -187,23 +185,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await calculateRating();
 
-  // 5. Логика окна "Шпаргалка"
-  const openCheatSheetBtn = document.getElementById('openCheatSheetBtn');
-  const closeCheatSheetBtn = document.getElementById('closeCheatSheetBtn');
-  const cheatSheetModal = document.getElementById('cheatSheetModal');
-
-  if (openCheatSheetBtn && cheatSheetModal) {
-    openCheatSheetBtn.addEventListener('click', () => {
-      cheatSheetModal.style.display = 'flex';
-    });
-    closeCheatSheetBtn.addEventListener('click', () => {
-      cheatSheetModal.style.display = 'none';
-    });
-    // Закрытие при клике вне окна
-    cheatSheetModal.addEventListener('click', (e) => {
-      if (e.target === cheatSheetModal) {
-        cheatSheetModal.style.display = 'none';
+  // 5. Логика копирования адреса и координат в буфер обмена
+  const copyBtns = document.querySelectorAll('.copy-btn');
+  copyBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-copy');
+      const textElement = document.getElementById(targetId);
+      if (textElement) {
+        const textToCopy = textElement.innerText;
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          // Временная визуальная обратная связь при успешном копировании
+          const originalHTML = btn.innerHTML;
+          btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+          setTimeout(() => {
+            btn.innerHTML = originalHTML;
+          }, 2000);
+        }).catch(err => {
+          console.error('Ошибка копирования:', err);
+        });
       }
     });
-  }
+  });
 });
