@@ -276,10 +276,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (selectedTypes.includes('return')) {
-      const slotTime = new Date(selectedDate);
-      slotTime.setHours(parseInt(hourInput.value), 0, 0, 0);
-      const diffHours = (slotTime - new Date()) / (1000 * 60 * 60);
-      if (diffHours < 24) return alert('Для поставок, включающих "Возврат", запись возможна не ранее чем за 24 часа.');
+      const returnDeadlineDays = settings.return_deadline_days || 0;
+      if (returnDeadlineDays > 0) {
+        const minAllowedDate = new Date(todayMidnight);
+        minAllowedDate.setDate(todayMidnight.getDate() + returnDeadlineDays);
+        
+        if (selectedMidnight < minAllowedDate) {
+          return alert(`Для поставок, включающих "Возврат", запись возможна только начиная с ${minAllowedDate.toLocaleDateString('ru-RU')}.`);
+        }
+      }
     }
 
     const btn = document.getElementById('submitBookingBtn');
