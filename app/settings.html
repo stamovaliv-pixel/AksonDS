@@ -130,6 +130,18 @@
             <button class="btn-icon save" id="btnSave_deadline"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg></button>
           </div>
         </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <span class="setting-label">Дедлайн записи_Возврат (дни)</span>
+            <span class="setting-value" id="view_returnDeadline">Загрузка...</span>
+            <select class="setting-edit-input" id="edit_returnDeadline"></select>
+          </div>
+          <div class="setting-actions">
+            <button class="btn-icon" id="btnEdit_returnDeadline"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+            <button class="btn-icon save" id="btnSave_returnDeadline"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg></button>
+          </div>
+        </div>
       </div>
 
       <div class="settings-section">
@@ -191,6 +203,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js"></script>
-  <script src="../js/settings.js?v=5"></script> 
+  <script src="../js/settings.js?v=6"></script> 
 </body>
 </html>
