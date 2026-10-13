@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   generateOptions('edit_slotsPer', 1, 12, false);
   generateOptions('edit_reserveSlots', 0, 12, false); 
   generateOptions('edit_deadline', 1, 48, false);
+  generateOptions('edit_returnDeadline', 0, 30, false);
 
   const dayNames = { 1:'Пн', 2:'Вт', 3:'Ср', 4:'Чт', 5:'Пт', 6:'Сб', 7:'Вс' };
 
@@ -67,6 +68,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       const dLine = data.booking_deadline_hours ?? 1;
       document.getElementById('view_deadline').textContent = dLine;
       document.getElementById('edit_deadline').value = dLine;
+
+      const rDeadline = data.return_deadline_days ?? 0;
+      document.getElementById('view_returnDeadline').textContent = rDeadline;
+      document.getElementById('edit_returnDeadline').value = rDeadline;
 
       const daysArr = data.available_days || [1, 2, 3, 4, 5];
       const activeDaysText = daysArr.map(d => dayNames[d]).join(', ');
@@ -135,6 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     { key: 'slotsPer', db: 'slots_per_hour' },
     { key: 'reserveSlots', db: 'reserve_slots_per_hour' }, 
     { key: 'deadline', db: 'booking_deadline_hours' },
+    { key: 'returnDeadline', db: 'return_deadline_days' },
     { key: 'days', db: 'available_days' }
   ];
 
