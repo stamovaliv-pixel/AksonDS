@@ -125,4 +125,85 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
   });
+
+  // 4. Логика расчета рейтинга и гистограммы за последние 30 дней
+  const calculateRating = async () => {
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    const dateStr = thirtyDaysAgo.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    // Получаем записи за последние 30 дней.
+    // (Адаптируйте условие is_late / status, если в вашей БД статусы называются иначе)
+    const { data: bookings } = await sb
+      .from('bookings')
+      .select('status, is_late') 
+      .eq('profile_id', user.id)
+      .gte('slot_date', dateStr);
+
+    let total = 0;
+    let late = 0;
+    let noshow = 0;
+
+    if (bookings) {
+      total = bookings.length;
+      bookings.forEach(b => {
+        // Логика определения срыва и опоздания 
+        // (Предполагается, что 'noshow' или 'canceled_noshow' это срыв)
+        if (b.status === 'noshow' || b.status === 'срыв') {
+          noshow++;
+        } else if (b.status === 'late' || b.status === 'опоздание' || b.is_late === true) {
+          late++;
+        }
+      });
+    }
+
+    // Механика: Вычитаем из 5.0 долю штрафов от общего объема.
+    // Вес срыва 2/3 (0.666), опоздания 1/3 (0.333)
+    let rating = 5.0;
+    if (total > 0) {
+      const penaltyWeight = (noshow * (2/3)) + (late * (1/3));
+      rating = 5.0 * (1 - (penaltyWeight / total));
+    }
+    
+    // Границы рейтинга от 0.1 до 5.0, шаг 0.1
+    rating = Math.max(0.1, Math.min(5.0, rating));
+    const finalRating = (Math.round(rating * 10) / 10).toFixed(1);
+
+    document.getElementById('ratingNum').innerText = finalRating;
+
+    // Обновление гистограммы
+    document.getElementById('histTotalVal').innerText = total;
+    document.getElementById('histLateVal').innerText = late;
+    document.getElementById('histNoshowVal').innerText = noshow;
+
+    if (total > 0) {
+      // 100% высота для максимума (total)
+      document.getElementById('histTotalBar').style.height = '100%';
+      document.getElementById('histLateBar').style.height = `${(late / total) * 100}%`;
+      document.getElementById('histNoshowBar').style.height = `${(noshow / total) * 100}%`;
+    }
+  };
+
+  await calculateRating();
+
+  // 5. Логика окна "Шпаргалка"
+  const openCheatSheetBtn = document.getElementById('openCheatSheetBtn');
+  const closeCheatSheetBtn = document.getElementById('closeCheatSheetBtn');
+  const cheatSheetModal = document.getElementById('cheatSheetModal');
+
+  if (openCheatSheetBtn && cheatSheetModal) {
+    openCheatSheetBtn.addEventListener('click', () => {
+      cheatSheetModal.style.display = 'flex';
+    });
+    closeCheatSheetBtn.addEventListener('click', () => {
+      cheatSheetModal.style.display = 'none';
+    });
+    // Закрытие при клике вне окна
+    cheatSheetModal.addEventListener('click', (e) => {
+      if (e.target === cheatSheetModal) {
+        cheatSheetModal.style.display = 'none';
+      }
+    });
+  }
 });
