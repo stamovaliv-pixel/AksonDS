@@ -47,7 +47,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (nextDate > maxDate) nextBtn.disabled = true;
   else nextBtn.onclick = () => window.location.href = `day.html?date=${getLocalDateString(nextDate)}`;
 
-  const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
+  // ОПТИМИЗАЦИЯ: Кэширование настроек
+  async function getSettings() {
+    const cached = sessionStorage.getItem('app_settings');
+    if (cached) return JSON.parse(cached);
+    const { data } = await sb.from('app_settings').select('*').eq('id', 1).single();
+    if (data) sessionStorage.setItem('app_settings', JSON.stringify(data));
+    return data || {};
+  }
+  const settings = await getSettings();
   
   const templateBtn = document.getElementById('downloadTemplateBtn');
   if (templateBtn) {
@@ -88,7 +96,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const typesContainer = document.getElementById('supplyTypesGroup');
-  if (typesContainer && settings) {
+  if (typesContainer && settings && settings.supply_types) {
     typesContainer.innerHTML = '';
     settings.supply_types.forEach(st => {
       const icon = getSupplyIcon(st.id, st.name);
@@ -135,6 +143,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   const startHour = settings?.slot_start_hour ?? 9;
   const endHour = settings?.slot_end_hour ?? 17;
+  const deadlineHours = settings?.booking_deadline_hours ?? 1;
 
   for (let hour = startHour; hour <= endHour; hour++) {
     const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
@@ -153,7 +162,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const mainLeft = (settings.slots_per_hour || 5) - mainUsed;
 
     let isPast = isPastDay;
-    if (isToday && currentHour >= hour - (settings.booking_deadline_hours || 1)) isPast = true;
+    if (isToday && currentHour >= hour - deadlineHours) isPast = true;
 
     const card = document.createElement('div');
     card.className = 'slot-card';
@@ -226,13 +235,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   function openEditModal(b, hour) {
     currentEditBookingId = b.id;
     existingFileUrl = b.registry_file_url;
-    hourInput.value = hour; // Не изменяем время, сохраняем текущий час
+    hourInput.value = hour; 
 
     document.getElementById('bookingModalTitle').innerText = 'Редактирование записи';
     document.getElementById('submitBookingBtn').innerText = 'Сохранить изменения';
     document.getElementById('bookingForm').reset();
 
-    // Заполнение чекбоксов типов поставки
     const types = b.supply_types?.length ? b.supply_types : [b.supply_type];
     document.querySelectorAll('#supplyTypesGroup input').forEach(cb => {
       cb.checked = types.includes(cb.value);
@@ -260,7 +268,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const file = registryFile.files[0];
     
-    // Файл обязателен только при создании. При редактировании можно оставить старый.
     if (!currentEditBookingId && !file) {
       return alert('Пожалуйста, загрузите реестр поставки (.csv)');
     }
@@ -270,7 +277,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const isImOnly = selectedTypes.length === 1 && selectedTypes[0] === 'orders_im';
     
-    // Если создаем запись и кончились места, блокируем
     if (!currentEditBookingId && !isImOnly && currentMainLeft <= 0) {
       return alert('В этом слоте закончились основные места. Запись доступна только для типа "Заказы ИМ".');
     }
@@ -293,7 +299,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let finalFileUrl = existingFileUrl;
 
-    // Если загружен новый файл, обновляем
     if (file) {
       const fileExt = file.name.split('.').pop();
       const newFileName = `${user.id}_${Date.now()}.${fileExt}`;
@@ -320,11 +325,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     let errorResult;
 
     if (currentEditBookingId) {
-      // Редактирование
       const { error } = await sb.from('bookings').update(payload).eq('id', currentEditBookingId);
       errorResult = error;
     } else {
-      // Создание
       payload.profile_id = user.id;
       payload.slot_date = selectedDate;
       payload.slot_hour = parseInt(hourInput.value);
@@ -346,7 +349,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('closeDetailsModalBtn').onclick = () => detailsModal.style.display = 'none';
 
   function openDetailsModal(b, hour) {
-    const supplyDict = {}; settings.supply_types.forEach(st => supplyDict[st.id] = st.name);
+    const supplyDict = {}; 
+    if(settings.supply_types) settings.supply_types.forEach(st => supplyDict[st.id] = st.name);
+    
     const typesStr = b.supply_types?.length ? b.supply_types.map(t => `${getSupplyIcon(t, supplyDict[t]||t)} ${supplyDict[t] || t}`).join(', ') : `${getSupplyIcon(b.supply_type, supplyDict[b.supply_type]||b.supply_type)} ${supplyDict[b.supply_type] || b.supply_type}`;
     
     document.getElementById('modalDate').innerText = new Date(selectedDate).toLocaleDateString('ru-RU');
@@ -368,7 +373,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const editBtn = document.getElementById('editBookingBtn');
     if (isPastDay) {
-      // Редактирование в прошедших датах недоступно
       editBtn.style.display = 'none';
     } else {
       editBtn.style.display = 'block';
