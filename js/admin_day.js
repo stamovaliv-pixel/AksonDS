@@ -14,9 +14,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   if (isViewer) document.body.classList.add('role-viewer');
 
-  const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
+  // ОПТИМИЗАЦИЯ: Кэширование настроек
+  async function getSettings() {
+    const cached = sessionStorage.getItem('app_settings');
+    if (cached) return JSON.parse(cached);
+    const { data } = await sb.from('app_settings').select('*').eq('id', 1).single();
+    if (data) sessionStorage.setItem('app_settings', JSON.stringify(data));
+    return data || {};
+  }
+  const settings = await getSettings();
+
   const supplyTypes = {};
-  settings.supply_types.forEach(st => supplyTypes[st.id] = st.name);
+  if (settings.supply_types) {
+    settings.supply_types.forEach(st => supplyTypes[st.id] = st.name);
+  }
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
 
   // Логика кнопки шаблона в окне СОЗДАНИЯ записи
@@ -41,10 +52,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     cRegistryFile.addEventListener('change', (e) => {
       if (e.target.files.length > 0) {
         cFileName.textContent = e.target.files[0].name;
-        cFileName.style.color = '#059669'; // Более темный зеленый для выбранного файла
+        cFileName.style.color = '#059669';
       } else {
         cFileName.textContent = 'Загрузить реестр';
-        cFileName.style.color = ''; // Возврат к дефолтному CSS цвету
+        cFileName.style.color = '';
       }
     });
   }
@@ -57,13 +68,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (id === 'mix' || n.includes('микс')) return '🔀';
     if (n.includes('сток')) return '🏭';
     if (n.includes('кросс')) return '🚚';
-    return '🏷️'; // Стандартная иконка для всех остальных новых типов
+    return '🏷️';
   };
 
   // Отрисовка чекбоксов с пиктограммами
   const fillCheckboxes = (containerId) => {
     const el = document.getElementById(containerId);
-    if (!el) return;
+    if (!el || !settings.supply_types) return;
     el.innerHTML = '';
     settings.supply_types.forEach(st => {
       const icon = getSupplyIcon(st.id, st.name);
@@ -73,7 +84,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   fillCheckboxes('mSupplyTypesGroup');
   fillCheckboxes('cSupplyTypesGroup');
 
-  // Логика кастомной кнопки-индикатора ТК (Привезет транспортная компания)
+  // Логика кастомной кнопки-индикатора ТК
   let isTkEditModal = false;
   const tkEditWrapper = document.getElementById('mTkWrapper');
   const tkEditDot = document.getElementById('mTkDot');
@@ -86,16 +97,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     dotElement.className = isActive ? 'tk-dot-modal active' : 'tk-dot-modal inactive';
   };
 
-  tkEditWrapper.onclick = () => {
-    if (document.getElementById('mFieldset').disabled) return; 
-    isTkEditModal = !isTkEditModal;
-    updateTkDot(tkEditDot, isTkEditModal);
-  };
+  if(tkEditWrapper) {
+    tkEditWrapper.onclick = () => {
+      if (document.getElementById('mFieldset').disabled) return; 
+      isTkEditModal = !isTkEditModal;
+      updateTkDot(tkEditDot, isTkEditModal);
+    };
+  }
 
   if(tkCreateWrapper) {
     tkCreateWrapper.onclick = () => {
       isTkCreateModal = !isTkCreateModal;
       updateTkDot(tkCreateDot, isTkCreateModal);
+    };
+  }
+
+  // ОПТИМИЗАЦИЯ: Функция debounce для поиска
+  function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(this, args), wait);
     };
   }
 
@@ -110,7 +132,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   let selectedSupplier = null;
 
   if (!isViewer) {
-    // ЗАПРОС ТОЛЬКО С РОЛЬЮ SUPPLIER
     const { data: profilesData } = await sb.from('profiles').select('id, company_name, inn').eq('role', 'supplier');
     if (profilesData) allProfiles = profilesData;
 
@@ -122,21 +143,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       searchInput.parentElement.style.position = 'relative';
       searchInput.parentElement.appendChild(resultsContainer);
 
-      searchInput.addEventListener('input', (e) => {
-        const val = e.target.value.toLowerCase().trim();
+      const performSearch = (val) => {
         resultsContainer.innerHTML = '';
         selectedSupplier = null;
-
         if (!val) {
           resultsContainer.style.display = 'none';
           return;
         }
-
         const matches = allProfiles.filter(p => 
           (p.company_name && p.company_name.toLowerCase().includes(val)) || 
           (p.inn && p.inn.toLowerCase().includes(val))
         );
-
         if (matches.length > 0) {
           matches.forEach(p => {
             const item = document.createElement('div');
@@ -156,7 +173,11 @@ document.addEventListener('DOMContentLoaded', async () => {
           resultsContainer.innerHTML = '<div style="padding: 10px; color: #ef4444; font-size: 13px; text-align: center;">Поставщик не найден</div>';
           resultsContainer.style.display = 'block';
         }
-      });
+      };
+
+      // Применяем debounce к поиску
+      const debouncedSearch = debounce((e) => performSearch(e.target.value.toLowerCase().trim()), 300);
+      searchInput.addEventListener('input', debouncedSearch);
 
       document.addEventListener('click', (e) => {
         if (e.target !== searchInput && e.target !== resultsContainer) resultsContainer.style.display = 'none';
@@ -168,7 +189,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   container.innerHTML = '';
   
   // 2. ОТРИСОВКА СЕТКИ
-  for (let hour = settings.slot_start_hour; hour <= settings.slot_end_hour; hour++) {
+  const startHour = settings.slot_start_hour ?? 9;
+  const endHour = settings.slot_end_hour ?? 17;
+
+  for (let hour = startHour; hour <= endHour; hour++) {
     const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
     const block = document.createElement('div');
     block.className = 'hour-block';
@@ -192,7 +216,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const generateBookedCardHtml = (b, cssClass) => {
       const typesArr = b.supply_types?.length ? b.supply_types : [b.supply_type];
-      
       const iconsHtml = typesArr.map(t => {
         const title = supplyTypes[t] || t;
         const icon = getSupplyIcon(t, title);
@@ -259,11 +282,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnDeleteIcon = document.getElementById('btnDeleteIcon');
   const fieldset = document.getElementById('mFieldset');
 
-  btnEditIcon.onclick = () => {
-    fieldset.disabled = false;
-    btnEditIcon.style.display = 'none';
-    btnSaveIcon.style.display = 'flex';
-  };
+  if(btnEditIcon) {
+    btnEditIcon.onclick = () => {
+      fieldset.disabled = false;
+      btnEditIcon.style.display = 'none';
+      btnSaveIcon.style.display = 'flex';
+    };
+  }
 
   container.addEventListener('click', (e) => {
     const dotsBtn = e.target.closest('.btn-dots');
@@ -316,7 +341,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           
           hourBookings.forEach(b => {
             if (b.id === data.id) return; 
-
             const t = b.supply_types?.length ? b.supply_types : [b.supply_type];
             if (t.length === 1 && t[0] === 'orders_im') {
               if (rUsed < maxRes) rUsed++; else mUsed++;
@@ -380,42 +404,46 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   if (!isViewer) {
-    btnSaveIcon.onclick = async () => {
-      if (!confirm('Подтверждаете изменение?')) return;
-      
-      const selectedTypes = Array.from(document.querySelectorAll('#mSupplyTypesGroup input:checked')).map(cb => cb.value);
-      if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
-      
-      const selectedHour = document.getElementById('mHour').value;
-      if (!selectedHour) return alert('Невозможно сохранить: в выбранном часе нет свободных мест для этого типа поставки.');
+    if(btnSaveIcon) {
+      btnSaveIcon.onclick = async () => {
+        if (!confirm('Подтверждаете изменение?')) return;
+        
+        const selectedTypes = Array.from(document.querySelectorAll('#mSupplyTypesGroup input:checked')).map(cb => cb.value);
+        if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
+        
+        const selectedHour = document.getElementById('mHour').value;
+        if (!selectedHour) return alert('Невозможно сохранить: в выбранном часе нет свободных мест для этого типа поставки.');
 
-      const payload = {
-        slot_hour: parseInt(selectedHour),
-        order_number: document.getElementById('mDoc').value.trim(),
-        supply_types: selectedTypes,
-        order_type: document.getElementById('mOrderType').value,
-        is_tk: isTkEditModal,
-        comment: document.getElementById('mComment').value.trim()
+        const payload = {
+          slot_hour: parseInt(selectedHour),
+          order_number: document.getElementById('mDoc').value.trim(),
+          supply_types: selectedTypes,
+          order_type: document.getElementById('mOrderType').value,
+          is_tk: isTkEditModal,
+          comment: document.getElementById('mComment').value.trim()
+        };
+
+        btnSaveIcon.style.opacity = '0.5';
+        btnSaveIcon.style.pointerEvents = 'none';
+
+        const { error } = await sb.from('bookings').update(payload).eq('id', document.getElementById('mId').value);
+        if (error) {
+          alert('Ошибка обновления: ' + error.message);
+          btnSaveIcon.style.opacity = '1';
+          btnSaveIcon.style.pointerEvents = 'auto';
+        } else {
+          window.location.reload();
+        }
       };
+    }
 
-      btnSaveIcon.style.opacity = '0.5';
-      btnSaveIcon.style.pointerEvents = 'none';
-
-      const { error } = await sb.from('bookings').update(payload).eq('id', document.getElementById('mId').value);
-      if (error) {
-        alert('Ошибка обновления: ' + error.message);
-        btnSaveIcon.style.opacity = '1';
-        btnSaveIcon.style.pointerEvents = 'auto';
-      } else {
+    if(btnDeleteIcon) {
+      btnDeleteIcon.onclick = async () => {
+        if (!confirm('Удалить запись? Данное действие нельзя отменить.')) return;
+        await sb.from('bookings').delete().eq('id', document.getElementById('mId').value);
         window.location.reload();
-      }
-    };
-
-    btnDeleteIcon.onclick = async () => {
-      if (!confirm('Удалить запись? Данное действие нельзя отменить.')) return;
-      await sb.from('bookings').delete().eq('id', document.getElementById('mId').value);
-      window.location.reload();
-    };
+      };
+    }
 
     if (document.getElementById('createForm')) {
       document.getElementById('createForm').onsubmit = async (e) => {
