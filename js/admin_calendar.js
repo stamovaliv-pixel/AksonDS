@@ -22,12 +22,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault(); await sb.auth.signOut(); window.location.href = '../index.html';
   };
 
-  const { data: settingsData } = await sb.from('app_settings').select('*').eq('id', 1).single();
-  const settings = settingsData || {
-    slot_start_hour: 9,
-    slot_end_hour: 17,
-    available_days: [1, 2, 3, 4, 5, 6, 7],
-    supply_types: []
+  // Оптимизация: Кэширование настроек
+  async function getSettings() {
+    const cached = sessionStorage.getItem('app_settings');
+    if (cached) return JSON.parse(cached);
+    const { data } = await sb.from('app_settings').select('slot_start_hour, slot_end_hour, available_days, supply_types').eq('id', 1).single();
+    if (data) sessionStorage.setItem('app_settings', JSON.stringify(data));
+    return data || {};
+  }
+  
+  const settingsData = await getSettings();
+  const settings = {
+    slot_start_hour: settingsData.slot_start_hour ?? 9,
+    slot_end_hour: settingsData.slot_end_hour ?? 17,
+    available_days: settingsData.available_days ?? [1, 2, 3, 4, 5, 6, 7],
+    supply_types: settingsData.supply_types ?? []
   };
 
   const styleBlock = document.createElement('style');
@@ -37,7 +46,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   `;
   document.head.appendChild(styleBlock);
 
-  // Умный подбор иконки (один в один как в admin_day.js)
   const getSupplyIcon = (id, name) => {
     const n = (name || '').toLowerCase();
     if (id === 'orders_im' || n.includes('им')) return '📦';
@@ -56,7 +64,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Отрисовка чекбоксов С ПИКТОГРАММАМИ (один в один как в admin_day.js)
   const fillCheckboxes = (containerId) => {
     const el = document.getElementById(containerId);
     if (!el || !settings.supply_types) return;
@@ -71,7 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const mHourSelect = document.getElementById('mHour');
   if (mHourSelect) {
     mHourSelect.innerHTML = '';
-    for (let h = (settings.slot_start_hour ?? 9); h <= (settings.slot_end_hour ?? 17); h++) {
+    for (let h = settings.slot_start_hour; h <= settings.slot_end_hour; h++) {
       mHourSelect.innerHTML += `<option value="${h}">${h}:00 - ${h+1}:00</option>`;
     }
   }
@@ -126,8 +133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const isPastOrFuture = d < today || d > maxActiveDate;
         const jsDay = d.getDay();
         const dbDay = jsDay === 0 ? 7 : jsDay;
-        const allowedDays = settings.available_days || [1,2,3,4,5,6,7];
-        const isAllowedDay = allowedDays.includes(dbDay);
+        const isAllowedDay = settings.available_days.includes(dbDay);
         
         if (isPastOrFuture || !isAllowedDay) cell.classList.add('inactive'); 
         if (bookedDates.has(isoDate)) cell.classList.add('booked'); 
