@@ -8,7 +8,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     return window.location.href = 'calendar.html';
   }
 
-  // Запоминаем, является ли текущий пользователь администратором
   const isAdmin = profile.role === 'admin';
 
   document.getElementById('logoutBtn').onclick = async (e) => { 
@@ -39,7 +38,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const card = document.createElement('div');
       card.className = `supplier-card ${s.is_blocked ? 'blocked' : ''}`;
       
-      // Если это НЕ админ (т.е. оператор), добавляем атрибут disabled и подсказку
       const disabledAttr = isAdmin ? '' : 'disabled title="Изменять статус может только Администратор"';
       
       card.innerHTML = `
@@ -61,7 +59,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const loadData = async () => {
-    const { data, error } = await sb.from('profiles').select('*');
+    // Оптимизация: Явная выборка колонок вместо select('*')
+    const { data, error } = await sb.from('profiles').select('id, company_name, inn, created_at, role, is_blocked');
     
     if (error) {
       document.getElementById('usersList').innerHTML = `<div style="text-align:center; color:#ef4444;">Ошибка БД: ${error.message}</div>`;
@@ -76,22 +75,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderUsers(document.getElementById('searchInput').value);
   };
 
-  // Живой поиск при вводе текста
+  // Оптимизация: Функция debounce
+  function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+  }
+
+  // Живой поиск с задержкой (чтобы не нагружать устройство и рендер)
+  const debouncedRender = debounce((val) => renderUsers(val), 500);
   document.getElementById('searchInput').addEventListener('input', (e) => {
-    renderUsers(e.target.value);
+    debouncedRender(e.target.value);
   });
   
-  // Поиск по нажатию на кнопку
   const performSearch = () => renderUsers(document.getElementById('searchInput').value);
   if (document.getElementById('searchBtn')) {
     document.getElementById('searchBtn').addEventListener('click', performSearch);
   }
   
-  // Изменение статуса блокировки
   document.getElementById('usersList').addEventListener('change', async (e) => {
     if (e.target.classList.contains('toggle-block')) {
-      
-      // Дополнительная защита: если это каким-то чудом нажал оператор, блокируем
       if (!isAdmin) {
         e.preventDefault();
         e.target.checked = !e.target.checked;
