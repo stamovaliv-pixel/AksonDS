@@ -123,6 +123,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (error) {
       alert('Ошибка сохранения: ' + error.message);
     } else {
+      // ОПТИМИЗАЦИЯ: Сброс кэша при сохранении настроек
+      sessionStorage.removeItem('app_settings');
+
       currentSettings[dbColumn] = newValue;
       if (fieldKey === 'days') {
         document.getElementById(`view_days`).textContent = newValue.map(d => dayNames[d]).join(', ') || 'Нет активных дней';
@@ -220,6 +223,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (error) {
         alert('Ошибка сохранения: ' + error.message);
       } else {
+        // ОПТИМИЗАЦИЯ: Сброс кэша при сохранении типов
+        sessionStorage.removeItem('app_settings');
+
         isEditingSupply = false;
         document.getElementById('btnEdit_supply').style.display = 'flex';
         btnSaveSupply.style.display = 'none';
@@ -250,8 +256,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         const fileUrl = sb.storage.from('registries').getPublicUrl('templates/' + fileName).data.publicUrl;
         const { error: dbError } = await sb.from('app_settings').update({ registry_template_url: fileUrl }).eq('id', 1);
-        if (dbError) alert('Ошибка сохранения в БД: ' + dbError.message);
-        else { alert('Шаблон успешно обновлен!'); window.location.reload(); }
+        
+        if (dbError) {
+          alert('Ошибка сохранения в БД: ' + dbError.message);
+        } else {
+          // ОПТИМИЗАЦИЯ: Сброс кэша при обновлении шаблона
+          sessionStorage.removeItem('app_settings');
+          alert('Шаблон успешно обновлен!');
+          window.location.reload(); 
+        }
       }
       btnUploadTemplate.innerText = 'Обновить шаблон';
       btnUploadTemplate.disabled = false;
