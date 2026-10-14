@@ -8,11 +8,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // ЗАГРУЗКА ГЛОБАЛЬНЫХ НАСТРОЕК
-  const { data: settings } = await sb.from('app_settings').select('*').eq('id', 1).single();
-  if (!settings) return console.error('Не удалось загрузить настройки');
+  // ОПТИМИЗАЦИЯ: Кэширование глобальных настроек
+  async function getSettings() {
+    const cached = sessionStorage.getItem('app_settings');
+    if (cached) return JSON.parse(cached);
+    const { data } = await sb.from('app_settings').select('*').eq('id', 1).single();
+    if (data) sessionStorage.setItem('app_settings', JSON.stringify(data));
+    return data || {};
+  }
+  const settings = await getSettings();
+  if (!settings || Object.keys(settings).length === 0) return console.error('Не удалось загрузить настройки');
 
-  // ОБНОВЛЕНО: Принудительно показываем цветные полоски даже для неактивных дней
+  // Принудительно показываем цветные полоски даже для неактивных дней
   const styleBlock = document.createElement('style');
   styleBlock.innerHTML = `
     .day-cell.inactive::before { display: block !important; }
@@ -56,7 +63,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const supplyTypes = {};
-  settings.supply_types.forEach(st => supplyTypes[st.id] = st.name);
+  if (settings.supply_types) {
+    settings.supply_types.forEach(st => supplyTypes[st.id] = st.name);
+  }
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
 
   if (upcomingList) {
@@ -108,7 +117,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const endActiveDate = new Date(today);
     endActiveDate.setDate(today.getDate() + 29);
     const currentRealHour = new Date().getHours();
-    const maxCapacityPerDay = (settings.slot_end_hour - settings.slot_start_hour + 1) * settings.slots_per_hour;
+    const startHour = settings.slot_start_hour ?? 9;
+    const endHour = settings.slot_end_hour ?? 17;
+    const slotsPerHour = settings.slots_per_hour ?? 5;
+    const maxCapacityPerDay = (endHour - startHour + 1) * slotsPerHour;
 
     for (let i = 0; i < 35; i++) {
       const d = new Date(startDate);
@@ -127,7 +139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       
       let isFull = (dateCapacities[isoDate] || 0) >= maxCapacityPerDay;
-      if (isoDate === isoToday && currentRealHour >= settings.slot_end_hour) isFull = true;
+      if (isoDate === isoToday && currentRealHour >= endHour) isFull = true;
 
       let isClickable = false;
 
