@@ -104,8 +104,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (filterSupplier) query = query.or(`company_name.ilike.%${filterSupplier}%,inn.ilike.%${filterSupplier}%`, { foreignTable: 'profiles' });
     
     if (filterSupply) {
-      query = query.contains('supply_types', [filterSupply]);
-    }
+  query = query.contains('supply_types', JSON.stringify([filterSupply]));
+}
 
     const { data: bookings } = await query;
     const bookedDates = new Set((bookings || []).map(b => b.slot_date));
