@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const { data: bookings, error } = await sb
         .from('bookings')
-        .select('status, is_late') 
+        .select('status') 
         .eq('profile_id', user.id)
         .gte('slot_date', dateStr);
 
@@ -159,9 +159,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (bookings) {
         total = bookings.length;
         bookings.forEach(b => {
-          if (b.status === 'noshow' || b.status === 'срыв') {
+          if (b.status === 'no_show' || b.status === 'срыв') {
             noshow++;
-          } else if (b.status === 'late' || b.status === 'опоздание' || b.is_late === true) {
+          } else if (b.status === 'late' || b.status === 'опоздание') {
             late++;
           }
         });
