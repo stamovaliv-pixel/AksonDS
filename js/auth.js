@@ -10,8 +10,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Функция перенаправления на основе роли
   const redirectBasedOnRole = async (userId) => {
-    const { data } = await sb.from('profiles').select('role').eq('id', userId).single();
-    if (data && (data.role === 'operator' || data.role === 'admin' || data.role === 'viewer')) {
+    // Добавили error, чтобы поймать возможную ошибку базы данных
+    const { data, error } = await sb.from('profiles').select('role').eq('id', userId).single();
+    
+    if (error) {
+      console.error("Ошибка при получении профиля:", error.message);
+      // Раскомментируйте строку ниже, если хотите, чтобы браузер выдавал всплывающее окно с ошибкой
+      // alert("Ошибка БД при проверке роли: " + error.message);
+    }
+
+    if (data) {
+      console.log("Успешно получена роль:", data.role);
+    }
+
+    // Более лаконичная и современная проверка массива ролей
+    if (data && ['operator', 'admin', 'viewer'].includes(data.role)) {
       window.location.href = 'app/admin_calendar.html';
     } else {
       window.location.href = 'app/calendar.html';
