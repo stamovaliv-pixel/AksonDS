@@ -8,22 +8,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // Функция перенаправления на основе роли
+  // Функция перенаправления на основе роли (Production вариант)
   const redirectBasedOnRole = async (userId) => {
-    // Добавили error, чтобы поймать возможную ошибку базы данных
     const { data, error } = await sb.from('profiles').select('role').eq('id', userId).single();
     
+    // Если произошла ошибка БД (например, упал интернет или сбились политики)
     if (error) {
-      console.error("Ошибка при получении профиля:", error.message);
-      // Раскомментируйте строку ниже, если хотите, чтобы браузер выдавал всплывающее окно с ошибкой
-      // alert("Ошибка БД при проверке роли: " + error.message);
+      console.error("Системная ошибка проверки профиля:", error.message);
+      alert("Произошла ошибка при проверке прав доступа. Пожалуйста, обратитесь в поддержку.");
+      await sb.auth.signOut(); // Принудительно разлогиниваем для безопасности
+      window.location.href = '../index.html';
+      return;
     }
 
-    if (data) {
-      console.log("Успешно получена роль:", data.role);
-    }
-
-    // Более лаконичная и современная проверка массива ролей
+    // Если всё хорошо, направляем по ролям
     if (data && ['operator', 'admin', 'viewer'].includes(data.role)) {
       window.location.href = 'app/admin_calendar.html';
     } else {
