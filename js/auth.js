@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Функция перенаправления на основе роли
   const redirectBasedOnRole = async (userId) => {
     const { data } = await sb.from('profiles').select('role').eq('id', userId).single();
-    if (data && (data.role === 'operator' || data.role === 'admin')) {
+    if (data && (data.role === 'operator' || data.role === 'admin' || data.role === 'viewer')) {
       window.location.href = 'app/admin_calendar.html';
     } else {
       window.location.href = 'app/calendar.html';
