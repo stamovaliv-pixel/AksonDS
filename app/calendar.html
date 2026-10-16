@@ -139,26 +139,30 @@
       .section-title { font-size: 20px; margin-bottom: 15px; }
       .calendar-layout { gap: 30px; }
       
-      /* Сужаем сетку календаря */
       .weekdays-header, .calendar-grid { gap: 4px; }
       .weekdays-header { font-size: 12px; margin-bottom: 8px; }
       .day-cell { height: 60px; border-radius: 6px; }
-      .date-text { font-size: 13px; } /* Шрифт меньше, чтобы дата точно влезла */
+      .date-text { font-size: 13px; } 
 
-      /* Меняем вывод карточек слотов с 7 колонок на 2 */
       .booking-list { grid-template-columns: repeat(2, 1fr); gap: 10px; }
       .booking-item { padding: 10px; }
+
+      /* Модалка */
+      .modal-overlay { padding: 10px; }
+      .modal-content { padding: 20px 15px; max-height: 95vh; border-radius: 12px; }
+      .modal-header { margin-bottom: 15px; padding-bottom: 10px; }
+      .modal-title { font-size: 17px; }
+      .modal-body p { font-size: 14px; margin: 10px 0; }
+      .modal-actions { gap: 10px; }
     }
 
     @media (max-width: 480px) {
-      /* Для самых маленьких экранов (iPhone SE и т.д.) */
       .weekdays-header, .calendar-grid { gap: 2px; }
       .day-cell { height: 50px; }
       .date-text { font-size: 12px; }
       .booking-date { font-size: 14px; }
       .booking-time { font-size: 12px; }
       
-      /* Карточки слотов выводим в 1 колонку */
       .booking-list { grid-template-columns: 1fr; }
       .modal-body strong { display: block; width: auto; margin-bottom: 2px; }
     }
