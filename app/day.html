@@ -46,12 +46,18 @@
     .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b; line-height: 1; transition: 0.2s; }
     .close-btn:hover { color: #ef4444; }
     
+    /* Формы и сетка полей */
     .form-group { margin-bottom: 18px; }
     .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--color-text-main); }
-    /* ДОБАВЛЕНО resize: none; */
     .form-group input[type="text"], .form-group select, .form-group textarea { width: 100%; padding: 12px; border: 1px solid var(--color-border); border-radius: 6px; box-sizing: border-box; font-size: 14px; outline: none; resize: none; }
     .form-group input[type="text"]:focus, .form-group select:focus, .form-group textarea:focus { border-color: #3b82f6; }
     
+    .form-row { display: flex; gap: 15px; flex-wrap: wrap; }
+    .form-row .form-group { flex: 1; min-width: 150px; margin-bottom: 18px; }
+
+    /* Переопределение инлайн-запрета переноса строк для галочек (из JS) */
+    #supplyTypesGroup label { white-space: normal !important; }
+
     /* Индикатор ТК */
     .tk-dot-modal { width: 12px; height: 12px; border-radius: 50%; display: inline-block; transition: 0.2s; flex-shrink: 0; }
     .tk-dot-modal.active { background-color: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); animation: blink 1.5s infinite; }
@@ -62,7 +68,7 @@
     .file-wrapper { display: flex; gap: 10px; align-items: stretch; margin-top: 4px; }
     .custom-file-upload { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; cursor: pointer; color: #475569; font-size: 13px; font-weight: 500; transition: 0.2s; }
     .custom-file-upload:hover { background: #f1f5f9; border-color: #94a3b8; }
-    .template-btn { display: flex; align-items: center; gap: 6px; padding: 10px 15px; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; text-decoration: none; color: #475569; font-size: 13px; font-weight: 500; transition: 0.2s; white-space: nowrap; }
+    .template-btn { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 15px; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; text-decoration: none; color: #475569; font-size: 13px; font-weight: 500; transition: 0.2s; white-space: nowrap; }
     .template-btn:hover { background: #f8fafc; border-color: #94a3b8; color: #1e293b; }
 
     .btn-save { background: #10b981; color: #fff; border: none; padding: 14px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: 600; font-size: 16px; margin-top: 10px; transition: 0.2s; }
@@ -76,12 +82,29 @@
 
     .action-buttons { display: flex; gap: 10px; margin-top: 15px; }
 
+    /* === МОБИЛЬНАЯ АДАПТАЦИЯ МОДАЛЬНЫХ ОКОН === */
     @media (max-width: 768px) {
       .day-navigation { padding: 10px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; justify-content: center; }
       .page-title { order: -1; width: 100%; margin-bottom: 10px !important; }
       .slot-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
-      .modal-content { padding: 20px; }
-      .action-buttons { flex-direction: column; }
+      
+      .modal-overlay { padding: 10px; }
+      .modal-content { padding: 20px 15px; max-height: 95vh; border-radius: 12px; }
+      .modal-header { margin-bottom: 15px; }
+      .modal-header h3 { font-size: 18px; }
+      
+      .form-group { margin-bottom: 12px; }
+      .form-row { flex-direction: column; gap: 0; }
+      .form-row .form-group { width: 100%; min-width: auto; margin-bottom: 12px; }
+      
+      #supplyTypesGroup { flex-direction: column !important; gap: 8px !important; }
+      #supplyTypesGroup label { width: 100%; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin: 0 !important; }
+      
+      .file-wrapper { flex-direction: column; }
+      .custom-file-upload, .template-btn { width: 100%; }
+      
+      .action-buttons { flex-direction: column; gap: 8px; }
+      .action-buttons button { width: 100%; margin: 0; }
     }
   </style>
 </head>
@@ -124,8 +147,9 @@
           <div id="supplyTypesGroup" style="display: flex; gap: 12px; flex-wrap: wrap;"></div>
         </div>
 
-        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-          <div class="form-group" style="flex: 1; min-width: 150px;">
+        <!-- ИЗМЕНЕНИЕ: Формы в специальном flex-контейнере -->
+        <div class="form-row">
+          <div class="form-group">
             <label>Тип документа</label>
             <select id="orderType" required>
               <option value="order">Заказ</option>
@@ -133,7 +157,7 @@
               <option value="etrn">ЭТрН</option>
             </select>
           </div>
-          <div class="form-group" style="flex: 1; min-width: 150px;">
+          <div class="form-group">
             <label>Номер документа</label>
             <input type="text" id="orderNumber" required placeholder="№ документа">
           </div>
@@ -145,7 +169,6 @@
             <label class="custom-file-upload">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
               <span id="fileName">Загрузить реестр</span>
-              <!-- input больше не скрывает кнопку, проверка в JS -->
               <input type="file" id="registryFile" accept=".csv" style="display: none;">
             </label>
             <a id="downloadTemplateBtn" href="#" target="_blank" class="template-btn">
