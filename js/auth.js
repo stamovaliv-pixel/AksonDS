@@ -93,8 +93,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       const full_name = document.getElementById('full_name').value;
       const phone = document.getElementById('phone').value;
 
+      // Передаем данные формы прямо в системную регистрацию в виде метаданных
       const { data: authData, error: authError } = await sb.auth.signUp({
-        email, password
+        email: email, 
+        password: password,
+        options: {
+          data: {
+            inn: inn,
+            company_name: company_name,
+            full_name: full_name,
+            phone: phone
+          }
+        }
       });
 
       if (authError) {
@@ -104,26 +114,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
+      // Если системных ошибок нет, база данных САМА создаст профиль через триггер.
+      // Нам остается только перенаправить пользователя внутрь системы.
       if (authData.user) {
-        const userId = authData.user.id;
-        
-        // Создаем запись в profiles
-        const { error: profileError } = await sb.from('profiles').insert([
-          { id: userId, inn: inn, company_name: company_name, role: 'supplier' }
-        ]);
-
-        if (profileError) {
-          alert('Профиль создан с ошибкой: ' + profileError.message);
-          btn.disabled = false; 
-          btn.innerText = 'Зарегистрироваться';
-        } else {
-          // Создаем запись в contacts
-          await sb.from('contacts').insert([
-            { profile_id: userId, full_name: full_name, phone: phone, is_primary: true }
-          ]);
-          
-          await redirectBasedOnRole(userId);
-        }
+        await redirectBasedOnRole(authData.user.id);
       }
     });
   }
