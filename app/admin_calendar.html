@@ -75,6 +75,12 @@
     .form-group input[type="text"], .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 4px; box-sizing: border-box; font-size: 14px; outline: none; }
     .form-group input[type="text"]:focus, .form-group select:focus, .form-group textarea:focus { border-color: #3b82f6; }
     
+    .form-row { display: flex; gap: 10px; }
+    .form-row .form-group { flex: 1; margin-bottom: 15px; }
+
+    /* Переопределение инлайн-запрета переноса строк для галочек (из JS) */
+    #mSupplyTypesGroup label { white-space: normal !important; }
+
     /* Стили для одинаковых полей даты и времени с уменьшенным шрифтом */
     .form-group input[type="date"], .form-group select.datetime-field { 
       width: 100%; 
@@ -104,6 +110,7 @@
     body.role-viewer .viewer-hide { display: none !important; }
     body.role-viewer .viewer-disable { pointer-events: none !important; opacity: 0.6 !important; }
 
+    /* === МОБИЛЬНАЯ АДАПТАЦИЯ === */
     @media (max-width: 768px) {
       .filters-card { padding: 15px; flex-direction: column; align-items: stretch; }
       .btn-search { width: 100%; }
@@ -111,6 +118,21 @@
       .day-cell { height: 60px; border-radius: 6px; }
       .date-text { font-size: 13px; } 
       .booking-list { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+
+      .modal-overlay { padding: 10px; }
+      .modal-content { padding: 20px 15px; max-height: 95vh; border-radius: 12px; }
+      .modal-header h3 { font-size: 17px !important; }
+      
+      .form-group { margin-bottom: 12px; }
+      .form-row { flex-direction: column; gap: 0; }
+      .form-row .form-group { margin-bottom: 12px; width: 100%; }
+      
+      /* Перестройка галочек типов поставки */
+      #mSupplyTypesGroup { flex-direction: column !important; gap: 8px !important; }
+      #mSupplyTypesGroup label { width: 100%; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin: 0 !important; }
+      
+      .copy-box { flex-direction: column; align-items: flex-start; gap: 5px; }
+      .btn-copy { width: 100%; text-align: center; border: 1px solid var(--color-border) !important; background: #fff !important; margin-top: 5px; }
     }
   </style>
 </head>
@@ -210,6 +232,7 @@
             <span class="copy-text" id="mCompany"></span>
             <button class="btn-copy" type="button" title="Копировать" onclick="copyText('mCompany')">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span class="copy-mobile-text" style="display: none; font-size: 13px;">Копировать название</span>
             </button>
           </div>
         </div>
@@ -226,7 +249,7 @@
         <div class="form-group">
           <label>Номер документа</label>
           <div class="copy-box viewer-disable" style="background: #fff; padding: 0; border: none;">
-            <input type="text" id="mDoc" style="border-radius: 4px 0 0 4px;">
+            <input type="text" id="mDoc" style="border-radius: 4px 0 0 4px; height: 100%;">
             <button class="btn-copy" type="button" style="background: #f1f5f9; border: 1px solid var(--color-border); border-left: none; padding: 10px; border-radius: 0 4px 4px 0;" title="Копировать" onclick="copyInput('mDoc')">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             </button>
@@ -240,21 +263,20 @@
           </div>
         </div>
 
-        <div style="display: flex; gap: 10px;">
-          <div class="form-group" style="flex: 1;">
+        <!-- ИЗМЕНЕНИЕ: Формы в специальном flex-контейнере -->
+        <div class="form-row">
+          <div class="form-group">
             <label>Дата</label>
             <input type="date" id="mDate" class="viewer-disable datetime-field">
           </div>
-          <div class="form-group" style="flex: 1;">
+          <div class="form-group">
             <label>Время</label>
             <select id="mHour" class="viewer-disable datetime-field"></select>
           </div>
         </div>
 
         <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-          <!-- Скрытый системный чекбокс для работы admin_calendar.js -->
           <input type="checkbox" id="mIsTk" class="viewer-disable" style="display: none;">
-          <!-- Визуальный кастомный переключатель-точка -->
           <div id="mTkWrapper" style="cursor:pointer; display:flex; align-items:center; gap:8px;" 
                onclick="if(!document.getElementById('mFieldset').disabled) { 
                  const cb = document.getElementById('mIsTk'); 
@@ -291,14 +313,12 @@
       navigator.clipboard.writeText(text).then(() => alert('Скопировано: ' + text));
     }
 
-    // Вспомогательный скрипт для работы визуального интерфейса, который синхронизирует иконки и fieldset
     document.getElementById('btnEditIcon').onclick = function() {
       document.getElementById('mFieldset').disabled = false;
       this.style.display = 'none';
       document.getElementById('btnUpdate').style.display = 'block';
     };
 
-    // При открытии модального окна скриптом admin_calendar.js, приводим UI к стартовому виду
     const modalObserver = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.target.style.display === 'flex') {
@@ -306,7 +326,6 @@
           document.getElementById('btnEditIcon').style.display = 'block';
           document.getElementById('btnUpdate').style.display = 'none';
           
-          // Даем микро-задержку, чтобы внешний JS (admin_calendar.js) успел задать значение скрытому чекбоксу mIsTk
           setTimeout(() => {
             const isTkChecked = document.getElementById('mIsTk').checked;
             document.getElementById('mTkDot').className = isTkChecked ? 'tk-dot-modal active' : 'tk-dot-modal inactive';
