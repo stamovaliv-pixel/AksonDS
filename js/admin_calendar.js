@@ -106,6 +106,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `${values.year}-${values.month}-${values.day}`;
   };
   const canEditRegistryForDate = (dateString) => String(dateString || '') >= getBusinessTodayISODate();
+  const resolveOrderTypeForUpdate = (selectId, currentOrderType) => {
+    const allowed = ['order', 'upd', 'etrn'];
+    const selected = document.getElementById(selectId)?.value;
+    if (allowed.includes(selected)) return selected;
+    return allowed.includes(currentOrderType) ? currentOrderType : null;
+  };
   let currentEditBooking = null;
 
   const mRegistryFile = document.getElementById('mRegistryFile');
@@ -301,10 +307,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           slot_hour: parseInt(document.getElementById('mHour').value),
           order_number: document.getElementById('mDoc').value.trim(),
           supply_types: selectedTypes,
-          order_type: document.getElementById('mOrderType').value,
           is_tk: document.getElementById('mIsTk').checked,
           comment: document.getElementById('mComment').value.trim()
         };
+        // Не отправляем пустую строку в enum public.order_type. Если селект пустой,
+        // сохраняем уже имеющееся допустимое значение; если его не было, не меняем поле.
+        const safeOrderType = resolveOrderTypeForUpdate('mOrderType', currentEditBooking?.oTypeRaw);
+        if (safeOrderType) payload.order_type = safeOrderType;
 
         const replacementFile = mRegistryFile?.files?.[0];
         let uploadedRegistryPath = null;
