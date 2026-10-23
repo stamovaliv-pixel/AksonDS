@@ -11,6 +11,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `${values.year}-${values.month}-${values.day}`;
   };
   const canEditRegistryForDate = (dateString) => String(dateString || '') >= getBusinessTodayISODate();
+  const resolveOrderTypeForUpdate = (selectId, currentOrderType) => {
+    const allowed = ['order', 'upd', 'etrn'];
+    const selected = document.getElementById(selectId)?.value;
+    if (allowed.includes(selected)) return selected;
+    return allowed.includes(currentOrderType) ? currentOrderType : null;
+  };
 
   const dateObj = new Date(selectedDate);
   document.getElementById('dateDisplay').innerText = dateObj.toLocaleDateString('ru-RU');
@@ -510,10 +516,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           slot_hour: parseInt(selectedHour),
           order_number: document.getElementById('mDoc').value.trim(),
           supply_types: selectedTypes,
-          order_type: document.getElementById('mOrderType').value,
           is_tk: isTkEditModal,
           comment: document.getElementById('mComment').value.trim()
         };
+        // Не отправляем пустую строку в enum public.order_type при замене только реестра.
+        const safeOrderType = resolveOrderTypeForUpdate('mOrderType', currentEditBooking?.oTypeRaw);
+        if (safeOrderType) payload.order_type = safeOrderType;
 
         const replacementFile = mRegistryFile?.files?.[0];
         let uploadedRegistryPath = null;
