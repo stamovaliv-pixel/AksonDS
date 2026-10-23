@@ -1,6 +1,6 @@
 // В браузере используется только публичный anon key. Никогда не помещайте сюда service_role key.
 const SUPABASE_URL = 'https://jfvwpfjuhqjythhmuypf.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhbGciOiJIUzI1NiIsInJlZiI6ImpmdndwZmp1aHFqeXRoaG11eXBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3NDQ4NzIsImV4cCI6MjEwNjMyMDg3Mn0.jDkr7bfN9EMqlOt0yrSxpK9SsW08Bg6EdyqMWfY_bgg';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmdndwZmp1aHFqeXRoaG11eXBmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3NDQ4NzIsImV4cCI6MjEwNjMyMDg3Mn0.jDkr7bfN9EMqlOt0yrSxpK9SsW08Bg6EdyqMWfY_bgg';
 window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Единый безопасный клиент приватного bucket. В БД сохраняется путь объекта, не публичный URL.
