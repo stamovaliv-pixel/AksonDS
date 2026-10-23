@@ -166,6 +166,24 @@
       .booking-list { grid-template-columns: 1fr; }
       .modal-body strong { display: block; width: auto; margin-bottom: 2px; }
     }
+
+    /* Плашка технических работ */
+    .tech-alert-banner {
+      background-color: #fee2e2;
+      color: #b91c1c;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: var(--radius-sm);
+      text-align: center;
+      font-weight: 700;
+      font-size: 14px;
+      border: 1px solid #f87171;
+      pointer-events: none;
+      user-select: none;
+      width: 100%;
+      box-sizing: border-box;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
   </style>
 </head>
 <body class="app-body">
@@ -196,6 +214,9 @@
   <div class="top-gradient-bar"></div>
   
   <main class="container">
+    <div class="tech-alert-banner">
+      Уважаемый пользователь, 23.10.2026 с 17:00 по 18:00 будут производиться технические работы. Приносим извинения за временные неудобства.
+    </div>
     <div class="calendar-layout">
       
       <div class="grid-section">
