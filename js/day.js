@@ -285,7 +285,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       cb.checked = types.includes(cb.value);
     });
 
-    document.getElementById('orderType').value = b.order_type || 'order';
+    document.getElementById('orderType').value = ['order', 'upd', 'etrn'].includes(b.order_type) ? b.order_type : 'order';
     document.getElementById('orderNumber').value = b.order_number || '';
     document.getElementById('bookingComment').value = b.comment || '';
 
@@ -358,7 +358,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const payload = {
       supply_types: selectedTypes,
-      order_type: document.getElementById('orderType').value,
+      order_type: ['order', 'upd', 'etrn'].includes(document.getElementById('orderType')?.value) ? document.getElementById('orderType').value : 'order',
       order_number: document.getElementById('orderNumber').value,
       registry_file_url: finalFileUrl,
       is_tk: isTkModal,
