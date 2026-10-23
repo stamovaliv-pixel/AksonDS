@@ -15,7 +15,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const allowed = ['order', 'upd', 'etrn'];
     const selected = document.getElementById(selectId)?.value;
     if (allowed.includes(selected)) return selected;
-    return allowed.includes(currentOrderType) ? currentOrderType : null;
+    if (allowed.includes(currentOrderType)) return currentOrderType;
+    return 'order';
   };
 
   const dateObj = new Date(selectedDate);
@@ -398,7 +399,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       document.getElementById('mId').value = data.id;
       document.getElementById('mCompany').innerText = data.fullCompany;
       document.getElementById('mDoc').value = data.doc;
-      document.getElementById('mOrderType').value = data.oTypeRaw;
+      document.getElementById('mOrderType').value = ['order', 'upd', 'etrn'].includes(data.oTypeRaw) ? data.oTypeRaw : 'order';
       document.getElementById('mComment').value = data.comment || '';
       
       isTkEditModal = data.is_tk;
@@ -519,9 +520,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           is_tk: isTkEditModal,
           comment: document.getElementById('mComment').value.trim()
         };
-        // Не отправляем пустую строку в enum public.order_type при замене только реестра.
-        const safeOrderType = resolveOrderTypeForUpdate('mOrderType', currentEditBooking?.oTypeRaw);
-        if (safeOrderType) payload.order_type = safeOrderType;
+        // Always send a valid enum member; blank HTML select values must never reach PostgreSQL.
+        payload.order_type = resolveOrderTypeForUpdate('mOrderType', currentEditBooking?.oTypeRaw);
 
         const replacementFile = mRegistryFile?.files?.[0];
         let uploadedRegistryPath = null;
@@ -608,7 +608,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           slot_date: selectedDate,
           slot_hour: parseInt(document.getElementById('cHour').value),
           supply_types: selectedTypes,
-          order_type: document.getElementById('cOrderType').value,
+          order_type: resolveOrderTypeForUpdate('cOrderType', 'order'),
           order_number: document.getElementById('cDoc').value.trim(),
           registry_file_url: fileUrl,
           is_tk: isTkCreateModal,
