@@ -110,7 +110,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const allowed = ['order', 'upd', 'etrn'];
     const selected = document.getElementById(selectId)?.value;
     if (allowed.includes(selected)) return selected;
-    return allowed.includes(currentOrderType) ? currentOrderType : null;
+    if (allowed.includes(currentOrderType)) return currentOrderType;
+    return 'order';
   };
   let currentEditBooking = null;
 
@@ -266,7 +267,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('mDate').value = data.date;
     document.getElementById('mHour').value = data.hour;
     document.getElementById('mDoc').value = data.doc;
-    document.getElementById('mOrderType').value = data.oTypeRaw;
+    document.getElementById('mOrderType').value = ['order', 'upd', 'etrn'].includes(data.oTypeRaw) ? data.oTypeRaw : 'order';
     document.getElementById('mCompany').innerText = data.fullCompany;
     document.getElementById('mIsTk').checked = data.is_tk || false;
     document.getElementById('mComment').value = data.comment || '';
@@ -310,10 +311,8 @@ document.addEventListener('DOMContentLoaded', async () => {
           is_tk: document.getElementById('mIsTk').checked,
           comment: document.getElementById('mComment').value.trim()
         };
-        // Не отправляем пустую строку в enum public.order_type. Если селект пустой,
-        // сохраняем уже имеющееся допустимое значение; если его не было, не меняем поле.
-        const safeOrderType = resolveOrderTypeForUpdate('mOrderType', currentEditBooking?.oTypeRaw);
-        if (safeOrderType) payload.order_type = safeOrderType;
+        // Always send a valid enum member; blank HTML select values must never reach PostgreSQL.
+        payload.order_type = resolveOrderTypeForUpdate('mOrderType', currentEditBooking?.oTypeRaw);
 
         const replacementFile = mRegistryFile?.files?.[0];
         let uploadedRegistryPath = null;
