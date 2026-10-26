@@ -30,13 +30,17 @@
     .weekdays-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; margin-bottom: 12px; text-align: center; font-weight: 600; font-size: 14px; color: var(--color-text-muted); }
     .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
     
-    .day-cell { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); text-align: center; cursor: pointer; transition: all 0.2s ease; position: relative; overflow: hidden; height: 75px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; }
-    .day-cell:hover { border-color: var(--color-primary); transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.05); }
+    .day-cell { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); text-align: center; cursor: pointer; transition: all 0.2s ease; position: relative; overflow: visible; height: 75px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; }
+    .day-cell:hover { border-color: var(--color-primary); transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.05); z-index: 3; }
+    .day-cell.has-booking-count { z-index: 1; }
     
     .day-cell::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background-color: #3b82f6; } 
     .day-cell.booked::before { background-color: #ef4444; } 
     
     .date-text { font-size: 16px; font-weight: 700; color: var(--color-text-main); }
+
+    /* Компактный iOS-подобный бейдж: центр круга находится на углу ячейки, около 75% круга — снаружи. */
+    .day-count-badge { position: absolute; top: -10px; right: -10px; z-index: 5; min-width: 21px; height: 21px; padding: 0 4px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #ff3b30; color: #fff; font-size: 11px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; pointer-events: none; box-shadow: 0 1px 3px rgba(127, 29, 29, .22); }
 
     /* СЕТКА НАЙДЕННЫХ ЗАПИСЕЙ */
     .booking-list { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
@@ -249,7 +253,7 @@
         <div class="form-group">
           <label>Номер документа</label>
           <div class="copy-box viewer-disable" style="background: #fff; padding: 0; border: none;">
-            <input type="text" id="mDoc" style="border-radius: 4px 0 0 4px; height: 100%;">
+            <input type="text" id="mDoc" maxlength="200" style="border-radius: 4px 0 0 4px; height: 100%;">
             <button class="btn-copy" type="button" style="background: #f1f5f9; border: 1px solid var(--color-border); border-left: none; padding: 10px; border-radius: 0 4px 4px 0;" title="Копировать" onclick="copyInput('mDoc')">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
             </button>
@@ -340,6 +344,6 @@
     });
     modalObserver.observe(document.getElementById('editModal'), { attributes: true, attributeFilter: ['style'] });
   </script>
-  <script src="../js/admin_calendar.js?v=6.3-operator-past-30-days"></script>
+  <script src="../js/admin_calendar.js?v=6.6-ios-badge-overlap"></script>
 </body>
 </html>
