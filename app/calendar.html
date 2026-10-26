@@ -132,7 +132,6 @@
     .modal-body strong { color: var(--color-text-muted); font-weight: 500; display: inline-block; width: 130px; }
 
     .booking-item { appearance: none; width: 100%; font-family: inherit; }
-    .booking-item-action { margin-top: 5px; font-size: 11px; color: var(--color-primary); font-weight: 700; }
     .detail-row { margin-bottom: 12px; font-size: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
     .detail-label { color: var(--color-text-muted); font-size: 13px; margin-bottom: 4px; }
     .detail-value { font-weight: 600; color: var(--color-text-main); overflow-wrap: anywhere; }
@@ -144,6 +143,9 @@
     .edit-icon-btn:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
     .edit-icon-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
     .edit-icon-btn svg { width: 20px; height: 20px; }
+    /* Компактная иконка редактирования в верхней панели модального окна. */
+    .modal-actions .edit-icon-btn { width: 32px; height: 32px; border-radius: 8px; }
+    .modal-actions .edit-icon-btn svg { width: 17px; height: 17px; }
     .btn-red { background: #ef4444; color: white; }
     .btn-save { background: #10b981; color: white; width: 100%; margin-top: 10px; }
     .btn-book:disabled, .btn-red:disabled, .btn-save:disabled { opacity: .6; cursor: wait; }
@@ -251,6 +253,9 @@
       <div class="modal-header">
         <h3 class="modal-title" id="calendarDetailsTitle">Ваша запись</h3>
         <div class="modal-actions">
+          <button class="edit-icon-btn" id="editBookingBtn" type="button" title="Изменить запись" aria-label="Изменить запись">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>
+          </button>
           <button class="trash-btn" id="deleteBookingBtn" title="Отменить запись" aria-label="Отменить запись">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
           </button>
@@ -264,11 +269,6 @@
         <div class="detail-row"><div class="detail-label">Транспортная компания</div><div class="detail-value" id="modalTk"></div></div>
         <div class="detail-row"><div class="detail-label">Реестр</div><div class="detail-value"><a id="modalFileLink" href="#" target="_blank" style="color:#3b82f6;">Скачать файл</a></div></div>
         <div class="detail-row" style="border:none;"><div class="detail-label">Комментарий</div><div class="detail-value" id="modalComment" style="font-weight:normal;font-size:14px;"></div></div>
-      </div>
-      <div class="action-buttons">
-        <button class="edit-icon-btn" id="editBookingBtn" type="button" title="Изменить запись" aria-label="Изменить запись">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>
-        </button>
       </div>
     </div>
   </div>
@@ -306,6 +306,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js?v=security-20261023"></script>
-  <script src="../js/calendar.js?v=10-calendar-booking-edit-pencil"></script>
+  <script src="../js/calendar.js?v=11-calendar-compact-edit-header"></script>
 </body>
 </html>
