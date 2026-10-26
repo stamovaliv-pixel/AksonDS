@@ -14,9 +14,10 @@
     
     .hour-block { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 20px; padding: 15px; }
     .hour-header { display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: 700; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
-    .hour-period-label { position: relative; display: inline-block; }
-    /* Бейдж наложен на верхний правый край надписи времени, рядом с последним нулём. */
-    .hour-count-badge { position: absolute; top: -10px; right: -10px; z-index: 5; min-width: 21px; height: 21px; padding: 0 4px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #ff3b30; color: #fff; font-size: 11px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; pointer-events: none; box-shadow: 0 1px 3px rgba(127, 29, 29, .22); }
+    /* Временной интервал оформлен как компактная плашка; бейдж расположен на её углу, а не над последним символом времени. */
+    .hour-period-label { position: relative; display: inline-flex; align-items: center; padding: 4px 9px; border: 1px solid var(--color-border); border-radius: 7px; background: #fff; line-height: 1.35; }
+    /* Тот же красный цвет, что и у полосы занятого дня. Около 25% круга находится внутри угла плашки. */
+    .hour-count-badge { position: absolute; top: -15px; right: -15px; z-index: 5; min-width: 20px; height: 20px; padding: 0 4px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #ef4444; color: #fff; font-size: 11px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; pointer-events: none; box-shadow: 0 1px 3px rgba(127, 29, 29, .22); }
     
     .cards-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; }
     
@@ -289,6 +290,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js?v=security-20261023"></script>
-  <script src="../js/admin_day.js?v=35-ios-badge-overlap-slot-preserve-length-guard"></script>
+  <script src="../js/admin_day.js?v=36-badge-color-period-pill"></script>
 </body>
 </html>
