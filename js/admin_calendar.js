@@ -11,13 +11,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const isAdmin = profile.role === 'admin';
+  const isOperator = profile.role === 'operator';
+  const canViewPastBookings = isAdmin || isOperator;
   const isViewer = profile.role === 'viewer';
   
   if (isViewer) document.body.classList.add('role-viewer');
 
   const pastToggle = document.getElementById('showPastBtn');
-  if (isAdmin && pastToggle) {
-    document.getElementById('adminPastToggleContainer').style.display = 'flex';
+  if (canViewPastBookings && pastToggle) {
+    const pastToggleContainer = document.getElementById('adminPastToggleContainer');
+    if (pastToggleContainer) pastToggleContainer.style.display = 'flex';
   }
 
   document.getElementById('logoutBtn').onclick = async (e) => {
@@ -132,7 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const filterDoc = document.getElementById('filterDoc').value.trim();
     const filterSupply = document.getElementById('filterSupplyType').value;
     const filterOrder = document.getElementById('filterOrderType').value;
-    const showPast = isAdmin && pastToggle && pastToggle.checked;
+    const showPast = canViewPastBookings && pastToggle && pastToggle.checked;
 
     const isSearchActive = filterSupplier !== '' || filterDoc !== '' || filterSupply !== '' || filterOrder !== '';
 
