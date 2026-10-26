@@ -67,6 +67,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
 
+  // Мягкая подсветка заполненности полей «Прибыл», «Убыл» и «Ворота».
+  // Статус рассчитывается только по значению поля, независимо от даты записи.
+  const fieldCompletionClass = (value) => String(value ?? '').trim() ? 'field-complete' : 'field-missing';
+  const refreshFieldCompletionGlow = (input) => {
+    if (!input) return;
+    input.classList.toggle('field-complete', Boolean(String(input.value ?? '').trim()));
+    input.classList.toggle('field-missing', !String(input.value ?? '').trim());
+    input.style.borderColor = '';
+  };
+
   // Логика кнопки шаблона в окне СОЗДАНИЯ записи
   const cTemplateBtn = document.getElementById('cDownloadTemplateBtn');
   if (cTemplateBtn) {
@@ -309,9 +319,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="sb-header"><div class="sb-title" title="${escapeHtml(compName)}">${escapeHtml(compName)}</div><button class="btn-dots" type="button" aria-label="Детали записи">⋮</button></div>
           <div class="sb-icons"><div style="display:flex; gap:4px; font-size:16px;">${iconsHtml}</div>${tkHtml}</div>
           <div class="card-actions" data-id="${escapeHtml(b.id)}">
-            <div class="inline-input-group"><label>Приб.</label><input type="time" class="inline-arr viewer-disable" value="${escapeHtml(b.arrival_time ? b.arrival_time.substring(0,5) : '')}"></div>
-            <div class="inline-input-group"><label>Убыл</label><input type="time" class="inline-dep viewer-disable" value="${escapeHtml(b.departure_time ? b.departure_time.substring(0,5) : '')}"></div>
-            <div class="inline-input-group"><label>Вор.</label><input type="text" class="inline-gate viewer-disable" value="${escapeHtml(b.gate_number || '')}"></div>
+            <div class="inline-input-group"><label>Приб.</label><input type="time" class="inline-arr viewer-disable ${fieldCompletionClass(b.arrival_time ? b.arrival_time.substring(0,5) : '')}" value="${escapeHtml(b.arrival_time ? b.arrival_time.substring(0,5) : '')}"></div>
+            <div class="inline-input-group"><label>Убыл</label><input type="time" class="inline-dep viewer-disable ${fieldCompletionClass(b.departure_time ? b.departure_time.substring(0,5) : '')}" value="${escapeHtml(b.departure_time ? b.departure_time.substring(0,5) : '')}"></div>
+            <div class="inline-input-group"><label>Вор.</label><input type="text" class="inline-gate viewer-disable ${fieldCompletionClass(b.gate_number || '')}" value="${escapeHtml(b.gate_number || '')}"></div>
           </div>
         </div>`;
     };
@@ -358,20 +368,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (conflict) {
           alert(`Ворота ${proposedGate} уже заняты другой поставкой. После указания времени убытия ворота освободятся.`);
           e.target.value = previousValue;
-          e.target.style.borderColor = '#ef4444';
+          refreshFieldCompletionGlow(e.target);
           return;
         }
       }
 
       e.target.style.borderColor = '#3b82f6';
       const { error } = await sb.from('bookings').update({ [fieldName]: valueToSave }).eq('id', id);
-      e.target.style.borderColor = error ? '#ef4444' : '#10b981';
       if (error) {
         alert(`Не удалось сохранить изменение: ${error.message}`);
         e.target.value = previousValue;
       } else if (booking) {
         booking[fieldName] = valueToSave;
       }
+      // Снимаем временный цвет сохранения и применяем статус по фактическому значению.
+      refreshFieldCompletionGlow(e.target);
     });
   }
 
