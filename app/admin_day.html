@@ -53,7 +53,45 @@
     .inline-input-group { flex: 1; display: flex; flex-direction: column; gap: 2px; }
     .inline-input-group label { font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 600; }
     .inline-input-group input { width: 100%; height: 22px; font-size: 11px; padding: 0 2px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center; outline: none; background: #fff; box-sizing: border-box;}
-    .inline-input-group input:focus { border-color: #3b82f6; }
+    /* Неоновая подсветка заполненности операционных полей.
+       Поле остаётся светлым и читаемым; цветной ореол виден на всех датах, включая прошлые. */
+    .inline-input-group input.field-complete {
+      border-color: rgba(16, 185, 129, .95);
+      background: rgba(16, 185, 129, .085);
+      box-shadow: 0 0 0 1px rgba(16, 185, 129, .30),
+                  0 0 4px 1px rgba(16, 185, 129, .48),
+                  0 0 9px 2px rgba(16, 185, 129, .32),
+                  0 0 15px 2px rgba(16, 185, 129, .18),
+                  inset 0 0 4px rgba(16, 185, 129, .12);
+      transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+    }
+    .inline-input-group input.field-missing {
+      border-color: rgba(239, 68, 68, .96);
+      background: rgba(239, 68, 68, .07);
+      box-shadow: 0 0 0 1px rgba(239, 68, 68, .28),
+                  0 0 4px 1px rgba(239, 68, 68, .46),
+                  0 0 9px 2px rgba(239, 68, 68, .30),
+                  0 0 15px 2px rgba(239, 68, 68, .17),
+                  inset 0 0 4px rgba(239, 68, 68, .11);
+      transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+    }
+    .inline-input-group input:focus { outline: none; }
+    .inline-input-group input.field-complete:focus {
+      border-color: #10b981;
+      box-shadow: 0 0 0 1px rgba(16, 185, 129, .40),
+                  0 0 5px 1px rgba(16, 185, 129, .55),
+                  0 0 11px 2px rgba(16, 185, 129, .34),
+                  0 0 17px 3px rgba(16, 185, 129, .20),
+                  inset 0 0 4px rgba(16, 185, 129, .14);
+    }
+    .inline-input-group input.field-missing:focus {
+      border-color: #ef4444;
+      box-shadow: 0 0 0 1px rgba(239, 68, 68, .38),
+                  0 0 5px 1px rgba(239, 68, 68, .53),
+                  0 0 11px 2px rgba(239, 68, 68, .33),
+                  0 0 17px 3px rgba(239, 68, 68, .20),
+                  inset 0 0 4px rgba(239, 68, 68, .13);
+    }
 
     /* МОДАЛЬНЫЕ ОКНА */
     .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
@@ -101,6 +139,8 @@
 
     body.role-viewer .viewer-hide { display: none !important; }
     body.role-viewer .viewer-disable { pointer-events: none !important; opacity: 0.6 !important; }
+    /* Для наблюдателя свечение статуса должно оставаться различимым при режиме только чтения. */
+    body.role-viewer .card-actions .inline-input-group input.viewer-disable { opacity: 1 !important; }
 
     /* === МОБИЛЬНАЯ АДАПТАЦИЯ === */
     @media (max-width: 768px) {
@@ -290,6 +330,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js?v=security-20261023"></script>
-  <script src="../js/admin_day.js?v=37-badge-corner-overlap-v2"></script>
+  <script src="../js/admin_day.js?v=39-neon-field-glow"></script>
 </body>
 </html>
