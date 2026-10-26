@@ -175,14 +175,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     const bookedDates = new Set(bookingCountsByDate.keys());
 
     const startDate = new Date(today);
+    let totalDays = 35;
     if (showPast) {
-      startDate.setDate(today.getDate() - 30);
+      // Start with the earliest requested date (30 days before today), then align the first
+      // calendar column to Monday so dates never shift under the wrong weekday header.
+      const firstRequestedDate = new Date(today);
+      firstRequestedDate.setDate(firstRequestedDate.getDate() - 30);
+      const leadingDays = firstRequestedDate.getDay() === 0 ? 6 : firstRequestedDate.getDay() - 1;
+      startDate.setTime(firstRequestedDate.getTime());
+      startDate.setDate(startDate.getDate() - leadingDays);
+      // Keep the former right edge (today + 29 days) and finish on Sunday so the grid has full weeks.
+      totalDays = Math.ceil((60 + leadingDays) / 7) * 7;
     } else {
       const diffToMonday = today.getDay() === 0 ? 6 : today.getDay() - 1;
       startDate.setDate(today.getDate() - diffToMonday);
     }
-
-    const totalDays = showPast ? 60 : 35;
     const grid = document.getElementById('calendarGrid');
     if (grid) {
       grid.innerHTML = '';
