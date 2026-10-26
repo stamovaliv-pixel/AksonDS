@@ -19,6 +19,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     return 'order';
   };
 
+  // Match server-side bookings validation (security_hardening_v4_1.sql):
+  // order_number <= 200 characters; comment <= 5000 characters.
+  function validateBookingTextLengths(orderNumber, comment) {
+    const orderLength = Array.from(String(orderNumber ?? '')).length;
+    const commentLength = Array.from(String(comment ?? '')).length;
+    if (orderLength > 200) {
+      alert(`Номер документа содержит ${orderLength} символов. Максимум — 200. Сократите номер перед сохранением.`);
+      return false;
+    }
+    if (commentLength > 5000) {
+      alert(`Комментарий содержит ${commentLength} символов. Максимум — 5000. Сократите комментарий перед сохранением.`);
+      return false;
+    }
+    return true;
+  }
+
   const dateObj = new Date(selectedDate);
   document.getElementById('dateDisplay').innerText = dateObj.toLocaleDateString('ru-RU');
 
@@ -174,6 +190,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   let allProfiles = [];
   let selectedSupplier = null;
   let currentEditBooking = null;
+  // Слот не должен меняться при сохранении реестра или других полей.
+  // slot_hour отправляется только после явного изменения пользователем.
+  let editHourWasChanged = false;
 
   if (!isViewer) {
     const { data: profilesData } = await sb.from('profiles').select('id, company_name, inn').eq('role', 'supplier');
@@ -307,7 +326,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       else cardsHtml += `<div class="slot-box res-empty sb-empty ${isViewer ? 'viewer-hide' : ''}" data-hour="${hour}"><div class="sb-empty-text">+ Резерв<br><span style="font-size:11px; font-weight:normal;">Только ИМ</span></div></div>`;
     }
 
-    block.innerHTML = `<div class="hour-header"><span>${hour}:00 - ${hour+1}:00</span></div><div class="cards-grid">${cardsHtml}</div>`;
+    const totalBookingsForHour = hourBookings.length;
+    const hourCountBadge = totalBookingsForHour > 0
+      ? `<span class="hour-count-badge" aria-label="Записей: ${totalBookingsForHour}" title="Записей: ${totalBookingsForHour}">${totalBookingsForHour > 99 ? '99+' : totalBookingsForHour}</span>`
+      : '';
+    block.innerHTML = `<div class="hour-header"><span class="hour-period-label">${hour}:00 - ${hour+1}:00${hourCountBadge}</span></div><div class="cards-grid">${cardsHtml}</div>`;
     container.appendChild(block);
   }
 
@@ -376,6 +399,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const card = dotsBtn.closest('.slot-box');
       const data = JSON.parse(decodeURIComponent(card.dataset.info));
       currentEditBooking = data;
+      editHourWasChanged = false;
       if (mRegistryFile) {
         mRegistryFile.value = '';
         mRegistryFile.disabled = !canEditRegistryForDate(data.slotDate);
@@ -424,7 +448,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const updateAvailableHours = () => {
         const mHourSelect = document.getElementById('mHour');
-        const currentSelected = parseInt(mHourSelect.value) || data.hour;
+        const currentValue = mHourSelect.value;
+        const currentSelected = currentValue !== '' && Number.isFinite(Number(currentValue))
+          ? Number(currentValue)
+          : Number(data.hour);
+        const originalHour = Number(data.hour);
         mHourSelect.innerHTML = '';
 
         const selectedTypes = Array.from(document.querySelectorAll('#mSupplyTypesGroup input:checked')).map(cb => cb.value);
@@ -452,10 +480,23 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (isImOnly) canMove = (rUsed < maxRes) || (mUsed < maxMain);
           else canMove = (mUsed < maxMain);
 
-          if (canMove) {
-            mHourSelect.innerHTML += `<option value="${h}">${h}:00 - ${h+1}:00</option>`;
+          // Всегда оставляем текущий слот доступным в форме редактирования.
+          // Если лимит уже превышен, нельзя молча переносить запись в другой час.
+          if (canMove || h === originalHour) {
+            const currentLabel = h === originalHour && !canMove ? ' (текущий слот)' : '';
+            mHourSelect.innerHTML += `<option value="${h}">${h}:00 - ${h+1}:00${currentLabel}</option>`;
             hasSlots = true;
           }
+        }
+
+        // На случай, если текущий час находится вне нового диапазона настроек,
+        // всё равно показываем его как текущий, не выбирая другой автоматически.
+        if (!Array.from(mHourSelect.options).some(opt => Number(opt.value) === originalHour)) {
+          const currentOption = document.createElement('option');
+          currentOption.value = String(originalHour);
+          currentOption.textContent = `${originalHour}:00 - ${originalHour + 1}:00 (текущий слот)`;
+          mHourSelect.insertBefore(currentOption, mHourSelect.firstChild);
+          hasSlots = true;
         }
 
         if (!hasSlots) {
@@ -463,12 +504,22 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (btnSaveIcon) btnSaveIcon.style.display = 'none';
         } else {
           if (!fieldset.disabled && btnSaveIcon) btnSaveIcon.style.display = 'flex';
-          if (Array.from(mHourSelect.options).some(opt => parseInt(opt.value) === currentSelected)) {
-            mHourSelect.value = currentSelected;
+          if (Array.from(mHourSelect.options).some(opt => Number(opt.value) === currentSelected)) {
+            mHourSelect.value = String(currentSelected);
           } else {
-            mHourSelect.selectedIndex = 0;
+            // При изменении типов, если ранее выбранный час перестал подходить,
+            // возвращаемся к исходному слоту, а не переносим запись произвольно.
+            mHourSelect.value = String(originalHour);
           }
+          editHourWasChanged = Number(mHourSelect.value) !== originalHour;
         }
+      };
+
+      const mHourSelect = document.getElementById('mHour');
+      // Не наследуем час из предыдущей записи, открытой в этом же окне.
+      mHourSelect.value = String(Number(data.hour));
+      mHourSelect.onchange = () => {
+        editHourWasChanged = Number(mHourSelect.value) !== Number(data.hour);
       };
 
       document.querySelectorAll('#mSupplyTypesGroup input').forEach(cb => {
@@ -509,17 +560,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const selectedTypes = Array.from(document.querySelectorAll('#mSupplyTypesGroup input:checked')).map(cb => cb.value);
         if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
+        if (!validateBookingTextLengths(
+          document.getElementById('mDoc').value,
+          document.getElementById('mComment').value
+        )) return;
         
         const selectedHour = document.getElementById('mHour').value;
         if (!selectedHour) return alert('Невозможно сохранить: в выбранном часе нет свободных мест для этого типа поставки.');
 
         const payload = {
-          slot_hour: parseInt(selectedHour),
           order_number: document.getElementById('mDoc').value.trim(),
           supply_types: selectedTypes,
           is_tk: isTkEditModal,
           comment: document.getElementById('mComment').value.trim()
         };
+        // Замена реестра/сохранение без изменения часа не трогает slot_hour в БД.
+        if (editHourWasChanged && Number(selectedHour) !== Number(currentEditBooking?.hour)) {
+          payload.slot_hour = Number(selectedHour);
+        }
         // Always send a valid enum member; blank HTML select values must never reach PostgreSQL.
         payload.order_type = resolveOrderTypeForUpdate('mOrderType', currentEditBooking?.oTypeRaw);
 
@@ -583,6 +641,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const selectedTypes = Array.from(document.querySelectorAll('#cSupplyTypesGroup input:checked')).map(cb => cb.value);
         if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
+        if (!validateBookingTextLengths(
+          document.getElementById('cDoc').value,
+          document.getElementById('cComment').value
+        )) return;
 
         const btn = document.getElementById('btnCreate');
         btn.innerText = 'Загрузка...'; btn.disabled = true;
