@@ -143,22 +143,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
   }
 
-  // Поставщику возвращаются только его записи и обезличенные агрегаты занятости слотов.
+  // Для прошедших дат занятость новых слотов не требуется и RPC вызывать нельзя:
+  // сервер корректно отклоняет get_slot_occupancy для дат раньше сегодняшней.
+  // Историю собственных бронирований продолжаем загружать, чтобы поставщик мог
+  // открыть существующую запись (правила редактирования реестра проверяются отдельно).
+  const isHistoricalDate = selectedDate < getBusinessTodayISODate();
   const [{ data: bookings, error: bookingsError }, { data: occupancy, error: occupancyError }] = await Promise.all([
     sb.from('bookings')
       .select('id, slot_hour, profile_id, supply_type, supply_types, order_type, order_number, registry_file_url, comment, is_tk, slot_date, status')
       .eq('profile_id', user.id).eq('slot_date', selectedDate).eq('status', 'active'),
-    sb.rpc('get_slot_occupancy', { p_slot_date: selectedDate })
+    isHistoricalDate
+      ? Promise.resolve({ data: [], error: null })
+      : sb.rpc('get_slot_occupancy', { p_slot_date: selectedDate })
   ]);
-  // A failed occupancy RPC must not block access to an existing booking.
-  // Existing booking details/registry replacement have different rules from creating
-  // a new booking and are allowed through the arrival date, inclusive.
+  // Ошибка проверки занятости не должна блокировать просмотр существующей записи.
+  // Но новые бронирования остаются недоступны, если для сегодняшней/будущей даты
+  // сервер не подтвердил занятость слотов.
   if (bookingsError) {
     console.error('Не удалось загрузить записи поставщика:', bookingsError);
     alert('Не удалось загрузить ваши записи. Обновите страницу или обратитесь в поддержку.');
     return;
   }
-  const occupancyAvailable = !occupancyError && Array.isArray(occupancy);
+  const occupancyAvailable = isHistoricalDate || (!occupancyError && Array.isArray(occupancy));
   if (!occupancyAvailable) {
     console.error('Не удалось проверить занятость слотов:', {
       requestedDate: selectedDate,
