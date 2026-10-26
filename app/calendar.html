@@ -131,6 +131,36 @@
     .modal-body p { margin: 12px 0; font-size: 15px; color: var(--color-text-main); }
     .modal-body strong { color: var(--color-text-muted); font-weight: 500; display: inline-block; width: 130px; }
 
+    .booking-item { appearance: none; width: 100%; font-family: inherit; }
+    .booking-item-action { margin-top: 5px; font-size: 11px; color: var(--color-primary); font-weight: 700; }
+    .detail-row { margin-bottom: 12px; font-size: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
+    .detail-label { color: var(--color-text-muted); font-size: 13px; margin-bottom: 4px; }
+    .detail-value { font-weight: 600; color: var(--color-text-main); overflow-wrap: anywhere; }
+    .action-buttons { display: flex; gap: 10px; margin-top: 15px; justify-content: flex-end; }
+    .btn-book, .btn-red, .btn-save { border: 0; border-radius: 6px; padding: 12px 14px; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 600; }
+    .btn-book { background: #3b82f6; color: white; }
+    .edit-icon-btn { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #bfdbfe; border-radius: 10px; padding: 0; background: #eff6ff; color: #2563eb; cursor: pointer; transition: background .15s ease, transform .15s ease, box-shadow .15s ease; }
+    .edit-icon-btn:hover { background: #dbeafe; transform: translateY(-1px); box-shadow: 0 3px 8px rgba(37, 99, 235, .14); }
+    .edit-icon-btn:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+    .edit-icon-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+    .edit-icon-btn svg { width: 20px; height: 20px; }
+    .btn-red { background: #ef4444; color: white; }
+    .btn-save { background: #10b981; color: white; width: 100%; margin-top: 10px; }
+    .btn-book:disabled, .btn-red:disabled, .btn-save:disabled { opacity: .6; cursor: wait; }
+    .calendar-edit-modal-content { max-width: 620px; }
+    .calendar-edit-modal-content .form-group { margin-bottom: 16px; }
+    .calendar-edit-modal-content .form-group > label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--color-text-main); }
+    .calendar-edit-modal-content input[type="text"], .calendar-edit-modal-content select, .calendar-edit-modal-content textarea { width: 100%; box-sizing: border-box; padding: 11px 12px; border: 1px solid var(--color-border); border-radius: 6px; font: inherit; }
+    .calendar-edit-modal-content .form-row { display: flex; gap: 12px; }
+    .calendar-edit-modal-content .form-row .form-group { flex: 1; min-width: 0; }
+    .calendar-edit-modal-content .file-wrapper { display: flex; gap: 10px; align-items: stretch; }
+    .calendar-edit-modal-content .custom-file-upload { flex: 1; display: flex; align-items: center; justify-content: center; padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px; cursor: pointer; color: #475569; font-size: 13px; font-weight: 500; }
+    .calendar-edit-modal-content .custom-file-upload input { display: none; }
+    .calendar-edit-modal-content .tk-dot-modal { width: 12px; height: 12px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+    .calendar-edit-modal-content .tk-dot-modal.active { background: #10b981; box-shadow: 0 0 6px #10b98166; }
+    .calendar-edit-modal-content .tk-dot-modal.inactive { background: #cbd5e1; }
+    #calSupplyTypesGroup label { padding: 7px 9px; border: 1px solid #e2e8f0; border-radius: 6px; }
+
     /* =========================================
        АДАПТИВ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ
        ========================================= */
@@ -216,31 +246,66 @@
     </div>
   </main>
 
-  <div class="modal-overlay" id="bookingDetailsModal">
+  <div class="modal-overlay" id="bookingDetailsModal" role="dialog" aria-modal="true" aria-labelledby="calendarDetailsTitle">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 class="modal-title">Детали записи</h3>
+        <h3 class="modal-title" id="calendarDetailsTitle">Ваша запись</h3>
         <div class="modal-actions">
-          <button class="trash-btn" id="deleteBookingBtn" title="Отменить запись">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            </svg>
+          <button class="trash-btn" id="deleteBookingBtn" title="Отменить запись" aria-label="Отменить запись">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
           </button>
-          <button class="close-btn" id="closeDetailsModalBtn">&times;</button>
+          <button class="close-btn" id="closeDetailsModalBtn" aria-label="Закрыть">&times;</button>
         </div>
       </div>
       <div class="modal-body">
-        <p><strong>Дата:</strong> <span id="modalDate"></span></p>
-        <p><strong>Время:</strong> <span id="modalTime"></span></p>
-        <p><strong>Тип поставки:</strong> <span id="modalType"></span></p>
-        <p><strong>Документ:</strong> <span id="modalDoc"></span></p>
+        <div class="detail-row"><div class="detail-label">Дата и время</div><div class="detail-value"><span id="modalDate"></span>, <span id="modalTime"></span></div></div>
+        <div class="detail-row"><div class="detail-label">Тип поставки</div><div class="detail-value" id="modalType"></div></div>
+        <div class="detail-row"><div class="detail-label">Документ</div><div class="detail-value" id="modalDoc"></div></div>
+        <div class="detail-row"><div class="detail-label">Транспортная компания</div><div class="detail-value" id="modalTk"></div></div>
+        <div class="detail-row"><div class="detail-label">Реестр</div><div class="detail-value"><a id="modalFileLink" href="#" target="_blank" style="color:#3b82f6;">Скачать файл</a></div></div>
+        <div class="detail-row" style="border:none;"><div class="detail-label">Комментарий</div><div class="detail-value" id="modalComment" style="font-weight:normal;font-size:14px;"></div></div>
       </div>
+      <div class="action-buttons">
+        <button class="edit-icon-btn" id="editBookingBtn" type="button" title="Изменить запись" aria-label="Изменить запись">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="calendarEditModal" role="dialog" aria-modal="true" aria-labelledby="calBookingModalTitle">
+    <div class="modal-content calendar-edit-modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title" id="calBookingModalTitle">Редактирование записи</h3>
+        <button class="close-btn" id="closeCalendarEditModalBtn" aria-label="Закрыть">&times;</button>
+      </div>
+      <form id="calendarBookingForm">
+        <div class="form-group">
+          <label>Тип поставки (можно выбрать несколько)</label>
+          <div id="calSupplyTypesGroup" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label for="calOrderType">Тип документа</label><select id="calOrderType" required><option value="order">Заказ</option><option value="upd">УПД</option><option value="etrn">ЭТрН</option></select></div>
+          <div class="form-group"><label for="calOrderNumber">Номер документа</label><input type="text" id="calOrderNumber" required maxlength="100" placeholder="№ документа"></div>
+        </div>
+        <div class="form-group">
+          <label>Реестр поставки (.csv, .xls, .xlsx)</label>
+          <div class="file-wrapper">
+            <label class="custom-file-upload"><span id="calFileName">Загрузить реестр</span><input type="file" id="calRegistryFile" accept=".csv,.xls,.xlsx"></label>
+          </div>
+          <small id="calRegistryEditHint" style="display:none;color:#64748b;font-size:12px;line-height:1.4;">Реестр можно заменить до конца дня приезда. Если новый файл не выбран, текущий реестр останется прикреплённым.</small>
+        </div>
+        <div class="form-group" id="calTkWrapper" role="button" tabindex="0" aria-pressed="false" style="display:flex;align-items:center;gap:8px;cursor:pointer;width:max-content;">
+          <span id="calTkDot" class="tk-dot-modal inactive"></span><span style="font-size:13px;font-weight:600;">Привезёт транспортная компания</span>
+        </div>
+        <div class="form-group"><label for="calBookingComment">Комментарий (до 320 символов)</label><textarea id="calBookingComment" maxlength="320" rows="3" placeholder="Дополнительная информация..."></textarea></div>
+        <button type="submit" class="btn-save" id="calSubmitBookingBtn">Сохранить изменения</button>
+      </form>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js?v=security-20261023"></script>
-  <script src="../js/calendar.js?v=8-v4-1-date-exceptions"></script>
+  <script src="../js/calendar.js?v=10-calendar-booking-edit-pencil"></script>
 </body>
 </html>
