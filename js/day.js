@@ -150,14 +150,32 @@ document.addEventListener('DOMContentLoaded', async () => {
       .eq('profile_id', user.id).eq('slot_date', selectedDate).eq('status', 'active'),
     sb.rpc('get_slot_occupancy', { p_slot_date: selectedDate })
   ]);
-  if (bookingsError || occupancyError) {
-    console.error('Не удалось проверить занятость слотов:', bookingsError || occupancyError);
-    alert('Не удалось проверить доступность слотов. Обновите страницу или обратитесь в поддержку.');
+  // A failed occupancy RPC must not block access to an existing booking.
+  // Existing booking details/registry replacement have different rules from creating
+  // a new booking and are allowed through the arrival date, inclusive.
+  if (bookingsError) {
+    console.error('Не удалось загрузить записи поставщика:', bookingsError);
+    alert('Не удалось загрузить ваши записи. Обновите страницу или обратитесь в поддержку.');
     return;
+  }
+  const occupancyAvailable = !occupancyError && Array.isArray(occupancy);
+  if (!occupancyAvailable) {
+    console.error('Не удалось проверить занятость слотов:', {
+      requestedDate: selectedDate,
+      businessToday: getBusinessTodayISODate(),
+      error: occupancyError
+    });
   }
 
   const slotsContainer = document.getElementById('slotsContainer');
-  slotsContainer.innerHTML = ''; 
+  slotsContainer.innerHTML = '';
+  if (!occupancyAvailable) {
+    const warning = document.createElement('div');
+    warning.setAttribute('role', 'status');
+    warning.style.cssText = 'margin:0 0 14px;padding:12px 14px;border-radius:10px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;font-size:13px;line-height:1.45;';
+    warning.textContent = 'Не удалось проверить доступность новых слотов. Новую запись временно оформить нельзя, но существующую запись можно открыть и заменить реестр до конца дня приезда.';
+    slotsContainer.appendChild(warning);
+  }
   
   const groups = {
     morning: { title: '☕ Утро (до 12:00)', el: null },
@@ -215,6 +233,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       card.classList.add('inactive');
       statusHtml = `<span style="color: #64748b;">Время вышло</span>`;
       btnHtml = `<button class="btn-disabled" disabled>Недоступно</button>`;
+    }
+    else if (!occupancyAvailable) {
+      card.classList.add('inactive');
+      statusHtml = `<span style="color: #b45309;">Не удалось проверить занятость</span>`;
+      btnHtml = `<button class="btn-disabled" disabled>Временно недоступно</button>`;
     }
     else if (mainLeft <= 0 && reserveLeft <= 0) {
       card.classList.add('inactive');
