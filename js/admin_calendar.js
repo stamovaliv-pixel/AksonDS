@@ -116,6 +116,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (allowed.includes(currentOrderType)) return currentOrderType;
     return 'order';
   };
+
+  // Match server-side bookings validation (security_hardening_v4_1.sql):
+  // order_number <= 200 characters; comment <= 5000 characters.
+  function validateBookingTextLengths(orderNumber, comment) {
+    const orderLength = Array.from(String(orderNumber ?? '')).length;
+    const commentLength = Array.from(String(comment ?? '')).length;
+    if (orderLength > 200) {
+      alert(`Номер документа содержит ${orderLength} символов. Максимум — 200. Сократите номер перед сохранением.`);
+      return false;
+    }
+    if (commentLength > 5000) {
+      alert(`Комментарий содержит ${commentLength} символов. Максимум — 5000. Сократите комментарий перед сохранением.`);
+      return false;
+    }
+    return true;
+  }
   let currentEditBooking = null;
 
   const mRegistryFile = document.getElementById('mRegistryFile');
@@ -150,7 +166,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 }
 
     const { data: bookings } = await query;
-    const bookedDates = new Set((bookings || []).map(b => b.slot_date));
+    const bookingCountsByDate = new Map();
+    (bookings || []).forEach((booking) => {
+      const dateKey = String(booking.slot_date || '');
+      if (!dateKey) return;
+      bookingCountsByDate.set(dateKey, (bookingCountsByDate.get(dateKey) || 0) + 1);
+    });
+    const bookedDates = new Set(bookingCountsByDate.keys());
 
     const startDate = new Date(today);
     if (showPast) {
@@ -177,10 +199,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const dbDay = jsDay === 0 ? 7 : jsDay;
         const isAllowedDay = settings.available_days.includes(dbDay);
         
-        if (isPastOrFuture || !isAllowedDay) cell.classList.add('inactive'); 
-        if (bookedDates.has(isoDate)) cell.classList.add('booked'); 
-        
-        cell.innerHTML = `<div class="date-text">${d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})}</div>`;
+        if (isPastOrFuture || !isAllowedDay) cell.classList.add('inactive');
+        const bookingCount = bookingCountsByDate.get(isoDate) || 0;
+        if (bookingCount > 0) cell.classList.add('booked', 'has-booking-count');
+        const countBadge = bookingCount > 0
+          ? `<span class="day-count-badge" aria-label="Записей: ${bookingCount}" title="Записей: ${bookingCount}">${bookingCount > 99 ? '99+' : bookingCount}</span>`
+          : '';
+        cell.innerHTML = `<div class="date-text">${d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})}</div>${countBadge}`;
         cell.onclick = () => window.location.href = `admin_day.html?date=${isoDate}`;
         
         grid.appendChild(cell);
@@ -305,6 +330,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const selectedTypes = Array.from(document.querySelectorAll('#mSupplyTypesGroup input:checked')).map(cb => cb.value);
         if (selectedTypes.length === 0) return alert('Выберите хотя бай один тип поставки');
+        if (!validateBookingTextLengths(
+          document.getElementById('mDoc').value,
+          document.getElementById('mComment').value
+        )) return;
 
         const payload = {
           slot_date: document.getElementById('mDate').value,
