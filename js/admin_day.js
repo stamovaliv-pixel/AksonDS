@@ -340,7 +340,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const hourCountBadge = totalBookingsForHour > 0
       ? `<span class="hour-count-badge" aria-label="Записей: ${totalBookingsForHour}" title="Записей: ${totalBookingsForHour}">${totalBookingsForHour > 99 ? '99+' : totalBookingsForHour}</span>`
       : '';
-    block.innerHTML = `<div class="hour-header"><span class="hour-period-label">${hour}:00 - ${hour+1}:00${hourCountBadge}</span></div><div class="cards-grid">${cardsHtml}</div>`;
+    block.innerHTML = `<div class="hour-header"><span class="hour-period-label">${hour}:00 - ${hour+1}:00</span>${hourCountBadge}</div><div class="cards-grid">${cardsHtml}</div>`;
     container.appendChild(block);
   }
 
