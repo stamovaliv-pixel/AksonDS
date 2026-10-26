@@ -158,16 +158,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const dateStr = formatIsoDate(booking.slot_date);
         const timeStr = `${booking.slot_hour}:00 - ${booking.slot_hour + 1}:00`;
         
-        const supplyName = supplyTypes[booking.supply_type] || booking.supply_type;
-        const orderName = orderTypes[booking.order_type] || booking.order_type;
-        const orderNum = booking.order_number;
-        
         const item = document.createElement('button');
         item.type = 'button';
         item.className = 'booking-item';
         item.title = 'Нажмите для просмотра и редактирования записи';
         item.setAttribute('aria-label', `Открыть запись ${dateStr}, ${timeStr}`);
-        item.innerHTML = `<div class="booking-date">${dateStr}</div><div class="booking-time">${timeStr}</div><div class="booking-item-action">Подробнее</div>`;
+        item.innerHTML = `<div class="booking-date">${dateStr}</div><div class="booking-time">${timeStr}</div>`;
         item.addEventListener('click', () => openBookingDetails(booking));
         upcomingList.appendChild(item);
       });
