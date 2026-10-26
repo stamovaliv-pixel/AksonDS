@@ -24,13 +24,13 @@
     .slot-box { border: 1px solid #e2e8f0; border-top: 4px solid; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; height: 145px; background: #fff; transition: all 0.2s ease; box-sizing: border-box; position: relative; }
     .slot-box:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.08); border-color: #cbd5e1; }
 
-    .main-empty { border-top-color: #3b82f6; cursor: pointer; }
-    .main-empty:hover { background: #f0f9ff; } 
-    .main-booked { border-top-color: #ef4444; }
+    .main-empty { border-top-color: #84909E; cursor: pointer; }
+    .main-empty:hover { background: #f1f5f9; } 
+    .main-booked { border-top-color: #2563eb; }
     
-    .res-empty { border-top-color: #94a3b8; cursor: pointer; }
-    .res-empty:hover { background: #f8fafc; }
-    .res-booked { border-top-color: #f59e0b; }
+    .res-empty { border-top-color: #84909E; cursor: pointer; }
+    .res-empty:hover { background: #f1f5f9; }
+    .res-booked { border-top-color: #c58a16; }
 
     .sb-empty { justify-content: center; align-items: center; text-align: center; }
     .sb-empty-text { font-size: 13px; font-weight: 600; color: #64748b; line-height: 1.4; }
@@ -56,41 +56,41 @@
     /* Неоновая подсветка заполненности операционных полей.
        Поле остаётся светлым и читаемым; цветной ореол виден на всех датах, включая прошлые. */
     .inline-input-group input.field-complete {
-      border-color: rgba(16, 185, 129, 0.285);
-      background: rgba(16, 185, 129, 0.0255);
-      box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.033),
-                  0 0 3px 1px rgba(16, 185, 129, 0.102),
-                  0 0 6px 2px rgba(16, 185, 129, 0.036),
-                  0 0 11px 2px rgba(16, 185, 129, 0.039),
-                  inset 0 0 3px rgba(16, 185, 129, 0.024);
+      border-color: rgba(16, 185, 129, 0.3990);
+      background: rgba(16, 185, 129, 0.0357);
+      box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.0462),
+                  0 0 3px 1px rgba(16, 185, 129, 0.1428),
+                  0 0 6px 2px rgba(16, 185, 129, 0.0504),
+                  0 0 11px 2px rgba(16, 185, 129, 0.0546),
+                  inset 0 0 3px rgba(16, 185, 129, 0.0336);
       transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
     }
     .inline-input-group input.field-missing {
-      border-color: rgba(239, 68, 68, 0.2856);
-      background: rgba(239, 68, 68, 0.021);
-      box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.03),
-                  0 0 3px 1px rgba(239, 68, 68, 0.096),
-                  0 0 6px 2px rgba(239, 68, 68, 0.033),
-                  0 0 11px 2px rgba(239, 68, 68, 0.036),
-                  inset 0 0 3px rgba(239, 68, 68, 0.024);
+      border-color: rgba(239, 68, 68, 0.3998);
+      background: rgba(239, 68, 68, 0.0294);
+      box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.0420),
+                  0 0 3px 1px rgba(239, 68, 68, 0.1344),
+                  0 0 6px 2px rgba(239, 68, 68, 0.0462),
+                  0 0 11px 2px rgba(239, 68, 68, 0.0504),
+                  inset 0 0 3px rgba(239, 68, 68, 0.0336);
       transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
     }
     .inline-input-group input:focus { outline: none; }
     .inline-input-group input.field-complete:focus {
       border-color: #10b981;
-      box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.042),
-                  0 0 4px 1px rgba(16, 185, 129, 0.117),
-                  0 0 8px 2px rgba(16, 185, 129, 0.072),
-                  0 0 12px 3px rgba(16, 185, 129, 0.042),
-                  inset 0 0 3px rgba(16, 185, 129, 0.03);
+      box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.0588),
+                  0 0 4px 1px rgba(16, 185, 129, 0.1638),
+                  0 0 8px 2px rgba(16, 185, 129, 0.1008),
+                  0 0 12px 3px rgba(16, 185, 129, 0.0588),
+                  inset 0 0 3px rgba(16, 185, 129, 0.0420);
     }
     .inline-input-group input.field-missing:focus {
       border-color: #ef4444;
-      box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.081),
-                  0 0 4px 1px rgba(239, 68, 68, 0.111),
-                  0 0 8px 2px rgba(239, 68, 68, 0.069),
-                  0 0 12px 3px rgba(239, 68, 68, 0.042),
-                  inset 0 0 3px rgba(239, 68, 68, 0.027);
+      box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.1134),
+                  0 0 4px 1px rgba(239, 68, 68, 0.1554),
+                  0 0 8px 2px rgba(239, 68, 68, 0.0966),
+                  0 0 12px 3px rgba(239, 68, 68, 0.0588),
+                  inset 0 0 3px rgba(239, 68, 68, 0.0378);
     }
 
     /* МОДАЛЬНЫЕ ОКНА */
@@ -177,7 +177,7 @@
   <main class="container" style="max-width: 1600px; margin: 0 auto;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <a href="admin_calendar.html" style="color: #3b82f6; text-decoration: none; font-weight: 500;">&larr; Назад</a>
-      <h2 style="margin: 0; font-size: 20px;">Слоты на: <span id="dateDisplay" style="color: var(--color-primary);">...</span></h2>
+      <h2 style="margin: 0; font-size: 20px;">Слоты на: <span id="dateDisplay" style="color: var(--color-text-main);">...</span></h2>
     </div>
     <div id="hoursContainer">
       <div style="padding: 40px; text-align: center; color: var(--color-text-muted);">Загрузка расписания...</div>
@@ -330,6 +330,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js?v=security-20261023"></script>
-  <script src="../js/admin_day.js?v=42-neon-field-glow-reduced-hour-badge"></script>
+  <script src="../js/admin_day.js?v=44-graphite-blue-glow-140"></script>
 </body>
 </html>
