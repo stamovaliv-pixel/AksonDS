@@ -8,7 +8,7 @@
     const isDark = normalize(theme) === 'dark';
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
-      const hint = isDark ? 'Перейти на светлую сторону' : 'Перейти на темную сторону';
+      const hint = isDark ? 'Светлый режим' : 'Темный режим';
       button.innerHTML = isDark ? sun : moon;
       button.title = hint;
       button.setAttribute('aria-label', hint);
