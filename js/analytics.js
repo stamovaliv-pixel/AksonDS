@@ -1,12 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
-  if (!sb) return;
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return window.location.href = '../index.html';
-  const { data: profile, error: profileError } = await sb.from('profiles').select('role, is_blocked').eq('id', user.id).single();
-  if (profileError || !profile || profile.is_blocked || !['admin', 'operator', 'viewer'].includes(profile.role)) {
-    return window.location.href = 'calendar.html';
-  }
   
   // Устанавливаем период по умолчанию (-30 дней и сегодня)
   const todayDate = new Date();
@@ -36,10 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const select = document.getElementById('filterSupplyType');
     if (settings.supply_types) {
       settings.supply_types.forEach(st => {
-        const option = document.createElement('option');
-        option.value = String(st.id ?? '');
-        option.textContent = String(st.name || '');
-        select.appendChild(option);
+        select.innerHTML += `<option value="${st.id}">${st.name}</option>`;
       });
     }
   };
@@ -171,14 +161,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const labels = dataArray.map(item => item.comp);
     const data = dataArray.map(item => item.value);
 
-    // Белый фон для скачиваемых изображений
+    // Фон графика следует активной теме, в том числе при скачивании PNG.
+    const isDarkTheme = document.documentElement.getAttribute('data-theme') === 'dark';
+    const axisTextColor = isDarkTheme ? '#cbd5e1' : '#666666';
+    const gridLineColor = isDarkTheme ? 'rgba(148, 163, 184, 0.18)' : 'rgba(0, 0, 0, 0.1)';
     const customCanvasBackgroundColor = {
       id: 'customCanvasBackgroundColor',
       beforeDraw: (chart) => {
         const {ctx} = chart;
         ctx.save();
         ctx.globalCompositeOperation = 'destination-over';
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = document.documentElement.getAttribute('data-theme') === 'dark' ? '#18212b' : '#ffffff';
         ctx.fillRect(0, 0, chart.width, chart.height);
         ctx.restore();
       }
@@ -220,9 +213,17 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         },
         scales: { 
+          x: {
+            ticks: { color: axisTextColor },
+            grid: { color: gridLineColor },
+            border: { color: gridLineColor }
+          },
           y: { 
             beginAtZero: true, 
-            max: type === 'rating' ? 5.0 : undefined 
+            max: type === 'rating' ? 5.0 : undefined,
+            ticks: { color: axisTextColor },
+            grid: { color: gridLineColor },
+            border: { color: gridLineColor }
           } 
         } 
       }
