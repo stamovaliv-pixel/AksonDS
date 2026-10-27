@@ -29,7 +29,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const select = document.getElementById('filterSupplyType');
     if (settings.supply_types) {
       settings.supply_types.forEach(st => {
-        select.innerHTML += `<option value="${st.id}">${st.name}</option>`;
+        // Не интерпретируем название типа поставки как HTML (защита от stored XSS).
+        const option = document.createElement('option');
+        option.value = String(st?.id ?? '');
+        option.textContent = String(st?.name ?? '');
+        select.appendChild(option);
       });
     }
   };
@@ -244,12 +248,23 @@ window.downloadChartImage = function(canvasId, filename) {
   a.click();
 };
 
+// Безопасное формирование CSV: корректное экранирование разделителей и нейтрализация
+// значений, которые табличные редакторы могут интерпретировать как формулы.
+function csvCell(value) {
+  let text = value == null ? '' : String(value);
+  if (/^[\t\r\n ]*[=+\-@]/.test(text)) text = "'" + text;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function csvRow(values) {
+  return values.map(csvCell).join(';') + '\r\n';
+}
+
 // Экспорт CSV
 window.downloadCSV = function(type) {
   const cache = window.csvDataCache[type];
   if (!cache || cache.length === 0) return alert('Нет данных для скачивания');
-  
-  let csvContent = "";
+  const rows = [];
 
   const formatDateTime = (isoString) => {
     if (!isoString) return '';
@@ -258,46 +273,44 @@ window.downloadCSV = function(type) {
   };
 
   if (type === 'rating') {
-    csvContent = "Поставщик;Рейтинг\n";
-    cache.forEach(row => {
-      csvContent += `"${row.comp}";${row.value}\n`;
-    });
-  } 
+    rows.push(csvRow(['Поставщик', 'Рейтинг']).trimEnd());
+    cache.forEach(row => rows.push(csvRow([row.comp, row.value]).trimEnd()));
+  }
   else if (type === 'late') {
-    csvContent = "Дата создания записи;Поставщик;ID записи с опозданием;Дата записи;Время записи;Время прибытия;Время убытия;Номер ворот\n";
+    rows.push(csvRow(['Дата создания записи', 'Поставщик', 'ID записи с опозданием', 'Дата записи', 'Время записи', 'Время прибытия', 'Время убытия', 'Номер ворот']).trimEnd());
     cache.forEach(row => {
-      row.meta.lateRecords.forEach(b => {
+      (row.meta?.lateRecords || []).forEach(b => {
         const created = formatDateTime(b.created_at);
         const slotDate = new Date(b.slot_date).toLocaleDateString('ru-RU');
-        const slotTime = `${b.slot_hour}:00-${b.slot_hour+1}:00`;
+        const slotTime = `${b.slot_hour}:00-${b.slot_hour + 1}:00`;
         const arrTime = b.arrival_time ? b.arrival_time.substring(0, 5) : '';
         const depTime = b.departure_time ? b.departure_time.substring(0, 5) : '';
-        const gate = b.gate_number || '';
-        
-        csvContent += `"${created}";"${row.comp}";"${b.id}";"${slotDate}";"${slotTime}";"${arrTime}";"${depTime}";"${gate}"\n`;
+        rows.push(csvRow([created, row.comp, b.id, slotDate, slotTime, arrTime, depTime, b.gate_number || '']).trimEnd());
       });
     });
   }
   else if (type === 'noshow') {
-    csvContent = "Дата создания записи;Поставщик;ID записи с со срывом;Дата записи;Время записи\n";
+    rows.push(csvRow(['Дата создания записи', 'Поставщик', 'ID записи со срывом', 'Дата записи', 'Время записи']).trimEnd());
     cache.forEach(row => {
-      row.meta.noshowRecords.forEach(b => {
+      (row.meta?.noshowRecords || []).forEach(b => {
         const created = formatDateTime(b.created_at);
         const slotDate = new Date(b.slot_date).toLocaleDateString('ru-RU');
-        const slotTime = `${b.slot_hour}:00-${b.slot_hour+1}:00`;
-        
-        csvContent += `"${created}";"${row.comp}";"${b.id}";"${slotDate}";"${slotTime}"\n`;
+        const slotTime = `${b.slot_hour}:00-${b.slot_hour + 1}:00`;
+        rows.push(csvRow([created, row.comp, b.id, slotDate, slotTime]).trimEnd());
       });
     });
   }
-  
-  // Добавляем маркер BOM для корректного отображения кириллицы в Microsoft Excel
-  const blob = new Blob(["\ufeff", csvContent], { type: 'text/csv;charset=utf-8;' }); 
+
+  if (!rows.length) return alert('Нет данных для скачивания');
+  const csvContent = rows.join('\r\n') + '\r\n';
+  // BOM нужен Excel для корректного отображения кириллицы.
+  const blob = new Blob(["\ufeff", csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", `report_${type}_${new Date().toISOString().split('T')[0]}.csv`);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `report_${type}_${new Date().toISOString().split('T')[0]}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 };
