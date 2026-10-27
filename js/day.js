@@ -264,70 +264,110 @@ document.addEventListener('DOMContentLoaded', async () => {
     timeElement.textContent = `${hour}:00 - ${hour + 1}:00`;
     card.appendChild(timeElement);
 
-    const capacitySummary = mainLeft > 0
-      ? `Свободно: ${mainLeft} осн. / ${Math.max(0, reserveLeft)} рез.`
-      : (reserveLeft > 0 ? `Осталось ${reserveLeft} резервных мест (только ИМ)` : 'Свободных мест нет');
-
     if (myBookingCount > 0) {
-      card.appendChild(makeSlotStatus(`Ваши записи: ${myBookingCount} из ${MAX_SUPPLIER_BOOKINGS_PER_HOUR}`, 'status-info'));
+      card.classList.add('has-supplier-bookings');
 
       const bookingList = document.createElement('div');
       bookingList.className = 'supplier-bookings';
       bookingList.setAttribute('aria-label', 'Ваши записи в этом временном периоде');
 
+      const typeNames = {};
+      if (Array.isArray(settings.supply_types)) {
+        settings.supply_types.forEach(st => { typeNames[String(st.id)] = String(st.name || st.id); });
+      }
+
       hourBookings.forEach((booking, index) => {
         const row = document.createElement('div');
         row.className = 'supplier-booking-row';
-
-        const identity = document.createElement('div');
-        identity.className = 'supplier-booking-identity';
+        row.setAttribute('role', 'group');
+        row.setAttribute('tabindex', '0');
         const documentType = orderTypeLabels[booking.order_type] || 'Документ';
         const fullOrderNumber = String(booking.order_number || '').trim();
         const shortOrderNumber = fullOrderNumber.length > 6 ? `${fullOrderNumber.slice(0, 6)}…` : (fullOrderNumber || 'без номера');
+        const detailLabel = `${documentType} №${fullOrderNumber || 'без номера'}, ${selectedDate}, ${hour}:00–${hour + 1}:00`;
+        row.setAttribute('aria-label', `${detailLabel}. Нажмите, чтобы открыть подробности`);
+        row.title = 'Открыть подробности записи';
+
+        const main = document.createElement('div');
+        main.className = 'supplier-booking-main';
+
+        const header = document.createElement('div');
+        header.className = 'supplier-booking-header';
 
         const title = document.createElement('div');
         title.className = 'supplier-booking-title';
         title.textContent = `Запись ${index + 1} · ${documentType} №${shortOrderNumber}`;
-        if (fullOrderNumber) title.title = `${documentType} №${fullOrderNumber}`;
-        identity.appendChild(title);
+        title.title = detailLabel;
+        header.appendChild(title);
+
+        if (canEditRegistryForDate(selectedDate)) {
+          const editButton = document.createElement('button');
+          editButton.type = 'button';
+          editButton.className = 'supplier-booking-edit';
+          editButton.title = `Изменить запись ${index + 1}`;
+          editButton.setAttribute('aria-label', `Изменить запись ${index + 1}: ${detailLabel}`);
+          editButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4Z"/></svg>';
+          editButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            openEditModal(booking, hour);
+          });
+          header.appendChild(editButton);
+        }
+        main.appendChild(header);
 
         const supplyTypeIds = Array.isArray(booking.supply_types) && booking.supply_types.length
-          ? booking.supply_types
-          : (booking.supply_type ? [booking.supply_type] : []);
+          ? booking.supply_types.map(String)
+          : (booking.supply_type ? [String(booking.supply_type)] : []);
         if (supplyTypeIds.length) {
-          const typeNames = {};
-          if (Array.isArray(settings.supply_types)) settings.supply_types.forEach(st => { typeNames[String(st.id)] = String(st.name || st.id); });
-          const typeLine = document.createElement('div');
-          typeLine.className = 'supplier-booking-meta';
-          typeLine.textContent = supplyTypeIds.map(typeId => typeNames[String(typeId)] || String(typeId)).join(', ');
-          identity.appendChild(typeLine);
+          const iconLine = document.createElement('div');
+          iconLine.className = 'supplier-booking-type-icons';
+          iconLine.setAttribute('aria-label', 'Типы поставки');
+          supplyTypeIds.forEach(typeId => {
+            const typeName = typeNames[typeId] || typeId;
+            const typeIcon = document.createElement('span');
+            typeIcon.className = 'supplier-booking-type-icon';
+            typeIcon.textContent = getSupplyIcon(typeId, typeName);
+            typeIcon.title = typeName;
+            typeIcon.setAttribute('aria-label', `Тип поставки: ${typeName}`);
+            typeIcon.setAttribute('role', 'img');
+            typeIcon.tabIndex = 0;
+            iconLine.appendChild(typeIcon);
+          });
+          main.appendChild(iconLine);
         }
-        row.appendChild(identity);
 
-        const actions = document.createElement('div');
-        actions.className = 'supplier-booking-actions';
-        if (canEditRegistryForDate(selectedDate)) {
-          actions.appendChild(makeSlotButton('Изменить', 'btn-book', () => openEditModal(booking, hour)));
-        }
-        actions.appendChild(makeSlotButton('Подробнее', 'btn-cancel', () => openDetailsModal(booking, hour)));
-        row.appendChild(actions);
+        row.appendChild(main);
+        row.addEventListener('click', () => openDetailsModal(booking, hour));
+        row.addEventListener('keydown', (event) => {
+          if (event.target !== row) return;
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openDetailsModal(booking, hour);
+          }
+        });
         bookingList.appendChild(row);
       });
       card.appendChild(bookingList);
 
-      if (myBookingCount >= MAX_SUPPLIER_BOOKINGS_PER_HOUR) {
-        card.appendChild(makeSlotStatus('Лимит достигнут: добавление недоступно', 'status-warning'));
-      } else {
+      if (myBookingCount < MAX_SUPPLIER_BOOKINGS_PER_HOUR) {
         const blockReason = getNewBookingBlockReason(isPast, mainLeft, reserveLeft);
         if (!blockReason) {
-          const addButton = makeSlotButton('+ Добавить запись', 'btn-book btn-add-booking', () => openCreateModal(hour, mainLeft, myBookingCount));
-          card.appendChild(addButton);
-          const capacityNote = mainLeft > 0
-            ? `${mainLeft} основных / ${Math.max(0, reserveLeft)} резервных`
-            : `только ИМ: ${Math.max(0, reserveLeft)} резервных`;
-          card.appendChild(makeSlotStatus(`Доступно: ${capacityNote}`, 'status-availability'));
-        } else {
-          card.appendChild(makeSlotStatus(blockReason, 'status-warning'));
+          const addWrap = document.createElement('div');
+          addWrap.className = 'supplier-booking-add-wrap';
+          const addButton = document.createElement('button');
+          addButton.type = 'button';
+          addButton.className = 'supplier-booking-add';
+          addButton.title = 'Создать новую запись';
+          addButton.setAttribute('aria-label', 'Создать новую запись');
+          addButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+          addButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            openCreateModal(hour, mainLeft);
+          });
+          addWrap.appendChild(addButton);
+          card.appendChild(addWrap);
         }
       }
     } else {
@@ -348,8 +388,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         card.appendChild(makeSlotStatus('Мест нет', 'status-unavailable'));
         card.appendChild(makeSlotButton('Занято', 'btn-disabled', null, true));
       } else {
-        card.appendChild(makeSlotStatus(capacitySummary, mainLeft > 0 ? 'status-available' : 'status-reserve'));
-        card.appendChild(makeSlotButton('Записаться', 'btn-book', () => openCreateModal(hour, mainLeft, 0)));
+        card.appendChild(makeSlotButton('Записаться', 'btn-book', () => openCreateModal(hour, mainLeft)));
       }
     }
 
@@ -372,15 +411,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const createModal = document.getElementById('bookingModal');
   const hourInput = document.getElementById('selectedHour');
 
-  function openCreateModal(hour, mainLeft, existingCount = 0) {
+  function openCreateModal(hour, mainLeft) {
     currentEditBookingId = null;
     existingFileUrl = null;
     hourInput.value = hour;
     currentMainLeft = mainLeft;
     
-    document.getElementById('bookingModalTitle').innerText = existingCount > 0
-      ? `Добавление записи ${existingCount + 1} из ${MAX_SUPPLIER_BOOKINGS_PER_HOUR}`
-      : 'Оформление записи';
+    document.getElementById('bookingModalTitle').innerText = 'Новая запись';
     document.getElementById('submitBookingBtn').innerText = 'Подтвердить запись';
     document.getElementById('bookingForm').reset();
     
