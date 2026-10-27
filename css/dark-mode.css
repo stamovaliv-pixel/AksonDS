@@ -88,3 +88,104 @@ html[data-theme="dark"] .inline-input-group input.field-missing {
 html[data-theme="dark"] .theme-toggle { background: #202b37; color: #f8fafc; border-color: #465466; }
 html[data-theme="dark"] .template-btn, html[data-theme="dark"] .custom-file-upload { background: #111923 !important; border-color: #465466 !important; color: #bfdbfe !important; }
 html[data-theme="dark"] .custom-file-upload:hover, html[data-theme="dark"] .template-btn:hover { background: #202b37 !important; }
+
+
+/* === Доработка читаемости тёмной темы (v3) === */
+/* Страница «День»: сохраняем цветные полоски статуса, как в светлой теме. */
+html[data-theme="dark"] .slot-box.main-booked { border-top-color: #3B82F6 !important; }
+html[data-theme="dark"] .slot-box.res-booked { border-top-color: #10B981 !important; }
+html[data-theme="dark"] .slot-box.main-empty,
+html[data-theme="dark"] .slot-box.res-empty { border-top-color: #84909E !important; }
+html[data-theme="dark"] .slot-box .sb-empty-text { color: #a5b2c2 !important; }
+
+/* Окно «Подробнее»: блок поставщика также оформляется в тёмной палитре. */
+html[data-theme="dark"] .supplier-summary-field {
+  background: #111923 !important;
+  border-color: #344150 !important;
+  color: #e6edf5 !important;
+}
+html[data-theme="dark"] .supplier-summary-field #mCompany {
+  color: #e6edf5 !important;
+}
+
+/* Страница «Пользователи»: панель поиска. */
+html[data-theme="dark"] .search-box {
+  background: #18212b !important;
+  color: #e6edf5 !important;
+  border-color: #344150 !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,.16) !important;
+}
+html[data-theme="dark"] .search-box input {
+  background: #111923 !important;
+  color: #e6edf5 !important;
+  border-color: #465466 !important;
+}
+
+/* Страница «Аналитика»: панель фильтров и контролы внутри неё. */
+html[data-theme="dark"] .filter-panel {
+  background: #18212b !important;
+  color: #e6edf5 !important;
+  border-color: #344150 !important;
+}
+html[data-theme="dark"] .filter-panel .filter-group label { color: #a5b2c2 !important; }
+html[data-theme="dark"] .filter-panel input,
+html[data-theme="dark"] .filter-panel select {
+  background: #111923 !important;
+  color: #e6edf5 !important;
+  border-color: #465466 !important;
+}
+
+/* Страница «Настройки»: типы поставок, переключатели и редактор списка. */
+html[data-theme="dark"] .settings-section-header { border-bottom-color: #344150 !important; }
+html[data-theme="dark"] .setting-row { border-bottom-color: #344150 !important; }
+html[data-theme="dark"] .days-chips span {
+  background: #202b37 !important;
+  color: #cbd5e1 !important;
+  border-color: #465466 !important;
+}
+html[data-theme="dark"] .days-chips input:checked + span {
+  background: #2563eb !important;
+  color: #fff !important;
+  border-color: #3b82f6 !important;
+}
+html[data-theme="dark"] .supply-item {
+  background: #111923 !important;
+  border-color: #344150 !important;
+  color: #e6edf5 !important;
+}
+html[data-theme="dark"] .supply-item .btn-trash { color: #f87171 !important; }
+html[data-theme="dark"] .supply-item .btn-trash:hover { background: #3b1e25 !important; }
+html[data-theme="dark"] .settings-card .btn-icon {
+  background: #202b37 !important;
+  color: #dbe7f5 !important;
+  border-color: #465466 !important;
+}
+html[data-theme="dark"] .settings-card .btn-icon:hover { background: #293747 !important; }
+html[data-theme="dark"] .settings-card .btn-icon.save {
+  background: #12352c !important;
+  color: #6ee7b7 !important;
+  border-color: #10b981 !important;
+}
+html[data-theme="dark"] #templateUploadRow {
+  background: #111923 !important;
+  border-color: #344150 !important;
+}
+html[data-theme="dark"] #templateFileInput {
+  color: #e6edf5 !important;
+  background: transparent !important;
+}
+html[data-theme="dark"] #btnUploadTemplate {
+  background: #202b37 !important;
+  border-color: #465466 !important;
+  color: #e6edf5 !important;
+}
+html[data-theme="dark"] #btnUploadTemplate:hover { background: #293747 !important; }
+html[data-theme="dark"] #view_noTemplate { color: #a5b2c2 !important; }
+
+/* Кнопка сброса фильтров календаря не должна оставаться светлой в тёмном режиме. */
+html[data-theme="dark"] #resetFiltersBtn {
+  background: #334155 !important;
+  border: 1px solid #475569 !important;
+  color: #f1f5f9 !important;
+}
+html[data-theme="dark"] #resetFiltersBtn:hover { background: #475569 !important; }
