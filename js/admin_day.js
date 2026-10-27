@@ -133,20 +133,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     return '🏷️';
   };
 
-  // Отрисовка чекбоксов с пиктограммами
+  // Отрисовка только пиктограмм типов поставки. Название показывается во всплывающей подсказке.
   const fillCheckboxes = (containerId) => {
     const el = document.getElementById(containerId);
     if (!el || !settings.supply_types) return;
     el.replaceChildren();
     settings.supply_types.forEach(st => {
+      const id = String(st.id ?? '');
+      const name = String(st.name || 'Тип поставки');
       const label = document.createElement('label');
       label.className = 'checkbox-label';
-      label.style.cssText = 'display:flex; align-items:center; gap:4px; cursor:pointer; white-space:nowrap;';
+      label.title = name;
+      label.setAttribute('aria-label', name);
+      label.setAttribute('data-supply-type-name', name);
+      label.style.cssText = 'display:flex; align-items:center; justify-content:center; cursor:pointer; white-space:nowrap;';
+
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
-      checkbox.value = String(st.id ?? '');
-      const text = document.createTextNode(` ${getSupplyIcon(checkbox.value, String(st.name || ''))} ${String(st.name || '')}`);
-      label.append(checkbox, text);
+      checkbox.value = id;
+      checkbox.setAttribute('aria-label', name);
+      checkbox.title = name;
+      checkbox.addEventListener('change', () => label.classList.toggle('is-selected', checkbox.checked));
+
+      const icon = document.createElement('span');
+      icon.className = 'supply-type-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = getSupplyIcon(id, name);
+
+      label.append(checkbox, icon);
       el.appendChild(label);
     });
   };
