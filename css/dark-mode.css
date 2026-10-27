@@ -253,7 +253,14 @@ html[data-theme="dark"] .day-cell.inactive .date-text { color: #9aa8b8 !importan
 
 
 
-/* Поставщик: красная индикация занятых дат и записей сохраняется в тёмной теме. */
-html[data-theme="dark"] .day-cell.booked::before { background-color: #ef4444 !important; }
-html[data-theme="dark"] .booking-item { border-left-color: #ef4444 !important; }
-html[data-theme="dark"] .supplier-booking-row { border-color: #9f5961 !important; }
+/* Календарь админа/оператора/наблюдателя: дни с записями остаются синими;
+   полосы найденных записей используют красный из светлой темы (#E31E24),
+   не подменяя его синим акцентом общей тёмной темы. */
+html[data-theme="dark"] .admin-calendar-page .day-cell.booked::before { background-color: #3B82F6 !important; }
+html[data-theme="dark"] .admin-calendar-page .booking-item:not(.empty) { border-left-color: #E31E24 !important; }
+
+/* Календарь поставщика оформляется отдельно: красные акценты сохранены. */
+html[data-theme="dark"] .supplier-calendar-page .day-cell.booked::before { background-color: #ef4444 !important; }
+html[data-theme="dark"] .supplier-calendar-page .booking-item { border-left-color: #ef4444 !important; }
+html[data-theme="dark"] .supplier-calendar-page .supplier-booking-row { border-color: #9f5961 !important; }
+html[data-theme="dark"] .supplier-calendar-page .supply-type-icon { background: #202b37 !important; border-color: #465466 !important; }
