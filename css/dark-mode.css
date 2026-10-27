@@ -1,0 +1,259 @@
+/* AKSON DockSlot — общая тёмная тема. Включается data-theme="dark" на корневом html. */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --color-bg: #0e141b;
+  --color-surface: #18212b;
+  --color-text-main: #e6edf5;
+  --color-text-muted: #a5b2c2;
+  --color-border: #344150;
+  --color-primary: #60a5fa;
+  --color-primary-hover: #3b82f6;
+  --color-input-focus: rgba(96, 165, 250, .18);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.28);
+  --shadow-card: 0 10px 28px rgba(0,0,0,.3);
+}
+html[data-theme="dark"] body,
+html[data-theme="dark"] .app-body,
+html[data-theme="dark"] .auth-page { background: #0e141b !important; color: #e6edf5 !important; }
+html[data-theme="dark"] .app-header,
+html[data-theme="dark"] .auth-card,
+html[data-theme="dark"] .filters-card,
+html[data-theme="dark"] .hour-block,
+html[data-theme="dark"] .modal-content,
+html[data-theme="dark"] .booking-item,
+html[data-theme="dark"] .day-cell,
+html[data-theme="dark"] .slot-box,
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .table-container,
+html[data-theme="dark"] .settings-card,
+html[data-theme="dark"] .day-navigation,
+html[data-theme="dark"] .upcoming-item,
+html[data-theme="dark"] .stat-item,
+html[data-theme="dark"] .user-card,
+html[data-theme="dark"] .supplier-card,
+html[data-theme="dark"] .details-modal-content,
+html[data-theme="dark"] .chart-card,
+html[data-theme="dark"] .auth-card-large {
+  background-color: #18212b !important; color: #e6edf5 !important; border-color: #344150 !important;
+}
+/* Keep slot status colors (blue main slot / green reserve slot) by not resetting border-top. */
+html[data-theme="dark"] .slot-box { border-left-color: #344150 !important; border-right-color: #344150 !important; border-bottom-color: #344150 !important; }
+html[data-theme="dark"] .hour-period-label { color: #e6edf5 !important; background: transparent !important; }
+html[data-theme="dark"] h1, html[data-theme="dark"] h2, html[data-theme="dark"] h3,
+html[data-theme="dark"] h4, html[data-theme="dark"] p, html[data-theme="dark"] label,
+html[data-theme="dark"] .section-title, html[data-theme="dark"] .page-title,
+html[data-theme="dark"] .sb-title, html[data-theme="dark"] .bi-company,
+html[data-theme="dark"] .date-text, html[data-theme="dark"] .form-title { color: #e6edf5; }
+html[data-theme="dark"] .hour-header { border-bottom-color: #344150 !important; }
+html[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]),
+html[data-theme="dark"] select, html[data-theme="dark"] textarea,
+html[data-theme="dark"] .form-group input, html[data-theme="dark"] .form-group select,
+html[data-theme="dark"] .form-group textarea {
+  background-color: #111923 !important; color: #e6edf5 !important; border-color: #465466 !important;
+}
+html[data-theme="dark"] input::placeholder, html[data-theme="dark"] textarea::placeholder { color: #8292a7 !important; }
+html[data-theme="dark"] table, html[data-theme="dark"] th, html[data-theme="dark"] td { border-color: #344150 !important; }
+html[data-theme="dark"] th { background: #202b37 !important; color: #e6edf5 !important; }
+html[data-theme="dark"] tr:nth-child(even) td { background-color: rgba(255,255,255,.02); }
+html[data-theme="dark"] a { color: #93c5fd; }
+html[data-theme="dark"] .nav-icon { color: #93c5fd; }
+html[data-theme="dark"] .modal-overlay { background: rgba(0,0,0,.76) !important; }
+html[data-theme="dark"] .icon-btn { background: #202b37 !important; color: #dbe7f5 !important; border-color: #465466 !important; }
+html[data-theme="dark"] .booking-item.empty, html[data-theme="dark"] .main-empty,
+html[data-theme="dark"] .res-empty, html[data-theme="dark"] .sb-empty { background: #141d27 !important; }
+html[data-theme="dark"] .link-action { color: #b6c4d6; }
+html[data-theme="dark"] .day-cell::after { color: #e6edf5; }
+html[data-theme="dark"] .btn-search, html[data-theme="dark"] .btn-book,
+html[data-theme="dark"] .btn-primary, html[data-theme="dark"] .btn-save { color: #fff !important; }
+/* Preserve the user's neon fill-state indicator in the dark theme. */
+html[data-theme="dark"] .inline-input-group input.field-complete {
+  border-color: rgba(16,185,129,.399) !important; background: rgba(16,185,129,.0357) !important;
+  box-shadow: 0 0 0 1px rgba(16,185,129,.0462), 0 0 3px 1px rgba(16,185,129,.1428), 0 0 6px 2px rgba(16,185,129,.0504), 0 0 11px 2px rgba(16,185,129,.0546), inset 0 0 3px rgba(16,185,129,.0336) !important;
+}
+html[data-theme="dark"] .inline-input-group input.field-missing {
+  border-color: rgba(239,68,68,.3998) !important; background: rgba(239,68,68,.0294) !important;
+  box-shadow: 0 0 0 1px rgba(239,68,68,.042), 0 0 3px 1px rgba(239,68,68,.1344), 0 0 6px 2px rgba(239,68,68,.0462), 0 0 11px 2px rgba(239,68,68,.0504), inset 0 0 3px rgba(239,68,68,.0336) !important;
+}
+/* Переключатель темы расположен только в календаре. */
+.theme-toggle {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 36px;
+  width: 36px; height: 36px; padding: 0; border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: 10px; background: var(--color-surface, #fff); color: var(--color-text-main, #334155);
+  cursor: pointer; line-height: 1; transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+.theme-toggle:hover { transform: translateY(-1px); }
+.theme-toggle .theme-icon { width: 20px; height: 20px; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+html[data-theme="dark"] .theme-toggle { background: #202b37; color: #f8fafc; border-color: #465466; }
+html[data-theme="dark"] .template-btn, html[data-theme="dark"] .custom-file-upload { background: #111923 !important; border-color: #465466 !important; color: #bfdbfe !important; }
+html[data-theme="dark"] .custom-file-upload:hover, html[data-theme="dark"] .template-btn:hover { background: #202b37 !important; }
+
+
+/* === Доработка читаемости тёмной темы (v3) === */
+/* Страница «День»: сохраняем цветные полоски статуса, как в светлой теме. */
+html[data-theme="dark"] .slot-box.main-booked { border-top-color: #3B82F6 !important; }
+html[data-theme="dark"] .slot-box.res-booked { border-top-color: #10B981 !important; }
+html[data-theme="dark"] .slot-box.main-empty,
+html[data-theme="dark"] .slot-box.res-empty { border-top-color: #84909E !important; }
+html[data-theme="dark"] .slot-box .sb-empty-text { color: #a5b2c2 !important; }
+
+/* Окно «Подробнее»: блок поставщика также оформляется в тёмной палитре. */
+html[data-theme="dark"] .supplier-summary-field {
+  background: #111923 !important;
+  border-color: #344150 !important;
+  color: #e6edf5 !important;
+}
+html[data-theme="dark"] .supplier-summary-field #mCompany {
+  color: #e6edf5 !important;
+}
+
+/* Страница «Пользователи»: панель поиска. */
+html[data-theme="dark"] .search-box {
+  background: #18212b !important;
+  color: #e6edf5 !important;
+  border-color: #344150 !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,.16) !important;
+}
+html[data-theme="dark"] .search-box input {
+  background: #111923 !important;
+  color: #e6edf5 !important;
+  border-color: #465466 !important;
+}
+
+/* Страница «Аналитика»: панель фильтров и контролы внутри неё. */
+html[data-theme="dark"] .filter-panel {
+  background: #18212b !important;
+  color: #e6edf5 !important;
+  border-color: #344150 !important;
+}
+html[data-theme="dark"] .filter-panel .filter-group label { color: #a5b2c2 !important; }
+html[data-theme="dark"] .filter-panel input,
+html[data-theme="dark"] .filter-panel select {
+  background: #111923 !important;
+  color: #e6edf5 !important;
+  border-color: #465466 !important;
+}
+
+/* Страница «Настройки»: типы поставок, переключатели и редактор списка. */
+html[data-theme="dark"] .settings-section-header { border-bottom-color: #344150 !important; }
+html[data-theme="dark"] .setting-row { border-bottom-color: #344150 !important; }
+html[data-theme="dark"] .days-chips span {
+  background: #202b37 !important;
+  color: #cbd5e1 !important;
+  border-color: #465466 !important;
+}
+html[data-theme="dark"] .days-chips input:checked + span {
+  background: #2563eb !important;
+  color: #fff !important;
+  border-color: #3b82f6 !important;
+}
+html[data-theme="dark"] .supply-item {
+  background: #111923 !important;
+  border-color: #344150 !important;
+  color: #e6edf5 !important;
+}
+html[data-theme="dark"] .supply-item .btn-trash { color: #f87171 !important; }
+html[data-theme="dark"] .supply-item .btn-trash:hover { background: #3b1e25 !important; }
+html[data-theme="dark"] .settings-card .btn-icon {
+  background: #202b37 !important;
+  color: #dbe7f5 !important;
+  border-color: #465466 !important;
+}
+html[data-theme="dark"] .settings-card .btn-icon:hover { background: #293747 !important; }
+html[data-theme="dark"] .settings-card .btn-icon.save {
+  background: #12352c !important;
+  color: #6ee7b7 !important;
+  border-color: #10b981 !important;
+}
+html[data-theme="dark"] #templateUploadRow {
+  background: #111923 !important;
+  border-color: #344150 !important;
+}
+html[data-theme="dark"] #templateFileInput {
+  color: #e6edf5 !important;
+  background: transparent !important;
+}
+html[data-theme="dark"] #btnUploadTemplate {
+  background: #202b37 !important;
+  border-color: #465466 !important;
+  color: #e6edf5 !important;
+}
+html[data-theme="dark"] #btnUploadTemplate:hover { background: #293747 !important; }
+html[data-theme="dark"] #view_noTemplate { color: #a5b2c2 !important; }
+
+/* Кнопка сброса фильтров календаря не должна оставаться светлой в тёмном режиме. */
+html[data-theme="dark"] #resetFiltersBtn {
+  background: #334155 !important;
+  border: 1px solid #475569 !important;
+  color: #f1f5f9 !important;
+}
+html[data-theme="dark"] #resetFiltersBtn:hover { background: #475569 !important; }
+
+/* В тёмной теме осветляем только подпись «Логистика» в логотипе.
+   Красный брендовый знак и градиент остаются исходными. */
+html[data-theme="dark"] img.app-logo,
+html[data-theme="dark"] img.brand-logo {
+  content: url("../assets/logistic-logo-dark.svg");
+}
+
+/* Контейнеры графиков остаются в общей тёмной палитре. Цвет холста и осей
+   Chart.js устанавливает из analytics.js с учётом активной темы. */
+html[data-theme="dark"] .chart-card,
+html[data-theme="dark"] .canvas-container {
+  background-color: #18212b !important;
+}
+
+/* === Поставщик: контрастная тёмная тема страницы «День» === */
+html[data-theme="dark"] .slot-card {
+  background: #18212b !important;
+  color: #e6edf5 !important;
+  border-color: #344150 !important;
+}
+html[data-theme="dark"] .slot-card .slot-time,
+html[data-theme="dark"] .slot-card .slot-status,
+html[data-theme="dark"] .slot-card .slot-status strong {
+  color: #e6edf5 !important;
+}
+html[data-theme="dark"] .slot-card.inactive {
+  background: #111923 !important;
+  border-color: #344150 !important;
+  opacity: 1 !important;
+}
+html[data-theme="dark"] .slot-card .slot-status span[style*="#1f2937"] { color: #e6edf5 !important; }
+html[data-theme="dark"] .slot-card .slot-status span[style*="#64748b"] { color: #a5b2c2 !important; }
+html[data-theme="dark"] .time-group-title { color: #e6edf5 !important; border-bottom-color: #344150 !important; }
+html[data-theme="dark"] .day-navigation { background: #18212b !important; border-color: #344150 !important; }
+html[data-theme="dark"] .nav-btn { color: #e6edf5 !important; border-color: #465466 !important; }
+html[data-theme="dark"] .nav-btn:hover:not(:disabled) { background: #202b37 !important; border-color: #607086 !important; }
+html[data-theme="dark"] .btn-cancel {
+  color: #dbeafe !important;
+  background: #243447 !important;
+  border: 1px solid #48617b !important;
+}
+html[data-theme="dark"] .btn-cancel:hover { background: #2c4056 !important; }
+html[data-theme="dark"] .btn-disabled { background: #273341 !important; color: #bdc9d7 !important; border: 1px solid #3a495a !important; }
+html[data-theme="dark"] .detail-row { border-bottom-color: #344150 !important; }
+html[data-theme="dark"] .detail-label { color: #a5b2c2 !important; }
+html[data-theme="dark"] .detail-value { color: #e6edf5 !important; }
+html[data-theme="dark"] #supplyTypesGroup label {
+  color: #e6edf5 !important;
+  background: #202b37 !important;
+  border-color: #465466 !important;
+}
+html[data-theme="dark"] #supplyTypesGroup label:has(input:checked) {
+  background: #173b5e !important;
+  border-color: #3b82f6 !important;
+}
+html[data-theme="dark"] #supplyTypesGroup input { accent-color: #60a5fa; }
+html[data-theme="dark"] .slot-card .custom-file-upload,
+html[data-theme="dark"] .slot-card .template-btn { background: #111923 !important; color: #bfdbfe !important; border-color: #465466 !important; }
+html[data-theme="dark"] .day-cell.inactive { background: #111923 !important; opacity: .72 !important; }
+html[data-theme="dark"] .day-cell.inactive .date-text { color: #9aa8b8 !important; }
+
+
+
+/* Поставщик: красная индикация занятых дат и записей сохраняется в тёмной теме. */
+html[data-theme="dark"] .day-cell.booked::before { background-color: #ef4444 !important; }
+html[data-theme="dark"] .booking-item { border-left-color: #ef4444 !important; }
+html[data-theme="dark"] .supplier-booking-row { border-color: #9f5961 !important; }
