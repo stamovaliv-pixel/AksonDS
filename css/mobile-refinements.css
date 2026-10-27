@@ -1,0 +1,112 @@
+/* AKSON DockSlot — mobile refinement v1. Safe overrides for phone/tablet layouts. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { min-width: 0; }
+img, canvas, video { max-width: 100%; }
+button, input, select, textarea { max-width: 100%; }
+.container, main, section, .auth-card, .settings-card, .filters-card, .filter-panel,
+.chart-card, .supplier-card, .dashboard-grid, .calendar-layout, .day-container { min-width: 0; }
+.app-header { box-sizing: border-box; gap: 12px; }
+.header-logo { min-width: 0; }
+.app-logo { display: block; max-width: min(150px, 52vw); height: auto; }
+.header-nav { min-width: 0; max-width: 100%; flex-wrap: wrap; justify-content: center; align-items: center; }
+.nav-icon { min-width: 38px; min-height: 38px; box-sizing: border-box; flex: 0 0 auto; }
+.theme-toggle { min-width: 38px; min-height: 38px; }
+
+/* Mobile browser safe areas and scrolling. */
+.auth-page { min-height: 100vh; min-height: 100svh; padding-top: max(16px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+@media (max-width: 767px) {
+  .container { width: 100%; padding: 14px 12px; }
+  .page-title { overflow-wrap: anywhere; }
+  .app-header { padding: 12px 12px 14px !important; align-items: center; }
+  .header-nav { gap: 8px !important; }
+  .nav-icon { padding: 6px; }
+  .nav-icon svg { width: 22px; height: 22px; }
+  .section-title { font-size: 19px !important; line-height: 1.3; }
+  h1, h2 { overflow-wrap: anywhere; }
+  input:not([type="checkbox"]):not([type="radio"]), select, textarea { font-size: 16px !important; }
+  button, .btn-primary, .btn-search, .btn-save, .btn-book, .btn-cancel, .btn-disabled, .nav-btn { min-height: 40px; touch-action: manipulation; }
+
+  /* Seven-column calendars must stay within the viewport on iPhone. */
+  .weekdays-header, .calendar-grid { grid-template-columns: repeat(7, minmax(0, 1fr)) !important; width: 100%; gap: 4px !important; }
+  .weekdays-header { font-size: 11px !important; margin-bottom: 7px !important; }
+  .day-cell { min-width: 0; height: 54px !important; border-radius: 6px !important; overflow: hidden !important; }
+  .date-text { font-size: 12px !important; line-height: 1.1; }
+  .day-cell.has-booking-count { padding-top: 10px; }
+  /* Keep the red count badge inside its own calendar cell on narrow screens. */
+  .day-count-badge { top: 3px !important; right: 3px !important; min-width: 17px !important; width: auto; height: 17px !important; padding: 0 2px !important; font-size: 9px !important; line-height: 17px !important; box-shadow: 0 1px 2px rgba(0,0,0,.18) !important; }
+  .day-cell:hover, .booking-item:hover { transform: none !important; }
+
+  /* Filters/search cards wrap instead of forcing horizontal scrolling. */
+  .filters-card, .filter-panel, .search-box { width: 100%; box-sizing: border-box; gap: 10px !important; }
+  .filters-card, .filter-panel { align-items: stretch !important; }
+  .filter-group { flex: 1 1 100% !important; min-width: 0 !important; width: 100%; }
+  .filters-card .btn-search, .filter-panel .btn-search, .search-box .btn-search { width: 100%; }
+  .search-box { flex-wrap: wrap; }
+  .search-box input { min-width: 0; width: 100%; flex: 1 1 100%; }
+  .search-box button { flex: 1 1 100%; }
+
+  /* Day page: slots, navigation and modals. */
+  .day-navigation { flex-wrap: wrap; justify-content: space-between; gap: 8px !important; padding: 10px !important; }
+  .day-navigation .page-title { flex: 1 1 100% !important; width: 100%; order: -1; margin: 0 0 4px !important; font-size: 18px !important; }
+  .day-navigation .nav-btn { flex: 1 1 calc(50% - 6px); min-width: 0; padding: 8px 6px; font-size: 13px; }
+  .slot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 9px !important; }
+  .slot-card { min-width: 0; padding: 10px !important; min-height: 118px; overflow-wrap: anywhere; }
+  .slot-time { font-size: 15px !important; }
+  .slot-status { font-size: 12px !important; }
+  .modal-overlay { padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom)) !important; align-items: center; }
+  .modal-content { box-sizing: border-box; width: 100% !important; max-width: 560px; max-height: calc(100vh - 24px) !important; max-height: calc(100dvh - 24px) !important; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 18px 14px !important; }
+  .modal-header { gap: 10px; }
+  .modal-header h3, .modal-title { min-width: 0; overflow-wrap: anywhere; }
+  .form-row { min-width: 0; }
+  .file-wrapper { min-width: 0; }
+  .custom-file-upload, .template-btn { box-sizing: border-box; min-width: 0; white-space: normal !important; }
+  #supplyTypesGroup { min-width: 0; }
+
+  /* Administration and settings panels. */
+  .cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .settings-card { padding: 16px !important; }
+  .settings-section-header { gap: 8px; flex-wrap: wrap; }
+  .setting-row { align-items: flex-start !important; flex-wrap: wrap; gap: 8px; }
+  .setting-row > * { max-width: 100%; }
+  .setting-edit-input { max-width: 100% !important; }
+  .supply-add-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .supply-add-row input { flex: 1 1 100%; min-width: 0; }
+  #templateUploadRow { flex-wrap: wrap !important; }
+  #templateFileInput { flex: 1 1 100% !important; min-width: 0; width: 100%; }
+  #btnUploadTemplate { flex: 1 1 100%; width: 100% !important; }
+
+  /* Analytics canvases/buttons and supplier lists. */
+  .chart-card { width: 100%; box-sizing: border-box; padding: 13px !important; }
+  .chart-header { min-width: 0; }
+  .chart-title { overflow-wrap: anywhere; }
+  .chart-actions { min-width: 0; }
+  .canvas-container { width: 100%; min-width: 0; height: 240px !important; }
+  .canvas-container canvas { max-width: 100% !important; }
+  .supplier-card { align-items: stretch !important; gap: 10px !important; }
+  .sup-info { min-width: 0 !important; width: 100%; overflow-wrap: anywhere; }
+  .block-control { max-width: 100%; flex-wrap: wrap; }
+  .dashboard-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .dashboard-grid .auth-card { padding: 16px !important; }
+  .histogram-container { gap: 8px !important; padding-top: 14px !important; }
+  .hist-label { font-size: 10px !important; overflow-wrap: anywhere; }
+  .hist-bar { max-width: 100%; }
+  .table-container, .table-responsive, .table-wrapper { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
+
+@media (max-width: 430px) {
+  .container { padding-left: 10px; padding-right: 10px; }
+  .weekdays-header, .calendar-grid { gap: 3px !important; }
+  .day-cell { height: 50px !important; }
+  .day-count-badge { top: 2px !important; right: 2px !important; min-width: 16px !important; height: 16px !important; font-size: 8.5px !important; line-height: 16px !important; }
+  .day-cell.has-booking-count { padding-top: 11px; }
+  .date-text { font-size: 11px !important; }
+  .slot-grid { gap: 7px !important; }
+  .slot-card { padding: 9px 7px !important; }
+  .slot-time { font-size: 14px !important; }
+  .cards-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .rating-value { font-size: 38px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
