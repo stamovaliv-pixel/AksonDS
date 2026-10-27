@@ -189,3 +189,17 @@ html[data-theme="dark"] #resetFiltersBtn {
   color: #f1f5f9 !important;
 }
 html[data-theme="dark"] #resetFiltersBtn:hover { background: #475569 !important; }
+
+/* В тёмной теме осветляем только подпись «Логистика» в логотипе.
+   Красный брендовый знак и градиент остаются исходными. */
+html[data-theme="dark"] img.app-logo,
+html[data-theme="dark"] img.brand-logo {
+  content: url("../assets/logistic-logo-dark.svg");
+}
+
+/* Контейнеры графиков остаются в общей тёмной палитре. Цвет холста и осей
+   Chart.js устанавливает из analytics.js с учётом активной темы. */
+html[data-theme="dark"] .chart-card,
+html[data-theme="dark"] .canvas-container {
+  background-color: #18212b !important;
+}
