@@ -41,6 +41,9 @@
       .auth-card { padding: 30px 20px; }
     }
   </style>
+
+  <link rel="stylesheet" href="css/dark-mode.css?v=2">
+  <script>try{if(localStorage.getItem("akson-dockslot-theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}</script>
 </head>
 <body class="auth-page">
   <div class="top-gradient-bar"></div>
@@ -91,7 +94,8 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase-client.js?v=security-20261023"></script>
-  <script src="js/auth.js?v=security-20261023"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/theme-toggle.js?v=2"></script>
 </body>
 </html>
