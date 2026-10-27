@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const countToIso = `${countTo.getFullYear()}-${String(countTo.getMonth() + 1).padStart(2, '0')}-${String(countTo.getDate()).padStart(2, '0')}`;
   const [{ data: userBookings, error: bookingsError }, { data: bookingCounts, error: countsError }] = await Promise.all([
     sb.from('bookings')
-      .select('id, slot_date, slot_hour, supply_type, order_type, order_number, profile_id')
+      .select('id, slot_date, slot_hour, supply_type, supply_types, order_type, order_number, profile_id')
       .eq('profile_id', user.id).eq('status', 'active').gte('slot_date', isoToday)
       .order('slot_date', { ascending: true }).order('slot_hour', { ascending: true }),
     sb.rpc('get_calendar_booking_counts', { p_from: isoToday, p_to: countToIso })
@@ -75,9 +75,55 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const supplyTypes = {};
   if (settings.supply_types) {
-    settings.supply_types.forEach(st => supplyTypes[st.id] = st.name);
+    settings.supply_types.forEach(st => {
+      supplyTypes[String(st.id)] = String(st.name || st.id);
+      if (st.name) supplyTypes[String(st.name)] = String(st.name);
+    });
   }
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
+
+  const getSupplyIcon = (id, name) => {
+    const key = String(id ?? '').toLowerCase();
+    const n = String(name ?? '').toLowerCase();
+    if (key === 'orders_im' || n.includes('им')) return '📦';
+    if (key === 'return' || n.includes('возврат')) return '↩️';
+    if (key === 'mix' || n.includes('микс')) return '🔀';
+    if (n.includes('сток')) return '🏭';
+    if (n.includes('кросс')) return '🚚';
+    return '🏷️';
+  };
+
+  const getBookingSupplyValues = (booking) => {
+    let values = Array.isArray(booking.supply_types) ? booking.supply_types : [];
+    if (!values.length && Array.isArray(booking.supply_type)) values = booking.supply_type;
+    if (!values.length && booking.supply_type !== null && booking.supply_type !== undefined && String(booking.supply_type).trim()) values = [booking.supply_type];
+    return values.map(value => {
+      if (value && typeof value === 'object') return value.id ?? value.name ?? '';
+      return value;
+    }).map(value => String(value ?? '').trim()).filter(Boolean);
+  };
+
+  const renderSupplyTypeDetails = (container, booking) => {
+    if (!container) return;
+    container.replaceChildren();
+    const values = getBookingSupplyValues(booking);
+    if (!values.length) {
+      container.textContent = 'Не указан';
+      return;
+    }
+    values.forEach((value, index) => {
+      const name = supplyTypes[value] || value;
+      if (index > 0) container.appendChild(document.createTextNode('  '));
+      const icon = document.createElement('span');
+      icon.className = 'supply-type-icon';
+      icon.textContent = getSupplyIcon(value, name);
+      icon.title = `Тип поставки: ${name}`;
+      icon.setAttribute('aria-label', `Тип поставки: ${name}`);
+      icon.setAttribute('role', 'img');
+      container.appendChild(icon);
+      container.appendChild(document.createTextNode(name));
+    });
+  };
 
   if (upcomingList) {
     upcomingList.innerHTML = '';
@@ -90,8 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const dateStr = bDate.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const timeStr = `${booking.slot_hour}:00 - ${booking.slot_hour + 1}:00`;
         
-        const supplyName = supplyTypes[booking.supply_type] || booking.supply_type;
-        const orderName = orderTypes[booking.order_type] || booking.order_type;
+        const orderName = orderTypes[booking.order_type] || booking.order_type || 'Документ';
         const orderNum = booking.order_number;
         
         const item = document.createElement('div');
@@ -102,7 +147,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         item.addEventListener('click', () => {
           document.getElementById('modalDate').innerText = dateStr;
           document.getElementById('modalTime').innerText = timeStr;
-          document.getElementById('modalType').innerText = supplyName;
+          renderSupplyTypeDetails(document.getElementById('modalType'), booking);
           document.getElementById('modalDoc').innerText = `${orderName} №${orderNum}`;
           
           trashBtn.onclick = async () => {
