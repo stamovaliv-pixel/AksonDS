@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Управление днем - AKSon Logistics</title>
+  <link rel="stylesheet" href="../css/theme.css?v=4-1-date-exceptions">
+  <link rel="stylesheet" href="../css/main.css?v=4-1-date-exceptions">
+  <style>
+    .app-header { margin-top: 0; box-shadow: none; border-bottom: none; padding-bottom: 15px; }
+    .top-gradient-bar { width: 100%; height: 2px; background: linear-gradient(90deg, var(--color-gradient-start), var(--color-gradient-end)); margin-bottom: 20px; }
+    .header-nav { display: flex; gap: 20px; align-items: center; }
+    .nav-icon { display: inline-flex; align-items: center; justify-content: center; padding: 5px; transition: transform 0.2s ease; text-decoration: none; }
+    
+    .hour-block { position: relative; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 20px; padding: 15px; }
+    .hour-header { display: flex; justify-content: space-between; align-items: center; font-size: 18px; font-weight: 700; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
+    /* Временной интервал оформлен как компактная плашка; бейдж расположен на её углу, а не над последним символом времени. */
+    .hour-period-label { position: static; display: inline-flex; align-items: center; padding: 0; border: 0; border-radius: 0; background: transparent; line-height: 1.35; }
+    /* Бейдж на углу плашки времени: примерно четверть площади круга заходит на плашку, остальная часть выступает наружу. */
+    .hour-count-badge { position: absolute; top: -10px; right: -10px; z-index: 5; min-width: 21px; height: 21px; padding: 0 4px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #ef4444; color: #fff; font-size: 11px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; pointer-events: none; box-shadow: 0 1px 3px rgba(127, 29, 29, .22); }
+    
+    .cards-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; }
+    
+    .slot-box { border: 1px solid #e2e8f0; border-top: 4px solid; border-radius: 6px; padding: 10px; display: flex; flex-direction: column; height: 145px; background: #fff; transition: all 0.2s ease; box-sizing: border-box; position: relative; }
+    .slot-box:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.08); border-color: #cbd5e1; }
+
+    .main-empty { border-top-color: #84909E; cursor: pointer; }
+    .main-empty:hover { background: #f1f5f9; } 
+    .main-booked { border-top-color: #3B82F6; }
+    
+    .res-empty { border-top-color: #84909E; cursor: pointer; }
+    .res-empty:hover { background: #f1f5f9; }
+    .res-booked { border-top-color: #10B981; }
+
+    .sb-empty { justify-content: center; align-items: center; text-align: center; }
+    .sb-empty-text { font-size: 13px; font-weight: 600; color: #64748b; line-height: 1.4; }
+    
+    .sb-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+    .sb-title { font-size: 12px; font-weight: 700; color: #1e293b; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.2; word-break: break-word; }
+    .btn-dots { background: none; border: none; font-size: 18px; line-height: 1; cursor: pointer; color: var(--color-text-muted); padding: 0 2px; }
+    .btn-dots:hover { color: var(--color-primary); }
+
+    .sb-icons { display: flex; justify-content: space-between; align-items: center; margin-bottom: auto; font-size: 16px; }
+    
+    .tk-dot { width: 10px; height: 10px; background-color: #10b981; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); animation: blink 1.5s infinite; flex-shrink: 0; }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    .tk-dot-modal { width: 12px; height: 12px; border-radius: 50%; display: inline-block; transition: 0.2s; flex-shrink: 0; }
+    .tk-dot-modal.active { background-color: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); animation: blink 1.5s infinite; }
+    .tk-dot-modal.inactive { background-color: #cbd5e1; box-shadow: none; animation: none; }
+
+    .card-actions { display: flex; gap: 4px; margin-top: auto; }
+    .inline-input-group { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .inline-input-group label { font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 600; }
+    .inline-input-group input { width: 100%; height: 22px; font-size: 11px; padding: 0 2px; border: 1px solid #cbd5e1; border-radius: 3px; text-align: center; outline: none; background: #fff; box-sizing: border-box;}
+    /* Неоновая подсветка заполненности операционных полей.
+       Поле остаётся светлым и читаемым; цветной ореол виден на всех датах, включая прошлые. */
+    .inline-input-group input.field-complete {
+      border-color: rgba(16, 185, 129, 0.3990);
+      background: rgba(16, 185, 129, 0.0357);
+      box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.0462),
+                  0 0 3px 1px rgba(16, 185, 129, 0.1428),
+                  0 0 6px 2px rgba(16, 185, 129, 0.0504),
+                  0 0 11px 2px rgba(16, 185, 129, 0.0546),
+                  inset 0 0 3px rgba(16, 185, 129, 0.0336);
+      transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+    }
+    .inline-input-group input.field-missing {
+      border-color: rgba(239, 68, 68, 0.3998);
+      background: rgba(239, 68, 68, 0.0294);
+      box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.0420),
+                  0 0 3px 1px rgba(239, 68, 68, 0.1344),
+                  0 0 6px 2px rgba(239, 68, 68, 0.0462),
+                  0 0 11px 2px rgba(239, 68, 68, 0.0504),
+                  inset 0 0 3px rgba(239, 68, 68, 0.0336);
+      transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+    }
+    .inline-input-group input:focus { outline: none; }
+    .inline-input-group input.field-complete:focus {
+      border-color: #10b981;
+      box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.0588),
+                  0 0 4px 1px rgba(16, 185, 129, 0.1638),
+                  0 0 8px 2px rgba(16, 185, 129, 0.1008),
+                  0 0 12px 3px rgba(16, 185, 129, 0.0588),
+                  inset 0 0 3px rgba(16, 185, 129, 0.0420);
+    }
+    .inline-input-group input.field-missing:focus {
+      border-color: #ef4444;
+      box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.1134),
+                  0 0 4px 1px rgba(239, 68, 68, 0.1554),
+                  0 0 8px 2px rgba(239, 68, 68, 0.0966),
+                  0 0 12px 3px rgba(239, 68, 68, 0.0588),
+                  inset 0 0 3px rgba(239, 68, 68, 0.0378);
+    }
+
+    /* МОДАЛЬНЫЕ ОКНА */
+    .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
+    .modal-content { background: #fff; padding: 25px; border-radius: var(--radius-md); width: 100%; max-width: 550px; position: relative; max-height: 90vh; overflow-y: auto; }
+    
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--color-border); padding-bottom: 10px; }
+    .modal-header h3 { margin: 0; font-size: 18px; }
+    .modal-actions { display: flex; gap: 8px; align-items: center; }
+    
+    .icon-btn { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px; color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+    .icon-btn:hover { background: #f1f5f9; color: #3b82f6; }
+    .icon-btn.save-btn { color: #10b981; border-color: #10b981; background: #ecfdf5; }
+    .icon-btn.save-btn:hover { background: #d1fae5; }
+    .icon-btn.delete-btn:hover { background: #fef2f2; color: #ef4444; border-color: #fca5a5; }
+    .close-btn { background: none; border: none; font-size: 24px; line-height: 1; color: #94a3b8; cursor: pointer; padding: 0 4px; margin-left: 5px; transition: 0.2s; }
+    .close-btn:hover { color: #ef4444; }
+    
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; color: var(--color-text-main); }
+    .form-group input[type="text"], .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid var(--color-border); border-radius: 4px; box-sizing: border-box; font-size: 14px; outline: none; transition: 0.2s; resize: none; }
+    .form-group input[type="text"]:focus, .form-group select:focus, .form-group textarea:focus { border-color: #3b82f6; }
+    
+    /* Переопределение инлайн-запрета переноса строк для галочек (из JS) */
+    #mSupplyTypesGroup label, #cSupplyTypesGroup label { white-space: normal !important; }
+
+    fieldset:disabled input[type="text"], fieldset:disabled select, fieldset:disabled textarea { background: #f8fafc; color: #475569; cursor: not-allowed; border-color: #e2e8f0; }
+    fieldset:disabled .checkbox-label { opacity: 0.7; cursor: not-allowed; }
+
+    .btn-save { background: #10b981; color: #fff; border: none; padding: 12px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: 600; margin-top: 20px; transition: 0.2s; }
+    .btn-save:hover { background: #059669; }
+
+    /* ОДИНАКОВЫЕ КНОПКИ ЗАГРУЗКИ И ШАБЛОНА */
+    .file-wrapper { display: flex; gap: 10px; align-items: stretch; margin-top: 4px; width: 100%; }
+    .file-wrapper .custom-file-upload, .file-wrapper .template-btn { flex: 1; }
+    
+    .custom-file-upload { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; background: transparent; border: 1px solid #6ee7b7; border-radius: 4px; cursor: pointer; color: #10b981; font-size: 13px; font-weight: 500; transition: 0.2s; height: 42px; box-sizing: border-box; }
+    .custom-file-upload:hover { background: #ecfdf5; border-color: #10b981; }
+    
+    .template-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 15px; background: transparent; border: 1px solid #cbd5e1; border-radius: 4px; text-decoration: none; color: #475569; font-size: 13px; font-weight: 500; transition: 0.2s; white-space: nowrap; height: 42px; box-sizing: border-box; }
+    .template-btn:hover { background: #f8fafc; border-color: #94a3b8; color: #1e293b; }
+
+    @media (max-width: 1400px) { .cards-grid { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 768px) { .cards-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 480px) { .cards-grid { grid-template-columns: 1fr; } }
+
+    body.role-viewer .viewer-hide { display: none !important; }
+    body.role-viewer .viewer-disable { pointer-events: none !important; opacity: 0.6 !important; }
+    /* Для наблюдателя свечение статуса должно оставаться различимым при режиме только чтения. */
+    body.role-viewer .card-actions .inline-input-group input.viewer-disable { opacity: 1 !important; }
+
+    /* === МОБИЛЬНАЯ АДАПТАЦИЯ === */
+    @media (max-width: 768px) {
+      .modal-overlay { padding: 10px; }
+      .modal-content { padding: 20px 15px; max-height: 95vh; border-radius: 12px; }
+      .modal-header h3 { font-size: 17px !important; }
+      .modal-actions { gap: 4px; }
+      .icon-btn { padding: 8px; }
+
+      .form-group { margin-bottom: 12px; }
+      
+      /* Перестройка галочек типов поставки */
+      #mSupplyTypesGroup, #cSupplyTypesGroup { flex-direction: column !important; gap: 8px !important; }
+      #mSupplyTypesGroup label, #cSupplyTypesGroup label { width: 100%; padding: 10px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; margin: 0 !important; }
+      
+      .file-wrapper { flex-direction: column; }
+      .custom-file-upload, .template-btn { width: 100%; height: auto; padding: 12px; }
+    }
+  </style>
+
+  <link rel="stylesheet" href="../css/dark-mode.css?v=2">
+  <style id="akson-modal-polish">
+    /* Поле загрузки реестра: содержимое строго по центру рамки, имя длинного файла не смещает кнопку. */
+    .file-wrapper .custom-file-upload {
+      display: flex !important; align-items: center !important; justify-content: center !important;
+      text-align: center !important; gap: 8px !important; line-height: 1 !important;
+      box-sizing: border-box !important; min-width: 0;
+    }
+    .file-wrapper .custom-file-upload svg { display: block; flex: 0 0 16px; width: 16px; height: 16px; }
+    #cFileName { display: inline-block; flex: 0 1 auto; min-width: 0; max-width: calc(100% - 24px); align-self: center; text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .btn-save { background: #2563eb !important; color: #fff !important; }
+    .btn-save:hover { background: #1d4ed8 !important; }
+
+    /* Типы поставки — одинаковые по размеру пиктограммы; название доступно во всплывающей подсказке. */
+    #mSupplyTypesGroup, #cSupplyTypesGroup {
+      display: flex !important; flex-direction: row !important; align-items: center; flex-wrap: wrap !important;
+      gap: 8px !important; margin-top: 5px;
+    }
+    #mSupplyTypesGroup .checkbox-label, #cSupplyTypesGroup .checkbox-label {
+      position: relative !important; display: inline-flex !important; align-items: center !important; justify-content: center !important;
+      flex: 0 0 44px !important; width: 44px !important; min-width: 44px !important; max-width: 44px !important;
+      height: 44px !important; min-height: 44px !important; box-sizing: border-box !important; padding: 0 !important;
+      margin: 0 !important; gap: 0 !important; border: 1px solid #cbd5e1 !important; border-radius: 10px !important;
+      background: #f8fafc !important; color: #334155 !important; font-size: 0 !important; line-height: 1 !important;
+      white-space: nowrap !important; cursor: pointer !important; transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+    #mSupplyTypesGroup .checkbox-label input[type="checkbox"], #cSupplyTypesGroup .checkbox-label input[type="checkbox"] {
+      position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important;
+      min-width: 0 !important; margin: 0 !important; padding: 0 !important; opacity: 0 !important; cursor: pointer !important; z-index: 2;
+    }
+    .supply-type-icon { display: inline-flex; align-items: center; justify-content: center; font-size: 21px; line-height: 1; pointer-events: none; }
+    #mSupplyTypesGroup .checkbox-label:has(input:checked), #cSupplyTypesGroup .checkbox-label:has(input:checked),
+    #mSupplyTypesGroup .checkbox-label.is-selected, #cSupplyTypesGroup .checkbox-label.is-selected {
+      background: #eff6ff !important; border-color: #3b82f6 !important; box-shadow: 0 0 0 2px rgba(59,130,246,.12) !important;
+    }
+    #mSupplyTypesGroup .checkbox-label:has(input:focus-visible), #cSupplyTypesGroup .checkbox-label:has(input:focus-visible) {
+      outline: 2px solid #60a5fa; outline-offset: 2px;
+    }
+    @media (max-width: 768px) {
+      #mSupplyTypesGroup, #cSupplyTypesGroup { flex-direction: row !important; }
+      #mSupplyTypesGroup .checkbox-label, #cSupplyTypesGroup .checkbox-label { flex-basis: 44px !important; width: 44px !important; height: 44px !important; padding: 0 !important; }
+    }
+    html[data-theme="dark"] #mSupplyTypesGroup .checkbox-label, html[data-theme="dark"] #cSupplyTypesGroup .checkbox-label {
+      background: #111923 !important; color: #e6edf5 !important; border-color: #465466 !important;
+    }
+    html[data-theme="dark"] #mSupplyTypesGroup .checkbox-label:has(input:checked), html[data-theme="dark"] #cSupplyTypesGroup .checkbox-label:has(input:checked),
+    html[data-theme="dark"] #mSupplyTypesGroup .checkbox-label.is-selected, html[data-theme="dark"] #cSupplyTypesGroup .checkbox-label.is-selected {
+      background: #172c45 !important; border-color: #60a5fa !important; box-shadow: 0 0 0 2px rgba(96,165,250,.16) !important;
+    }
+  </style>
+
+
+  <script>try{if(localStorage.getItem("akson-dockslot-theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}</script>
+</head>
+<body class="app-body">
+  <header class="app-header">
+    <div class="header-logo"><img src="../assets/logistic-logo.svg" alt="АКСОН Логистика" class="app-logo"></div>
+    <div class="header-nav">
+      <a href="admin_calendar.html" class="nav-icon" title="Календарь"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></a>
+      <a href="suppliers.html" class="nav-icon viewer-hide" title="Пользователи"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></a>
+      <a href="analytics.html" class="nav-icon viewer-hide" title="Аналитика"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><polyline points="3 3 3 21 21 21"></polyline><polyline points="3 17 9 11 13 15 21 7"></polyline></svg></a>
+      <a href="settings.html" class="nav-icon viewer-hide" title="Настройки"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l-.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></a>
+      <a href="#" id="logoutBtn" class="nav-icon" title="Выйти"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></a>
+    </div>
+  </header>
+  <div class="top-gradient-bar"></div>
+  
+  <main class="container" style="max-width: 1600px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <a href="admin_calendar.html" style="color: #3b82f6; text-decoration: none; font-weight: 500;">&larr; Назад</a>
+      <h2 style="margin: 0; font-size: 20px;">Слоты на: <span id="dateDisplay" style="color: var(--color-primary);">...</span></h2>
+    </div>
+    <div id="hoursContainer">
+      <div style="padding: 40px; text-align: center; color: var(--color-text-muted);">Загрузка расписания...</div>
+    </div>
+  </main>
+
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="mTitle">Подробности записи</h3>
+        <div class="modal-actions">
+          <button type="button" class="icon-btn viewer-hide" id="btnEditIcon" title="Изменить">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+          </button>
+          <button type="button" class="icon-btn save-btn viewer-hide" id="btnSaveIcon" title="Сохранить изменения" style="display:none;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+          </button>
+          <button type="button" class="icon-btn delete-btn viewer-hide" id="btnDeleteIcon" title="Удалить запись">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          </button>
+          <button id="closeEditModal" class="close-btn" title="Закрыть">&times;</button>
+        </div>
+      </div>
+      
+      <input type="hidden" id="mId">
+      
+      <div class="form-group" style="background: #f8fafc; padding: 10px; border-radius: 4px; border: 1px solid #e2e8f0;">
+        <label>Поставщик</label>
+        <div id="mCompany" style="font-weight: 600; color: #1e293b;"></div>
+      </div>
+      
+      <fieldset id="mFieldset" disabled style="border: none; padding: 0; margin: 0;">
+        <div class="form-group">
+          <label>Тип документа</label>
+          <select id="mOrderType">
+            <option value="order">Заказ</option>
+            <option value="upd">УПД</option>
+            <option value="etrn">ЭТрН</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Номер документа</label>
+          <input type="text" id="mDoc" maxlength="200">
+        </div>
+
+        <div class="form-group">
+          <label>Тип поставки</label>
+          <div id="mSupplyTypesGroup" style="display: flex; gap: 12px; flex-wrap: wrap;"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Время слота</label>
+          <select id="mHour"></select>
+        </div>
+
+        <div class="form-group" id="mTkWrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer; width: max-content;">
+          <div id="mTkDot" class="tk-dot-modal inactive"></div>
+          <label style="margin:0; cursor: pointer; user-select: none;">Привезет транспортная компания</label>
+        </div>
+
+        <div class="form-group" style="margin-top: 15px;">
+          <label>Комментарий</label>
+          <textarea id="mComment" rows="2" maxlength="320"></textarea>
+        </div>
+
+        <div class="form-group" style="margin-top: 12px;">
+          <label for="mRegistryFile">Заменить реестр (.csv, .xls, .xlsx)</label>
+          <label class="custom-file-upload" style="display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+            <span id="mRegistryFileName">Выбрать новый реестр</span>
+            <input type="file" id="mRegistryFile" accept=".csv,.xls,.xlsx" style="display:none;">
+          </label>
+          <small id="mRegistryEditHint" style="display:block; color:#64748b; font-size:12px; margin-top:5px;">Реестр можно заменить до конца дня приезда.</small>
+        </div>
+      </fieldset>
+
+      <div class="form-group" style="margin-top: 10px;">
+        <a id="mFileLink" href="#" target="_blank" class="template-btn" style="display: none; width: max-content;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Скачать текущий реестр
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="createModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Добавить запись</h3>
+        <button id="closeCreateModal" class="close-btn" title="Закрыть">&times;</button>
+      </div>
+      
+      <form id="createForm">
+        <input type="hidden" id="cHour">
+        
+        <div class="form-group">
+          <label>Поставщик (ИНН/Название)</label>
+          <input type="text" id="cSupplierSearch" list="suppliersList" required autocomplete="off">
+          <datalist id="suppliersList"></datalist>
+        </div>
+
+        <div class="form-group">
+          <label>Тип документа</label>
+          <select id="cOrderType" required>
+            <option value="order">Заказ</option>
+            <option value="upd">УПД</option>
+            <option value="etrn">ЭТрН</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Номер документа</label>
+          <input type="text" id="cDoc" required maxlength="200">
+        </div>
+
+        <div class="form-group">
+          <label>Тип поставки</label>
+          <div id="cSupplyTypesGroup" style="display: flex; gap: 12px; flex-wrap: wrap;"></div>
+        </div>
+
+        <div class="form-group" id="cTkWrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer; width: max-content;">
+          <div id="cTkDot" class="tk-dot-modal inactive"></div>
+          <label style="margin:0; cursor: pointer; user-select: none;">Привезет транспортная компания</label>
+        </div>
+
+        <div class="form-group" style="margin-top: 15px;">
+          <label>Комментарий</label>
+          <textarea id="cComment" rows="2" maxlength="320"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Реестр поставки (.csv)</label>
+          <div class="file-wrapper">
+            <label class="custom-file-upload">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <span id="cFileName">Загрузить реестр</span>
+              <input type="file" id="cRegistryFile" accept=".csv" style="display: none;">
+            </label>
+            <a id="cDownloadTemplateBtn" href="#" target="_blank" class="template-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Скачать шаблон
+            </a>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-save" id="btnCreate">Записать поставщика</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supabase-client.js?v=security-20261023"></script>
+  <script src="../js/admin_day.js?v=43-icon-only-supply-types"></script>
+  <script src="../js/theme-toggle.js?v=2"></script>
+</body>
+</html>
