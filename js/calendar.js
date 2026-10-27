@@ -121,7 +121,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       icon.setAttribute('aria-label', `Тип поставки: ${name}`);
       icon.setAttribute('role', 'img');
       container.appendChild(icon);
-      container.appendChild(document.createTextNode(name));
     });
   };
 
