@@ -26,11 +26,27 @@
     
     .slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
     .slot-card { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 15px; text-align: center; transition: all 0.2s ease; display: flex; flex-direction: column; justify-content: space-between; min-height: 110px; }
-    .slot-card:hover:not(.inactive) { border-color: #3b82f6; box-shadow: 0 4px 10px rgba(0,0,0,0.05); cursor: pointer; transform: translateY(-2px); }
+    .slot-card:hover:not(.inactive) { border-color: #3b82f6; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
     .slot-card.inactive { background-color: #f8fafc; opacity: 0.6; border-color: #e2e8f0; pointer-events: none; }
     .slot-time { font-size: 17px; font-weight: 700; color: var(--color-text-main); margin-bottom: 6px; }
     .slot-status { font-size: 13px; font-weight: 600; margin-bottom: 12px; line-height: 1.3; }
-    
+    .slot-status.status-info { color: #334155; margin-bottom: 8px; }
+    .slot-status.status-available { color: #059669; }
+    .slot-status.status-reserve { color: #b45309; }
+    .slot-status.status-warning { color: #b45309; }
+    .slot-status.status-muted { color: #64748b; }
+    .slot-status.status-unavailable { color: #ef4444; }
+    .slot-status.status-availability { font-size: 11px; font-weight: 500; color: #64748b; margin: 7px 0 0; }
+
+    .supplier-bookings { display: flex; flex-direction: column; gap: 8px; margin: 3px 0 10px; text-align: left; }
+    .supplier-booking-row { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 9px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
+    .supplier-booking-identity { min-width: 0; overflow-wrap: anywhere; }
+    .supplier-booking-title { color: #1e293b; font-weight: 700; font-size: 12px; line-height: 1.35; }
+    .supplier-booking-meta { color: #64748b; font-size: 11px; line-height: 1.35; margin-top: 3px; }
+    .supplier-booking-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .supplier-booking-actions .btn-book, .supplier-booking-actions .btn-cancel { flex: 1 1 0; width: auto; min-width: 0; padding: 7px 5px; font-size: 11px; line-height: 1.25; }
+    .btn-add-booking { margin-top: 2px; }
+
     .btn-book, .btn-cancel, .btn-disabled { width: 100%; padding: 8px; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; }
     .btn-book { background-color: #3b82f6; color: white; }
     .btn-book:hover { background-color: #2563eb; }
@@ -81,6 +97,23 @@
     .detail-value { font-weight: 600; color: var(--color-text-main); }
 
     .action-buttons { display: flex; gap: 10px; margin-top: 15px; }
+
+    html[data-theme="dark"] .supplier-booking-row { background: #202b37; border-color: #465466; }
+    html[data-theme="dark"] .supplier-booking-title { color: #e6edf5; }
+    html[data-theme="dark"] .supplier-booking-meta { color: #a5b2c2 !important; }
+    html[data-theme="dark"] .slot-card .slot-status.status-info { color: #e6edf5 !important; }
+    html[data-theme="dark"] .slot-card .slot-status.status-available { color: #34d399 !important; }
+    html[data-theme="dark"] .slot-card .slot-status.status-reserve,
+    html[data-theme="dark"] .slot-card .slot-status.status-warning { color: #fbbf24 !important; }
+    html[data-theme="dark"] .slot-card .slot-status.status-muted,
+    html[data-theme="dark"] .slot-card .slot-status.status-availability { color: #a5b2c2 !important; }
+    html[data-theme="dark"] .slot-card .slot-status.status-unavailable { color: #f87171 !important; }
+
+    @media (max-width: 767px) {
+      .supplier-booking-row { padding: 8px; gap: 7px; }
+      .supplier-booking-actions { gap: 5px; }
+      .supplier-booking-actions .btn-book, .supplier-booking-actions .btn-cancel { font-size: 10px; padding: 7px 3px; }
+    }
 
     /* === МОБИЛЬНАЯ АДАПТАЦИЯ МОДАЛЬНЫХ ОКОН === */
     @media (max-width: 768px) {
@@ -220,7 +253,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js"></script>
-  <script src="../js/day.js?v=26"></script>
+  <script src="../js/day.js?v=27-supplier-multi-bookings"></script>
   <script src="../js/theme-toggle.js?v=3"></script>
 </body>
 </html>
