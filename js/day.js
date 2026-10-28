@@ -211,84 +211,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const orderTypeLabels = { order: 'Заказ', upd: 'УПД', etrn: 'ЭТрН' };
 
-  // Номера "Запись 1/2/3" хранятся только в localStorage этого браузера.
-  // Новые поля/триггеры в Supabase для этого патча не нужны.
-  const supplierSlotMapStorageKey = `aksonSupplierSlotNumbersV1:${user.id}`;
-  function readSupplierSlotMap() {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(supplierSlotMapStorageKey) || '{}');
-      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-    } catch (_) { return {}; }
+  // Позиции «Бронь 1/2/3» динамические: сортируем действующие записи по времени создания.
+  // После удаления записи оставшиеся автоматически сдвигаются и заполняют позиции слева направо.
+  // Никакие номера не записываются в localStorage или Supabase.
+  const orderedBookingsForSlots = [...(bookings || [])].sort((a, b) =>
+    Number(a.slot_hour) - Number(b.slot_hour)
+    || String(a.created_at || '').localeCompare(String(b.created_at || ''))
+    || String(a.id || '').localeCompare(String(b.id || ''))
+  );
+  const nextNumberByHour = new Map();
+  for (const booking of orderedBookingsForSlots) {
+    const hourKey = String(booking.slot_hour);
+    const nextNumber = (nextNumberByHour.get(hourKey) || 0) + 1;
+    booking._displaySlotNumber = nextNumber;
+    nextNumberByHour.set(hourKey, nextNumber);
   }
-  let supplierSlotMap = readSupplierSlotMap();
-  function persistSupplierSlotMap() {
-    try { localStorage.setItem(supplierSlotMapStorageKey, JSON.stringify(supplierSlotMap)); }
-    catch (_) { /* private mode/storage restrictions: fall back to stable current-list order */ }
-  }
-  function slotMapEntryMatches(entry, booking) {
-    return entry && entry.slotDate === String(booking.slot_date || selectedDate)
-      && Number(entry.slotHour) === Number(booking.slot_hour)
-      && Number(entry.number) >= 1 && Number(entry.number) <= MAX_SUPPLIER_BOOKINGS_PER_HOUR;
-  }
-  function assignSupplierSlotNumbers(rows) {
-    const usedByHour = new Map();
-    const ordered = [...(rows || [])].sort((a, b) =>
-      Number(a.slot_hour) - Number(b.slot_hour)
-      || String(a.created_at || '').localeCompare(String(b.created_at || ''))
-      || String(a.id || '').localeCompare(String(b.id || ''))
-    );
-
-    // Сначала восстанавливаем номера, которые ранее закреплялись в этом браузере.
-    for (const booking of ordered) {
-      const hourKey = String(booking.slot_hour);
-      if (!usedByHour.has(hourKey)) usedByHour.set(hourKey, new Set());
-      const used = usedByHour.get(hourKey);
-      const entry = supplierSlotMap[String(booking.id)];
-      if (slotMapEntryMatches(entry, booking) && !used.has(Number(entry.number))) {
-        booking._displaySlotNumber = Number(entry.number);
-        used.add(Number(entry.number));
-      }
-    }
-
-    // Для записей, которых ещё нет в карте (например, старые записи до установки
-    // патча), выдаём первый свободный номер по стабильному порядку created_at/id.
-    for (const booking of ordered) {
-      if (Number(booking._displaySlotNumber) >= 1 && Number(booking._displaySlotNumber) <= MAX_SUPPLIER_BOOKINGS_PER_HOUR) continue;
-      const hourKey = String(booking.slot_hour);
-      if (!usedByHour.has(hourKey)) usedByHour.set(hourKey, new Set());
-      const used = usedByHour.get(hourKey);
-      let number = 1;
-      while (used.has(number) && number <= MAX_SUPPLIER_BOOKINGS_PER_HOUR) number++;
-      if (number > MAX_SUPPLIER_BOOKINGS_PER_HOUR) {
-        // Не теряем сами данные, если сотрудник создал сверхлимитную запись;
-        // фиксированный интерфейс поставщика отображает первые три позиции.
-        number = MAX_SUPPLIER_BOOKINGS_PER_HOUR + 1;
-        while (used.has(number)) number++;
-      }
-      booking._displaySlotNumber = number;
-      used.add(number);
-      supplierSlotMap[String(booking.id)] = {
-        slotDate: String(booking.slot_date || selectedDate),
-        slotHour: Number(booking.slot_hour),
-        number
-      };
-    }
-    persistSupplierSlotMap();
-  }
-  function rememberSupplierSlotNumber(bookingId, hour, number) {
-    if (!bookingId || !number) return;
-    supplierSlotMap[String(bookingId)] = {
-      slotDate: selectedDate,
-      slotHour: Number(hour),
-      number: Number(number)
-    };
-    persistSupplierSlotMap();
-  }
-
-  // Важно: распределяем номера только после инициализации supplierSlotMap.
-  // Вызов раньше этого места приводил к ReferenceError из-за временной мёртвой зоны
-  // let supplierSlotMap и оставлял на странице «Загрузка расписания…».
-  assignSupplierSlotNumbers(bookings || []);
 
   function getNewBookingBlockReason(isPast, mainLeft, reserveLeft) {
     if (isExcludedBookingDate) return 'Новые записи на эту дату закрыты';
@@ -380,16 +317,20 @@ document.addEventListener('DOMContentLoaded', async () => {
           bookingList.appendChild(recordButton);
         } else {
           const addButton = document.createElement('button');
+          const isNextPosition = slotNumber === myBookingCount + 1;
+          const canAddHere = isNextPosition && canCreate;
           addButton.type = 'button';
-          addButton.className = `supplier-booking-row is-add${canCreate ? '' : ' is-disabled'}`;
-          addButton.title = canCreate ? `Добавить бронь ${slotNumber}` : (blockReason || 'Нет свободных слотов');
+          addButton.className = `supplier-booking-row is-add${canAddHere ? '' : ' is-disabled'}`;
+          addButton.title = canAddHere
+            ? `Добавить бронь ${slotNumber}`
+            : (isNextPosition ? (blockReason || 'Нет свободных слотов') : 'Сначала заполните предыдущую позицию');
           addButton.setAttribute('aria-label', addButton.title);
-          addButton.disabled = !canCreate;
+          addButton.disabled = !canAddHere;
           addButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
-          if (canCreate) addButton.addEventListener('click', (event) => {
+          if (canAddHere) addButton.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            openCreateModal(hour, mainLeft, slotNumber);
+            openCreateModal(hour, mainLeft);
           });
           bookingList.appendChild(addButton);
         }
@@ -397,13 +338,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       card.appendChild(bookingList);
 
       const status = freeCount > 0 && canCreate
-        ? makeSlotStatus(`Свободных мест: ${freeCount}`, 'status-availability')
+        ? makeSlotStatus(`Свободных мест: ${mainLeft} осн. / ${reserveLeft} рез.`, 'status-availability')
         : makeSlotStatus((occupancyAvailable && freeCount <= 0) ? 'Нет свободных слотов' : (blockReason || 'Нет свободных слотов'), 'status-unavailable');
       card.appendChild(status);
     } else {
       if (canCreate && freeCount > 0) {
         card.appendChild(makeSlotButton('Записаться', 'btn-book', () => openCreateModal(hour, mainLeft)));
-        card.appendChild(makeSlotStatus(`Свободных мест: ${freeCount}`, 'status-availability'));
+        card.appendChild(makeSlotStatus(`Свободных мест: ${mainLeft} осн. / ${reserveLeft} рез.`, 'status-availability'));
       } else {
         const unavailableText = (occupancyAvailable && freeCount <= 0)
           ? 'Нет свободных слотов'
@@ -428,16 +369,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Переменные состояния для редактирования
   let currentMainLeft = 0;
   let currentEditBookingId = null;
-  let requestedSupplierSlotNumber = null;
   let existingFileUrl = null;
 
   const createModal = document.getElementById('bookingModal');
   const hourInput = document.getElementById('selectedHour');
 
-  function openCreateModal(hour, mainLeft, preferredSlotNumber = null) {
+  function openCreateModal(hour, mainLeft) {
     currentEditBookingId = null;
-    requestedSupplierSlotNumber = Number(preferredSlotNumber) >= 1 && Number(preferredSlotNumber) <= MAX_SUPPLIER_BOOKINGS_PER_HOUR
-      ? Number(preferredSlotNumber) : null;
     existingFileUrl = null;
     hourInput.value = hour;
     currentMainLeft = mainLeft;
@@ -563,11 +501,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       payload.slot_date = selectedDate;
       payload.slot_hour = parseInt(hourInput.value);
       payload.status = 'active';
-      const { data: createdBooking, error } = await sb.from('bookings').insert([payload]).select('id').single();
+      const { error } = await sb.from('bookings').insert([payload]).select('id').single();
       errorResult = error;
-      if (!error && createdBooking?.id && requestedSupplierSlotNumber) {
-        rememberSupplierSlotNumber(createdBooking.id, payload.slot_hour, requestedSupplierSlotNumber);
-      }
     }
 
     if (errorResult) {
