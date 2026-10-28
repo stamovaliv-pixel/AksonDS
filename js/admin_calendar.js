@@ -12,15 +12,51 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const isAdmin = profile.role === 'admin';
   const isOperator = profile.role === 'operator';
-  const canViewPastBookings = isAdmin || isOperator;
   const isViewer = profile.role === 'viewer';
+  const canViewPastBookings = isAdmin || isOperator || isViewer;
   
   if (isViewer) document.body.classList.add('role-viewer');
 
   const pastToggle = document.getElementById('showPastBtn');
+  const pastToggleIcon = document.getElementById('showPastIcon');
+  const exportRegistryButton = document.getElementById('exportRegistryBtn');
+  const calendarGrid = document.getElementById('calendarGrid');
+  const selectedExportDates = new Set();
+  let dateSelectionMode = false;
+
+  const syncPastToggleIcon = () => {
+    if (!pastToggleIcon || !pastToggle) return;
+    pastToggleIcon.classList.toggle('is-active', pastToggle.checked);
+    pastToggleIcon.setAttribute('aria-pressed', String(pastToggle.checked));
+  };
+  const syncExportButton = () => {
+    if (!exportRegistryButton) return;
+    exportRegistryButton.classList.toggle('is-active', dateSelectionMode);
+    exportRegistryButton.classList.toggle('is-pulsing', dateSelectionMode && selectedExportDates.size > 0);
+    exportRegistryButton.setAttribute('aria-pressed', String(dateSelectionMode));
+    exportRegistryButton.title = dateSelectionMode && selectedExportDates.size > 0
+      ? 'Нажмите, чтобы скачать общий реестр выбранных дней'
+      : 'Выгрузить общий реестр';
+  };
+  const syncSelectedDateCell = (date) => {
+    if (!calendarGrid) return;
+    const cell = [...calendarGrid.querySelectorAll('.day-cell')].find(item => item.dataset.date === date);
+    if (!cell) return;
+    const checked = selectedExportDates.has(date);
+    cell.classList.toggle('selected-for-export', checked);
+    const checkbox = cell.querySelector('.day-select-check');
+    if (checkbox) checkbox.checked = checked;
+    syncExportButton();
+  };
+  const setSelectedExportDate = (date, selected) => {
+    if (selected) selectedExportDates.add(date);
+    else selectedExportDates.delete(date);
+    syncSelectedDateCell(date);
+  };
   if (canViewPastBookings && pastToggle) {
     const pastToggleContainer = document.getElementById('adminPastToggleContainer');
     if (pastToggleContainer) pastToggleContainer.style.display = 'flex';
+    syncPastToggleIcon();
   }
 
   document.getElementById('logoutBtn').onclick = async (e) => {
@@ -132,6 +168,123 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     return true;
   }
+  const normalizeSupplyTypeName = (value) => String(value || '').trim().toLocaleLowerCase('ru-RU');
+  const isReturnSupplyType = (value) => {
+    const type = (settings.supply_types || []).find(item => String(item.id ?? '') === String(value ?? ''));
+    return String(value || '').toLowerCase() === 'return' || normalizeSupplyTypeName(type?.name || value).includes('возврат');
+  };
+  const extractVzuDocuments = (comment) => {
+    const source = String(comment || '');
+    const matcher = /(^|[^А-ЯЁа-яёA-Za-z0-9])(ВЗУ\s*[-–—:]?\s*(?:№\s*)?\d[\d -]*)/gi;
+    const result = [];
+    let match;
+    while ((match = matcher.exec(source)) !== null) {
+      const phrase = String(match[2] || '').replace(/[\s.,;:!?]+$/g, '').trim();
+      const numberMatch = phrase.match(/ВЗУ\s*[-–—:]?\s*(?:№\s*)?([\d][\d -]*)/i);
+      const documentNumber = numberMatch ? numberMatch[1].replace(/[\s-]+$/g, '').trim() : '';
+      if (documentNumber) result.push(`ВЗУ - ${documentNumber}`);
+      if (!match[0].length) matcher.lastIndex++;
+    }
+    return [...new Set(result)];
+  };
+  const csvEscape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const formatCsvDate = (isoDate) => {
+    const [year, month, day] = String(isoDate || '').split('-');
+    return year && month && day ? `${day}.${month}.${year}` : String(isoDate || '');
+  };
+
+  async function exportConsolidatedRegistry() {
+    if (!(isAdmin || isOperator)) return;
+    const selectedDates = [...selectedExportDates].sort();
+    if (!selectedDates.length) {
+      alert('Сначала отметьте хотя бы один день в календаре.');
+      return;
+    }
+
+    const filterSupplier = document.getElementById('filterSupplier')?.value.trim() || '';
+    const filterDoc = document.getElementById('filterDoc')?.value.trim() || '';
+    const filterSupply = document.getElementById('filterSupplyType')?.value || '';
+    const filterOrder = document.getElementById('filterOrderType')?.value || '';
+
+    let query = sb.from('bookings')
+      .select('id, profile_id, slot_date, slot_hour, order_number, order_type, supply_type, supply_types, comment, profiles!inner(company_name, inn)')
+      .eq('status', 'active')
+      .in('slot_date', selectedDates);
+    if (filterDoc) query = query.ilike('order_number', `%${filterDoc}%`);
+    if (filterOrder) query = query.eq('order_type', filterOrder);
+    if (filterSupplier) query = query.or(`company_name.ilike.%${filterSupplier}%,inn.ilike.%${filterSupplier}%`, { foreignTable: 'profiles' });
+    if (filterSupply) query = query.contains('supply_types', JSON.stringify([filterSupply]));
+
+    exportRegistryButton?.classList.add('is-exporting');
+    if (exportRegistryButton) exportRegistryButton.disabled = true;
+    try {
+      const { data, error } = await query;
+      if (error) throw error;
+      const bookings = (data || []).slice().sort((a, b) =>
+        String(a.slot_date).localeCompare(String(b.slot_date)) ||
+        Number(a.slot_hour) - Number(b.slot_hour) ||
+        String(Array.isArray(a.profiles) ? a.profiles[0]?.company_name : a.profiles?.company_name).localeCompare(
+          String(Array.isArray(b.profiles) ? b.profiles[0]?.company_name : b.profiles?.company_name), 'ru'
+        )
+      );
+      if (!bookings.length) {
+        alert('За выбранные дни по текущим фильтрам записи не найдены.');
+        return;
+      }
+
+      const returnFilterSelected = Boolean(filterSupply) && isReturnSupplyType(filterSupply);
+      const rows = [[
+        'Порядковый номер',
+        'Наименование поставщика',
+        'Дата слота',
+        'Время слота',
+        'Номер документа',
+        'Комментарий'
+      ]];
+      bookings.forEach((booking, index) => {
+        const profile = Array.isArray(booking.profiles) ? (booking.profiles[0] || {}) : (booking.profiles || {});
+        const companyName = profile.company_name || '';
+        const hour = Number(booking.slot_hour);
+        const time = Number.isFinite(hour) ? `${String(hour).padStart(2, '0')}:00–${String(hour + 1).padStart(2, '0')}:00` : '';
+        const bookingTypes = booking.supply_types?.length ? booking.supply_types : [booking.supply_type].filter(Boolean);
+        const rowIsReturn = returnFilterSelected || (!filterSupply && bookingTypes.some(isReturnSupplyType));
+        const documentNumber = rowIsReturn
+          ? extractVzuDocuments(booking.comment).join(', ')
+          : String(booking.order_number || '');
+        rows.push([
+          index + 1,
+          companyName,
+          formatCsvDate(booking.slot_date),
+          time,
+          documentNumber,
+          booking.comment || ''
+        ]);
+      });
+
+      // Semicolon delimiters and UTF-8 BOM make the Cyrillic CSV open cleanly in Excel with Russian locale.
+      const csvContent = '\uFEFF' + rows.map(row => row.map(csvEscape).join(';')).join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `obshchiy_reestr_${getBusinessTodayISODate()}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+      dateSelectionMode = false;
+      selectedExportDates.clear();
+      syncExportButton();
+      renderCalendar();
+    } catch (error) {
+      alert(`Не удалось выгрузить общий реестр: ${error?.message || 'ошибка запроса'}`);
+    } finally {
+      exportRegistryButton?.classList.remove('is-exporting');
+      if (exportRegistryButton) exportRegistryButton.disabled = false;
+    }
+  }
+
   let currentEditBooking = null;
 
   const mRegistryFile = document.getElementById('mRegistryFile');
@@ -192,6 +345,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     const grid = document.getElementById('calendarGrid');
     if (grid) {
+      grid.classList.toggle('is-selecting', dateSelectionMode);
       grid.innerHTML = '';
       for (let i = 0; i < totalDays; i++) {
         const d = new Date(startDate);
@@ -212,8 +366,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         const countBadge = bookingCount > 0
           ? `<span class="day-count-badge" aria-label="Записей: ${bookingCount}" title="Записей: ${bookingCount}">${bookingCount > 99 ? '99+' : bookingCount}</span>`
           : '';
+        cell.dataset.date = isoDate;
         cell.innerHTML = `<div class="date-text">${d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})}</div>${countBadge}`;
-        cell.onclick = () => window.location.href = `admin_day.html?date=${isoDate}`;
+        if (dateSelectionMode && (isAdmin || isOperator)) {
+          const dateCheckbox = document.createElement('input');
+          dateCheckbox.type = 'checkbox';
+          dateCheckbox.className = 'day-select-check';
+          dateCheckbox.checked = selectedExportDates.has(isoDate);
+          dateCheckbox.setAttribute('aria-label', `Выбрать ${isoDate} для общего реестра`);
+          dateCheckbox.title = 'Включить день в общий реестр';
+          dateCheckbox.addEventListener('click', event => event.stopPropagation());
+          dateCheckbox.addEventListener('change', event => {
+            event.stopPropagation();
+            setSelectedExportDate(isoDate, dateCheckbox.checked);
+          });
+          cell.appendChild(dateCheckbox);
+          if (selectedExportDates.has(isoDate)) cell.classList.add('selected-for-export');
+        }
+        cell.onclick = () => {
+          if (dateSelectionMode && (isAdmin || isOperator)) {
+            setSelectedExportDate(isoDate, !selectedExportDates.has(isoDate));
+          } else {
+            window.location.href = `admin_day.html?date=${isoDate}`;
+          }
+        };
         
         grid.appendChild(cell);
       }
@@ -401,7 +577,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('filterOrderType').value = '';
     renderCalendar();
   };
-  if (pastToggle) pastToggle.onchange = renderCalendar;
+  if (pastToggle) pastToggle.onchange = () => {
+    syncPastToggleIcon();
+    renderCalendar();
+  };
+  if (pastToggleIcon && pastToggle && canViewPastBookings) {
+    pastToggleIcon.onclick = () => {
+      pastToggle.checked = !pastToggle.checked;
+      pastToggle.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+  }
+  if (exportRegistryButton && (isAdmin || isOperator)) {
+    exportRegistryButton.onclick = async () => {
+      if (!dateSelectionMode) {
+        dateSelectionMode = true;
+        selectedExportDates.clear();
+        syncExportButton();
+        await renderCalendar();
+        return;
+      }
+      if (selectedExportDates.size > 0) {
+        await exportConsolidatedRegistry();
+        return;
+      }
+      // Click again before selecting any date to leave selection mode.
+      dateSelectionMode = false;
+      selectedExportDates.clear();
+      syncExportButton();
+      await renderCalendar();
+    };
+  }
 
+  syncExportButton();
   renderCalendar();
 });
