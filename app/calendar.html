@@ -131,8 +131,9 @@
     .modal-body p { margin: 12px 0; font-size: 15px; color: var(--color-text-main); }
     .modal-body strong { color: var(--color-text-muted); font-weight: 500; display: inline-block; width: 130px; }
     .supply-type-icon { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 25px; margin-right: 5px; padding: 0 4px; border-radius: 7px; background: #eef2ff; border: 1px solid #dbe3ff; font-size: 16px; line-height: 1; vertical-align: middle; cursor: help; }
-    .modal-supply-types { display: flex; align-items: center; min-height: 26px; }
-    #modalType { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; line-height: 1.9; }
+    .modal-supply-types { display: grid; grid-template-columns: 130px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 30px; }
+    .modal-supply-types > strong { width: auto; margin: 0; }
+    #modalType { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; line-height: 1.9; }
     .calendar-edit-btn { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #bfdbfe; border-radius: 10px; padding: 0; background: #eff6ff; color: #2563eb; cursor: pointer; transition: background .15s ease, transform .15s ease, box-shadow .15s ease; }
     .calendar-edit-btn:hover { background: #dbeafe; transform: translateY(-1px); box-shadow: 0 3px 8px rgba(37, 99, 235, .14); }
     .calendar-edit-btn:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
@@ -172,10 +173,12 @@
       
       .booking-list { grid-template-columns: 1fr; }
       .modal-body strong { display: block; width: auto; margin-bottom: 2px; }
+      .modal-supply-types { grid-template-columns: minmax(88px, 112px) minmax(0, 1fr); gap: 6px; }
+      .modal-supply-types > strong { display: block; margin: 0; }
     }
   </style>
 
-  <link rel="stylesheet" href="../css/dark-mode.css?v=5-role-calendar-colors">
+  <link rel="stylesheet" href="../css/dark-mode.css?v=6-supplier-modal-alignment">
   <link rel="stylesheet" href="../css/mobile-refinements.css?v=2" media="(max-width: 767px)">
   <script>try{if(localStorage.getItem("akson-dockslot-theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}</script>
 </head>
@@ -247,7 +250,7 @@
       <div class="modal-body">
         <p><strong>Дата:</strong> <span id="modalDate"></span></p>
         <p><strong>Время:</strong> <span id="modalTime"></span></p>
-        <p class="modal-supply-types"><span id="modalType" aria-label="Тип поставки"></span></p>
+        <p class="modal-supply-types"><strong>Тип поставки</strong><span id="modalType" aria-label="Тип поставки"></span></p>
         <p><strong>Документ:</strong> <span id="modalDoc"></span></p>
       </div>
     </div>
