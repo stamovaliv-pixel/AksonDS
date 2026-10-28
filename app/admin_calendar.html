@@ -113,7 +113,7 @@
     .calendar-heading-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 25px; }
     .calendar-heading-row .section-title { margin: 0; }
     #adminPastToggleContainer { margin: 0; display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
-    .calendar-tool-btn { width: 48px; height: 42px; border: 1px solid transparent; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; padding: 5px; background: transparent; color: #93b8e8; cursor: pointer; transition: background .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .2s ease; box-shadow: none; }
+    .calendar-tool-btn { width: 48px; height: 42px; border: 1px solid rgba(147,184,232,.58); border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; padding: 5px; background: transparent; color: #93b8e8; cursor: pointer; transition: background .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .2s ease; box-shadow: none; }
     .calendar-tool-btn:hover { color: #60a5fa; border-color: rgba(96,165,250,.28); transform: translateY(-1px); }
     .calendar-tool-btn:focus-visible { outline: 2px solid #93c5fd; outline-offset: 3px; }
     .calendar-tool-btn.is-active { color: #ef4444; background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.48); box-shadow: 0 0 0 2px rgba(239,68,68,.13), 0 0 16px rgba(239,68,68,.38); }
@@ -121,16 +121,16 @@
     .days30-mark svg { width: 22px; height: 22px; flex: 0 0 22px; }
     #exportRegistryBtn.is-pulsing { animation: exportRegistryPulse 1.8s ease-in-out infinite; }
     @keyframes exportRegistryPulse { 0%, 100% { color: #ef4444; background: rgba(239,68,68,.08); box-shadow: 0 0 0 2px rgba(239,68,68,.12), 0 0 8px rgba(239,68,68,.2); } 50% { color: #dc2626; background: rgba(239,68,68,.15); box-shadow: 0 0 0 3px rgba(239,68,68,.2), 0 0 20px rgba(239,68,68,.48); } }
-    .calendar-grid.is-selecting .day-cell { animation: calendarCellWiggle .82s ease-in-out infinite; }
-    .calendar-grid.is-selecting .day-cell:nth-child(2n) { animation-delay: -.22s; }
-    .calendar-grid.is-selecting .day-cell:nth-child(3n) { animation-delay: -.48s; }
+    .calendar-grid.is-selecting .day-cell.has-booking-count { animation: calendarCellWiggle .82s ease-in-out infinite; }
+    .calendar-grid.is-selecting .day-cell.has-booking-count:nth-child(2n) { animation-delay: -.22s; }
+    .calendar-grid.is-selecting .day-cell.has-booking-count:nth-child(3n) { animation-delay: -.48s; }
     @keyframes calendarCellWiggle { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(.25deg); } 75% { transform: rotate(-.25deg); } }
     .day-cell.selected-for-export { border-color: #22c55e !important; box-shadow: 0 0 0 2px rgba(34,197,94,.22) !important; background: #f0fdf4 !important; }
     .day-select-check { position: absolute; top: 6px; left: 6px; z-index: 8; width: 16px; height: 16px; margin: 0; accent-color: #16a34a; cursor: pointer; }
-    html[data-theme="dark"] .calendar-tool-btn { background: transparent; color: #93b8e8; border-color: transparent; }
+    html[data-theme="dark"] .calendar-tool-btn { background: transparent; color: #93b8e8; border-color: rgba(147,184,232,.58); }
     html[data-theme="dark"] .calendar-tool-btn.is-active { background: rgba(239,68,68,.14); color: #f87171; border-color: rgba(248,113,113,.55); box-shadow: 0 0 0 2px rgba(239,68,68,.15), 0 0 16px rgba(239,68,68,.32); }
     html[data-theme="dark"] .day-cell.selected-for-export { background: #123722 !important; border-color: #22c55e !important; }
-    @media (prefers-reduced-motion: reduce) { #exportRegistryBtn.is-pulsing, .calendar-grid.is-selecting .day-cell { animation: none !important; } }
+    @media (prefers-reduced-motion: reduce) { #exportRegistryBtn.is-pulsing, .calendar-grid.is-selecting .day-cell.has-booking-count { animation: none !important; } }
 
     body.role-viewer .viewer-hide { display: none !important; }
     body.role-viewer .viewer-disable { pointer-events: none !important; opacity: 0.6 !important; }
