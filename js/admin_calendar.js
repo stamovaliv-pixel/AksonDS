@@ -368,7 +368,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           : '';
         cell.dataset.date = isoDate;
         cell.innerHTML = `<div class="date-text">${d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})}</div>${countBadge}`;
-        if (dateSelectionMode && (isAdmin || isOperator)) {
+        if (dateSelectionMode && (isAdmin || isOperator) && bookingCount > 0) {
           const dateCheckbox = document.createElement('input');
           dateCheckbox.type = 'checkbox';
           dateCheckbox.className = 'day-select-check';
@@ -385,7 +385,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         cell.onclick = () => {
           if (dateSelectionMode && (isAdmin || isOperator)) {
-            setSelectedExportDate(isoDate, !selectedExportDates.has(isoDate));
+            if (bookingCount > 0) setSelectedExportDate(isoDate, !selectedExportDates.has(isoDate));
           } else {
             window.location.href = `admin_day.html?date=${isoDate}`;
           }
