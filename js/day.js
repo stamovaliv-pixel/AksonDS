@@ -168,7 +168,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     alert('Не удалось загрузить ваши записи. Обновите страницу или обратитесь в поддержку.');
     return;
   }
-  assignSupplierSlotNumbers(bookings || []);
   const occupancyAvailable = isHistoricalDate || (!occupancyError && Array.isArray(occupancy));
   if (!occupancyAvailable) {
     console.error('Не удалось проверить занятость слотов:', {
@@ -285,6 +284,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
     persistSupplierSlotMap();
   }
+
+  // Важно: распределяем номера только после инициализации supplierSlotMap.
+  // Вызов раньше этого места приводил к ReferenceError из-за временной мёртвой зоны
+  // let supplierSlotMap и оставлял на странице «Загрузка расписания…».
+  assignSupplierSlotNumbers(bookings || []);
 
   function getNewBookingBlockReason(isPast, mainLeft, reserveLeft) {
     if (isExcludedBookingDate) return 'Новые записи на эту дату закрыты';
