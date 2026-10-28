@@ -371,10 +371,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           const recordButton = document.createElement('button');
           recordButton.type = 'button';
           recordButton.className = 'supplier-booking-row is-booked';
-          recordButton.textContent = `Запись ${slotNumber}`;
+          recordButton.textContent = `Бронь ${slotNumber}`;
           const docType = orderTypeLabels[booking.order_type] || 'Документ';
           const docNumber = String(booking.order_number || '').trim();
-          recordButton.title = `Запись ${slotNumber}: ${docType}${docNumber ? ` №${docNumber}` : ''}. Открыть подробнее`;
+          recordButton.title = `Бронь ${slotNumber}: ${docType}${docNumber ? ` №${docNumber}` : ''}. Открыть подробнее`;
           recordButton.setAttribute('aria-label', recordButton.title);
           recordButton.addEventListener('click', () => openDetailsModal(booking, hour));
           bookingList.appendChild(recordButton);
@@ -382,7 +382,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           const addButton = document.createElement('button');
           addButton.type = 'button';
           addButton.className = `supplier-booking-row is-add${canCreate ? '' : ' is-disabled'}`;
-          addButton.title = canCreate ? `Добавить запись ${slotNumber}` : (blockReason || 'Нет свободных слотов');
+          addButton.title = canCreate ? `Добавить бронь ${slotNumber}` : (blockReason || 'Нет свободных слотов');
           addButton.setAttribute('aria-label', addButton.title);
           addButton.disabled = !canCreate;
           addButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
