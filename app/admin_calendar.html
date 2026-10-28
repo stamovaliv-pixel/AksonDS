@@ -33,7 +33,7 @@
     .day-cell { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-sm); text-align: center; cursor: pointer; transition: all 0.2s ease; position: relative; overflow: visible; height: 75px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; }
     .day-cell:hover { border-color: var(--color-primary); transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.05); z-index: 3; }
     
-    .day-cell::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background-color: #84909E; } /* Свободный день — светлый графит */
+    .day-cell::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; background-color: #84909E; } /* Свободный день — светлый графит; верхние углы повторяют скругление ячейки */
     .day-cell.booked::before { background-color: #3B82F6; } /* Занятый день — синий */ 
     
     .date-text { font-size: 16px; font-weight: 700; color: var(--color-text-main); }
@@ -119,6 +119,7 @@
       .btn-search { width: 100%; }
       .weekdays-header, .calendar-grid { gap: 4px; }
       .day-cell { height: 60px; border-radius: 6px; }
+      .day-cell::before { border-radius: 6px 6px 0 0; }
       .date-text { font-size: 13px; } 
       .booking-list { grid-template-columns: repeat(2, 1fr); gap: 10px; }
 
