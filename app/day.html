@@ -26,7 +26,7 @@
     .slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(205px, 1fr)); gap: 12px; align-items: stretch; }
     .slot-card {
       position: relative; isolation: isolate; overflow: hidden; box-sizing: border-box;
-      height: 141px; min-height: 141px; max-height: 141px; min-width: 0;
+      height: 127px; min-height: 127px; max-height: 127px; min-width: 0;
       background: #fff; border: 1px solid #d8e0e9; border-radius: 11px;
       padding: 11px 10px 10px 14px; text-align: center;
       display: flex; flex-direction: column; align-items: stretch; justify-content: space-between; gap: 6px;
@@ -65,7 +65,7 @@
 
     .supplier-bookings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; width: 100%; min-width: 0; margin: auto 0; }
     .supplier-booking-row {
-      appearance: none; -webkit-appearance: none; box-sizing: border-box; min-width: 0; min-height: 0; width: 100%; height: auto; aspect-ratio: 1.18 / 1;
+      appearance: none; -webkit-appearance: none; box-sizing: border-box; min-width: 0; min-height: 0; width: 100%; height: auto; aspect-ratio: 1.31 / 1;
       display: flex; align-items: center; justify-content: center; padding: 2px 1px; overflow: hidden;
       border: 1.5px solid #ef4444; border-radius: 9px; background: #fff7f7; color: #b91c1c;
       text-align: center; font-family: inherit; font-size: 10px; line-height: 1; font-weight: 750; letter-spacing: -0.12px;
@@ -107,7 +107,7 @@
 
     @media (max-width: 767px) {
       .slot-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-      .slot-card { height: 172px; min-height: 172px; max-height: 172px; padding: 10px 12px 8px 15px; }
+      .slot-card { height: 155px; min-height: 155px; max-height: 155px; padding: 10px 12px 8px 15px; }
       .supplier-bookings { gap: 8px; }
       .supplier-booking-row { font-size: 10px; border-radius: 9px; }
       .supplier-booking-row.is-add svg { width: 26px; height: 26px; }
@@ -225,7 +225,7 @@
     }
   </style>
 
-  <link rel="stylesheet" href="../css/dark-mode.css?v=supplier-fixed-slots-v1">
+  <link rel="stylesheet" href="../css/dark-mode.css?v=supplier-day-compact-v2">
   <link rel="stylesheet" href="../css/mobile-refinements.css?v=2" media="(max-width: 767px)">
   <style>
     /* Scoped supplier-only dark-mode contrast fixes, loaded after shared dark-mode CSS. */
@@ -355,7 +355,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js"></script>
-  <script src="../js/day.js?v=supplier-day-slot-compact-ui-v1"></script>
+  <script src="../js/day.js?v=supplier-day-compact-v2"></script>
   <script src="../js/theme-toggle.js?v=3"></script>
 </body>
 </html>
