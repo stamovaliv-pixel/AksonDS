@@ -20,60 +20,99 @@
     .nav-btn:hover:not(:disabled) { background: #f1f5f9; border-color: #cbd5e1; }
     .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-    /* Группировка слотов */
+    /* Группировка слотов поставщика: одинаковые фиксированные карточки */
     .time-group { margin-bottom: 25px; }
     .time-group-title { font-size: 16px; font-weight: 700; color: var(--color-text-main); margin-bottom: 12px; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; }
-    
-    .slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-    .slot-card { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 15px; text-align: center; transition: all 0.2s ease; display: flex; flex-direction: column; justify-content: space-between; min-height: 110px; }
-    .slot-card:hover:not(.inactive) { border-color: #3b82f6; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-    .slot-card.inactive { background-color: #f8fafc; opacity: 0.6; border-color: #e2e8f0; pointer-events: none; }
-    .slot-time { font-size: 17px; font-weight: 700; color: var(--color-text-main); margin-bottom: 6px; }
-    .slot-status { font-size: 13px; font-weight: 600; margin-bottom: 12px; line-height: 1.3; }
-    .slot-status.status-info { color: #334155; margin-bottom: 8px; }
-    .slot-status.status-available { color: #059669; }
-    .slot-status.status-reserve { color: #b45309; }
-    .slot-status.status-warning { color: #b45309; }
+    .slot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(205px, 1fr)); gap: 12px; align-items: stretch; }
+    .slot-card {
+      position: relative; isolation: isolate; overflow: hidden; box-sizing: border-box;
+      height: 166px; min-height: 166px; max-height: 166px; min-width: 0;
+      background: #fff; border: 1px solid #d8e0e9; border-radius: 11px;
+      padding: 11px 10px 10px 14px; text-align: center;
+      display: flex; flex-direction: column; align-items: stretch; justify-content: space-between; gap: 6px;
+      box-shadow: 0 1px 2px rgba(15,23,42,.035);
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background-color .2s ease;
+    }
+    .slot-card::before { content: ''; position: absolute; z-index: 0; left: 0; top: 0; bottom: 0; width: 4px; background: #2563eb; }
+    .slot-card > * { position: relative; z-index: 1; }
+    .slot-card.slot-free::before { background: #2563eb; }
+    .slot-card.slot-booked::before { background: #ef4444; }
+    .slot-card.slot-full::before, .slot-card.slot-closed::before { background: #9ca3af; }
+    .slot-card:hover:not(.inactive), .slot-card:focus-within:not(.inactive) {
+      transform: translateY(-3px); border-color: #93c5fd; box-shadow: 0 9px 20px rgba(15,23,42,.12);
+    }
+    .slot-card.inactive { background: #f3f4f6; border-color: #d1d5db; cursor: not-allowed; }
+    .slot-card.inactive::before { background: #9ca3af; }
+    .slot-time { flex: 0 0 auto; font-size: 16px; font-weight: 750; line-height: 1.2; color: #1e293b; margin: 0; white-space: nowrap; }
+    .slot-status { flex: 0 0 auto; font-size: 12px; line-height: 1.2; font-weight: 600; margin: 0; min-height: 15px; }
+    .slot-status.status-info { color: #334155; }
+    .slot-status.status-available { color: #047857; }
+    .slot-status.status-reserve, .slot-status.status-warning { color: #92400e; }
     .slot-status.status-muted { color: #64748b; }
-    .slot-status.status-unavailable { color: #ef4444; }
-    .slot-status.status-availability { font-size: 11px; font-weight: 500; color: #64748b; margin: 7px 0 0; }
+    .slot-status.status-unavailable { color: #6b7280; }
+    .slot-status.status-availability { font-size: 11px; font-weight: 600; color: #64748b; }
 
-    /* Компактный список записей поставщика в пределах карточки часа */
-    .slot-card.has-supplier-bookings { text-align: left; align-items: stretch; justify-content: flex-start; min-height: 0; padding: 10px 11px; }
-    .slot-card.has-supplier-bookings .slot-time { text-align: center; margin-bottom: 6px; }
-    .supplier-bookings { display: flex; flex-direction: column; gap: 4px; margin: 0; text-align: left; }
-    .supplier-booking-row { display: flex; align-items: center; min-width: 0; gap: 6px; padding: 5px 6px; border: 1px solid #f2b8bd; border-radius: 7px; background: #fffafa; cursor: pointer; transition: background-color .15s ease, border-color .15s ease; box-shadow: inset 0 0 0 1px rgba(239,68,68,.025); }
-    .supplier-booking-row:hover, .supplier-booking-row:focus-visible { background: #eef4fc; border-color: #93c5fd; outline: none; }
-    .supplier-booking-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-    .supplier-booking-header { display: flex; align-items: center; gap: 5px; min-width: 0; }
-    .supplier-booking-title { color: #1e293b; font-weight: 700; font-size: 12px; line-height: 1.25; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; flex: 1 1 auto; }
-    .supplier-booking-type-icons { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; min-height: 16px; }
-    .supplier-booking-type-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 17px; border: 1px solid #dbe3ec; border-radius: 4px; background: #fff; color: #334155; font-size: 12px; line-height: 1; cursor: help; box-sizing: border-box; }
-    .supplier-booking-type-icon:focus-visible { outline: 2px solid #3b82f6; outline-offset: 1px; }
-    .supplier-booking-edit, .supplier-booking-add { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 28px; height: 28px; min-width: 28px; min-height: 28px; padding: 0; border-radius: 6px; cursor: pointer; box-sizing: border-box; transition: background-color .15s ease, color .15s ease, border-color .15s ease; }
-    .supplier-booking-edit { border: 1px solid #dbeafe; background: #eff6ff; color: #2563eb; }
-    .supplier-booking-edit:hover { background: #dbeafe; color: #1d4ed8; }
-    .supplier-booking-edit svg, .supplier-booking-add svg { width: 15px; height: 15px; display: block; }
-    .supplier-booking-add-wrap { display: flex; justify-content: center; align-items: center; margin-top: 4px; }
-    .supplier-booking-add { width: 29px; height: 29px; min-width: 29px; min-height: 29px; border: 1px solid #bfdbfe; background: #eff6ff; color: #2563eb; border-radius: 50%; }
-    .supplier-booking-add:hover { border-color: #60a5fa; background: #dbeafe; color: #1d4ed8; }
-    .slot-card.has-supplier-bookings .slot-status { margin-bottom: 4px; }
+    .btn-book, .btn-cancel, .btn-disabled {
+      box-sizing: border-box; width: 100%; min-height: 34px; padding: 7px 8px; border: 1px solid transparent;
+      border-radius: 8px; font-size: 13px; line-height: 1.2; font-weight: 700; cursor: pointer;
+      transition: background-color .18s ease, border-color .18s ease, transform .18s ease;
+    }
+    .btn-book { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .btn-book:hover { background: #1d4ed8; border-color: #1d4ed8; transform: translateY(-1px); }
+    .btn-cancel { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
+    .btn-cancel:hover { background: #e2e8f0; }
+    .btn-disabled { background: #e5e7eb; color: #6b7280; border-color: #d1d5db; cursor: not-allowed; }
 
-    .btn-book, .btn-cancel, .btn-disabled { width: 100%; padding: 8px; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-    .btn-book { background-color: #3b82f6; color: white; }
-    .btn-book:hover { background-color: #2563eb; }
-    .btn-cancel { background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; }
-    .btn-cancel:hover { background-color: #e2e8f0; }
-    .btn-disabled { background-color: #e2e8f0; color: #94a3b8; cursor: not-allowed; }
+    .supplier-bookings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; width: 100%; min-width: 0; margin: auto 0; }
+    .supplier-booking-row {
+      appearance: none; -webkit-appearance: none; box-sizing: border-box; min-width: 0; width: 100%; aspect-ratio: 1 / 1;
+      display: flex; align-items: center; justify-content: center; padding: 3px; overflow: hidden;
+      border: 1.5px solid #ef4444; border-radius: 10px; background: #fff7f7; color: #b91c1c;
+      text-align: center; font-family: inherit; font-size: clamp(9px, .9vw, 12px); line-height: 1.12; font-weight: 750;
+      white-space: normal; overflow-wrap: anywhere; cursor: pointer;
+      transition: transform .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease;
+    }
+    .supplier-booking-row:hover, .supplier-booking-row:focus-visible { background: #fee2e2; border-color: #dc2626; transform: translateY(-2px); box-shadow: 0 3px 8px rgba(220,38,38,.13); outline: none; }
+    .supplier-booking-row:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+    .supplier-booking-row.is-add { border-color: #60a5fa; background: #eff6ff; color: #2563eb; }
+    .supplier-booking-row.is-add:hover, .supplier-booking-row.is-add:focus-visible { border-color: #2563eb; background: #dbeafe; color: #1d4ed8; }
+    .supplier-booking-row.is-add svg { width: 23px; height: 23px; display: block; flex: 0 0 auto; }
+    .supplier-booking-row.is-disabled { border-color: #d1d5db; background: #f3f4f6; color: #9ca3af; opacity: .62; cursor: not-allowed; transform: none; box-shadow: none; }
+    .supplier-booking-row.is-disabled svg { opacity: .65; }
 
-    /* Модальные окна */
-    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; }
-    .modal-content { background: #fff; padding: 30px; border-radius: var(--radius-md); width: 100%; max-width: 500px; position: relative; max-height: 90vh; overflow-y: auto; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-    .modal-header h3 { margin: 0; font-size: 20px; color: var(--color-text-main); }
-    .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #64748b; line-height: 1; transition: 0.2s; }
-    .close-btn:hover { color: #ef4444; }
-    
+    /* Только локальная палитра страницы поставщика в тёмном режиме. */
+    html[data-theme="dark"] .day-navigation { background: #18212b !important; border-color: #344150 !important; }
+    html[data-theme="dark"] .time-group-title { color: #e6edf5; border-bottom-color: #344150; }
+    html[data-theme="dark"] .slot-card { background: #18212b; border-color: #3b4858; box-shadow: 0 2px 6px rgba(0,0,0,.22); }
+    html[data-theme="dark"] .slot-card.slot-free { border-color: #3b526e; }
+    html[data-theme="dark"] .slot-card.slot-booked { border-color: #75404a; }
+    html[data-theme="dark"] .slot-card.slot-full, html[data-theme="dark"] .slot-card.slot-closed,
+    html[data-theme="dark"] .slot-card.inactive { background: #202833 !important; border-color: #46515e !important; }
+    html[data-theme="dark"] .slot-time { color: #f1f5f9; }
+    html[data-theme="dark"] .slot-status.status-info { color: #dbe7f5; }
+    html[data-theme="dark"] .slot-status.status-available { color: #6ee7b7; }
+    html[data-theme="dark"] .slot-status.status-reserve, html[data-theme="dark"] .slot-status.status-warning { color: #fcd34d; }
+    html[data-theme="dark"] .slot-status.status-muted, html[data-theme="dark"] .slot-status.status-availability { color: #b6c4d6; }
+    html[data-theme="dark"] .slot-status.status-unavailable { color: #cbd5e1; }
+    html[data-theme="dark"] .supplier-booking-row { background: #2d2025; border-color: #f87171; color: #fecaca; }
+    html[data-theme="dark"] .supplier-booking-row:hover, html[data-theme="dark"] .supplier-booking-row:focus-visible { background: #43262d; border-color: #fca5a5; }
+    html[data-theme="dark"] .supplier-booking-row.is-add { background: #172b46; border-color: #60a5fa; color: #bfdbfe; }
+    html[data-theme="dark"] .supplier-booking-row.is-add:hover, html[data-theme="dark"] .supplier-booking-row.is-add:focus-visible { background: #203d61; border-color: #93c5fd; color: #eff6ff; }
+    html[data-theme="dark"] .supplier-booking-row.is-disabled { background: #252e39; border-color: #596678; color: #93a0b2; opacity: .8; }
+    html[data-theme="dark"] .btn-book { background: #2563eb; color: #fff; border-color: #3b82f6; }
+    html[data-theme="dark"] .btn-book:hover { background: #3b82f6; }
+    html[data-theme="dark"] .btn-disabled { background: #343d49; color: #a5b2c2; border-color: #556171; }
+    html[data-theme="dark"] .nav-btn { color: #e6edf5; border-color: #465466; }
+    html[data-theme="dark"] .nav-btn:hover:not(:disabled) { background: #202b37; border-color: #64748b; }
+
+    @media (max-width: 767px) {
+      .slot-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+      .slot-card { height: 202px; min-height: 202px; max-height: 202px; padding: 12px 12px 10px 15px; }
+      .supplier-bookings { gap: 8px; }
+      .supplier-booking-row { font-size: 12px; border-radius: 11px; }
+      .supplier-booking-row.is-add svg { width: 26px; height: 26px; }
+    }
+
     /* Формы и сетка полей */
     .form-group { margin-bottom: 18px; }
     .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--color-text-main); }
@@ -110,38 +149,12 @@
 
     .action-buttons { display: flex; gap: 10px; margin-top: 15px; }
 
-    html[data-theme="dark"] .supplier-booking-row { background: #202b37; border-color: #9f5961; box-shadow: inset 0 0 0 1px rgba(248,113,113,.05); }
-    html[data-theme="dark"] .supplier-booking-row:hover,
-    html[data-theme="dark"] .supplier-booking-row:focus-visible { background: #293849; border-color: #60a5fa; }
-    html[data-theme="dark"] .supplier-booking-title { color: #e6edf5; }
-    html[data-theme="dark"] .supplier-booking-type-icon { background: #111923; border-color: #465466; color: #e6edf5; }
-    html[data-theme="dark"] .supplier-booking-edit { background: #172b46; border-color: #315781; color: #93c5fd; }
-    html[data-theme="dark"] .supplier-booking-edit:hover { background: #203d61; color: #dbeafe; }
-    html[data-theme="dark"] .supplier-booking-add { background: #172b46; border-color: #315781; color: #93c5fd; }
-    html[data-theme="dark"] .supplier-booking-add:hover { background: #203d61; border-color: #60a5fa; color: #dbeafe; }
-    html[data-theme="dark"] .slot-card .slot-status.status-info { color: #e6edf5 !important; }
-    html[data-theme="dark"] .slot-card .slot-status.status-available { color: #34d399 !important; }
-    html[data-theme="dark"] .slot-card .slot-status.status-reserve,
-    html[data-theme="dark"] .slot-card .slot-status.status-warning { color: #fbbf24 !important; }
-    html[data-theme="dark"] .slot-card .slot-status.status-muted,
-    html[data-theme="dark"] .slot-card .slot-status.status-availability { color: #a5b2c2 !important; }
-    html[data-theme="dark"] .slot-card .slot-status.status-unavailable { color: #f87171 !important; }
-
-    @media (max-width: 767px) {
-      .slot-card.has-supplier-bookings { padding: 8px 7px; }
-      .supplier-booking-row { padding: 4px 5px; gap: 4px; }
-      .supplier-booking-title { font-size: 11px; }
-      .supplier-booking-edit { width: 26px; height: 26px; min-width: 26px; min-height: 26px; }
-      .supplier-booking-add { width: 28px; height: 28px; min-width: 28px; min-height: 28px; }
-      .supplier-booking-type-icons { gap: 2px; }
-      .supplier-booking-type-icon { width: 19px; height: 16px; font-size: 11px; }
-    }
-
     /* === МОБИЛЬНАЯ АДАПТАЦИЯ МОДАЛЬНЫХ ОКОН === */
     @media (max-width: 768px) {
       .day-navigation { padding: 10px; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; justify-content: center; }
       .page-title { order: -1; width: 100%; margin-bottom: 10px !important; }
-      .slot-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+      /* Слоты остаются одной колонкой на телефоне, чтобы три квадратные кнопки помещались по ширине. */
+      .slot-grid { grid-template-columns: minmax(0, 1fr); }
       
       .modal-overlay { padding: 10px; }
       .modal-content { padding: 20px 15px; max-height: 95vh; border-radius: 12px; }
@@ -163,11 +176,29 @@
     }
   </style>
 
-  <link rel="stylesheet" href="../css/dark-mode.css?v=4">
+  <link rel="stylesheet" href="../css/dark-mode.css?v=supplier-fixed-slots-v1">
   <link rel="stylesheet" href="../css/mobile-refinements.css?v=2" media="(max-width: 767px)">
+  <style>
+    /* Scoped supplier-only dark-mode contrast fixes, loaded after shared dark-mode CSS. */
+    html[data-theme="dark"] body.supplier-day-page .slot-card.slot-free { background: #18212b !important; border-color: #3b526e !important; }
+    html[data-theme="dark"] body.supplier-day-page .slot-card.slot-booked { background: #241b22 !important; border-color: #75404a !important; }
+    html[data-theme="dark"] body.supplier-day-page .slot-card.slot-full,
+    html[data-theme="dark"] body.supplier-day-page .slot-card.slot-closed,
+    html[data-theme="dark"] body.supplier-day-page .slot-card.inactive { background: #202833 !important; border-color: #46515e !important; }
+    html[data-theme="dark"] body.supplier-day-page .slot-card .slot-time { color: #f1f5f9 !important; }
+    html[data-theme="dark"] body.supplier-day-page .slot-card .slot-status.status-availability { color: #b6c4d6 !important; }
+    html[data-theme="dark"] body.supplier-day-page .slot-card .slot-status.status-unavailable { color: #cbd5e1 !important; }
+    html[data-theme="dark"] body.supplier-day-page .supplier-booking-row.is-booked { background: #2d2025 !important; border-color: #f87171 !important; color: #fecaca !important; }
+    html[data-theme="dark"] body.supplier-day-page .supplier-booking-row.is-booked:hover,
+    html[data-theme="dark"] body.supplier-day-page .supplier-booking-row.is-booked:focus-visible { background: #43262d !important; border-color: #fca5a5 !important; }
+    html[data-theme="dark"] body.supplier-day-page .supplier-booking-row.is-add { background: #172b46 !important; border-color: #60a5fa !important; color: #bfdbfe !important; }
+    html[data-theme="dark"] body.supplier-day-page .supplier-booking-row.is-add:hover,
+    html[data-theme="dark"] body.supplier-day-page .supplier-booking-row.is-add:focus-visible { background: #203d61 !important; border-color: #93c5fd !important; color: #eff6ff !important; }
+    html[data-theme="dark"] body.supplier-day-page .supplier-booking-row.is-disabled { background: #252e39 !important; border-color: #596678 !important; color: #93a0b2 !important; opacity: .8 !important; }
+  </style>
   <script>try{if(localStorage.getItem("akson-dockslot-theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}</script>
 </head>
-<body class="app-body">
+<body class="app-body supplier-day-page">
   <header class="app-header">
     <div class="header-logo"><img src="../assets/logistic-logo.svg" alt="АКСОН Логистика" class="app-logo"></div>
     <div class="header-nav">
@@ -256,7 +287,7 @@
   <div class="modal-overlay" id="bookingDetailsModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Ваша запись</h3>
+        <h3 id="bookingDetailsTitle">Подробнее</h3>
         <button class="close-btn" id="closeDetailsModalBtn">&times;</button>
       </div>
       <div class="detail-row"><div class="detail-label">Дата и время</div><div class="detail-value"><span id="modalDate"></span>, <span id="modalTime"></span></div></div>
@@ -275,7 +306,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js"></script>
-  <script src="../js/day.js?v=28-supplier-compact-booking-rows"></script>
+  <script src="../js/day.js?v=supplier-fixed-slots-stable-numbers-v1"></script>
   <script src="../js/theme-toggle.js?v=3"></script>
 </body>
 </html>
