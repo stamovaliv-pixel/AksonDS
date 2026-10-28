@@ -147,6 +147,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // сервер корректно отклоняет get_slot_occupancy для дат раньше сегодняшней.
   // Историю собственных бронирований продолжаем загружать, чтобы поставщик мог
   // открыть существующую запись (правила редактирования реестра проверяются отдельно).
+  // Инициализируем лимит до загрузки записей: функция распределения номеров
+  // вызывается сразу после запроса и использует эту константу.
+  const MAX_SUPPLIER_BOOKINGS_PER_HOUR = 3;
+
   const isHistoricalDate = selectedDate < getBusinessTodayISODate();
   const [{ data: bookings, error: bookingsError }, { data: occupancy, error: occupancyError }] = await Promise.all([
     sb.from('bookings')
@@ -206,7 +210,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const endHour = settings?.slot_end_hour ?? 17;
   const deadlineHours = settings?.booking_deadline_hours ?? 1;
 
-  const MAX_SUPPLIER_BOOKINGS_PER_HOUR = 3;
   const orderTypeLabels = { order: 'Заказ', upd: 'УПД', etrn: 'ЭТрН' };
 
   // Номера "Запись 1/2/3" хранятся только в localStorage этого браузера.
