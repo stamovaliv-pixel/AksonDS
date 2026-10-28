@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isHistoricalDate = selectedDate < getBusinessTodayISODate();
   const [{ data: bookings, error: bookingsError }, { data: occupancy, error: occupancyError }] = await Promise.all([
     sb.from('bookings')
-      .select('id, slot_hour, profile_id, supply_type, supply_types, order_type, order_number, registry_file_url, comment, is_tk, slot_date, status')
+      .select('id, slot_hour, profile_id, supply_type, supply_types, order_type, order_number, registry_file_url, comment, is_tk, slot_date, status, created_at')
       .eq('profile_id', user.id).eq('slot_date', selectedDate).eq('status', 'active'),
     isHistoricalDate
       ? Promise.resolve({ data: [], error: null })
@@ -164,6 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     alert('Не удалось загрузить ваши записи. Обновите страницу или обратитесь в поддержку.');
     return;
   }
+  assignSupplierSlotNumbers(bookings || []);
   const occupancyAvailable = isHistoricalDate || (!occupancyError && Array.isArray(occupancy));
   if (!occupancyAvailable) {
     console.error('Не удалось проверить занятость слотов:', {
@@ -208,6 +209,80 @@ document.addEventListener('DOMContentLoaded', async () => {
   const MAX_SUPPLIER_BOOKINGS_PER_HOUR = 3;
   const orderTypeLabels = { order: 'Заказ', upd: 'УПД', etrn: 'ЭТрН' };
 
+  // Номера "Запись 1/2/3" хранятся только в localStorage этого браузера.
+  // Новые поля/триггеры в Supabase для этого патча не нужны.
+  const supplierSlotMapStorageKey = `aksonSupplierSlotNumbersV1:${user.id}`;
+  function readSupplierSlotMap() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(supplierSlotMapStorageKey) || '{}');
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch (_) { return {}; }
+  }
+  let supplierSlotMap = readSupplierSlotMap();
+  function persistSupplierSlotMap() {
+    try { localStorage.setItem(supplierSlotMapStorageKey, JSON.stringify(supplierSlotMap)); }
+    catch (_) { /* private mode/storage restrictions: fall back to stable current-list order */ }
+  }
+  function slotMapEntryMatches(entry, booking) {
+    return entry && entry.slotDate === String(booking.slot_date || selectedDate)
+      && Number(entry.slotHour) === Number(booking.slot_hour)
+      && Number(entry.number) >= 1 && Number(entry.number) <= MAX_SUPPLIER_BOOKINGS_PER_HOUR;
+  }
+  function assignSupplierSlotNumbers(rows) {
+    const usedByHour = new Map();
+    const ordered = [...(rows || [])].sort((a, b) =>
+      Number(a.slot_hour) - Number(b.slot_hour)
+      || String(a.created_at || '').localeCompare(String(b.created_at || ''))
+      || String(a.id || '').localeCompare(String(b.id || ''))
+    );
+
+    // Сначала восстанавливаем номера, которые ранее закреплялись в этом браузере.
+    for (const booking of ordered) {
+      const hourKey = String(booking.slot_hour);
+      if (!usedByHour.has(hourKey)) usedByHour.set(hourKey, new Set());
+      const used = usedByHour.get(hourKey);
+      const entry = supplierSlotMap[String(booking.id)];
+      if (slotMapEntryMatches(entry, booking) && !used.has(Number(entry.number))) {
+        booking._displaySlotNumber = Number(entry.number);
+        used.add(Number(entry.number));
+      }
+    }
+
+    // Для записей, которых ещё нет в карте (например, старые записи до установки
+    // патча), выдаём первый свободный номер по стабильному порядку created_at/id.
+    for (const booking of ordered) {
+      if (Number(booking._displaySlotNumber) >= 1 && Number(booking._displaySlotNumber) <= MAX_SUPPLIER_BOOKINGS_PER_HOUR) continue;
+      const hourKey = String(booking.slot_hour);
+      if (!usedByHour.has(hourKey)) usedByHour.set(hourKey, new Set());
+      const used = usedByHour.get(hourKey);
+      let number = 1;
+      while (used.has(number) && number <= MAX_SUPPLIER_BOOKINGS_PER_HOUR) number++;
+      if (number > MAX_SUPPLIER_BOOKINGS_PER_HOUR) {
+        // Не теряем сами данные, если сотрудник создал сверхлимитную запись;
+        // фиксированный интерфейс поставщика отображает первые три позиции.
+        number = MAX_SUPPLIER_BOOKINGS_PER_HOUR + 1;
+        while (used.has(number)) number++;
+      }
+      booking._displaySlotNumber = number;
+      used.add(number);
+      supplierSlotMap[String(booking.id)] = {
+        slotDate: String(booking.slot_date || selectedDate),
+        slotHour: Number(booking.slot_hour),
+        number
+      };
+    }
+    persistSupplierSlotMap();
+  }
+  function rememberSupplierSlotNumber(bookingId, hour, number) {
+    if (!bookingId || !number) return;
+    supplierSlotMap[String(bookingId)] = {
+      slotDate: selectedDate,
+      slotHour: Number(hour),
+      number: Number(number)
+    };
+    persistSupplierSlotMap();
+  }
+
   function getNewBookingBlockReason(isPast, mainLeft, reserveLeft) {
     if (isExcludedBookingDate) return 'Новые записи на эту дату закрыты';
     if (isPast) return 'Время для новых записей вышло';
@@ -238,26 +313,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   for (let hour = startHour; hour <= endHour; hour++) {
-    // This query is already scoped to the signed-in supplier and selected date.
-    // Keep each active booking as its own item; never collapse a period to one record.
+    // Номера берутся из локальной карты браузера; Supabase по-прежнему не меняется.
     const hourBookings = (bookings || [])
       .filter(b => Number(b.slot_hour) === Number(hour))
       .slice()
-      .sort((a, b) => String(a.order_number || '').localeCompare(String(b.order_number || ''), 'ru', { numeric: true, sensitivity: 'base' })
+      .sort((a, b) => Number(a._displaySlotNumber || 99) - Number(b._displaySlotNumber || 99)
+        || String(a.created_at || '').localeCompare(String(b.created_at || ''))
         || String(a.id || '').localeCompare(String(b.id || '')));
     const myBookingCount = hourBookings.length;
+    const bookingByNumber = new Map();
+    hourBookings.forEach((booking) => {
+      const number = Number(booking._displaySlotNumber);
+      if (number >= 1 && number <= MAX_SUPPLIER_BOOKINGS_PER_HOUR && !bookingByNumber.has(number)) {
+        bookingByNumber.set(number, booking);
+      }
+    });
+
     const slotOccupancy = (occupancy || []).find(row => Number(row.slot_hour) === Number(hour)) || {};
     const reserveUsed = Number(slotOccupancy.reserve_used || 0);
     const mainUsed = Number(slotOccupancy.main_used || 0);
-
-    const reserveLeft = (settings.reserve_slots_per_hour || 3) - reserveUsed;
-    const mainLeft = (settings.slots_per_hour || 5) - mainUsed;
+    const reserveLeft = Math.max(0, Number(settings.reserve_slots_per_hour || 3) - reserveUsed);
+    const mainLeft = Math.max(0, Number(settings.slots_per_hour || 5) - mainUsed);
+    const freeCount = reserveLeft + mainLeft;
 
     let isPast = isPastDay;
     if (isToday && currentHour >= hour - deadlineHours) isPast = true;
+    const blockReason = getNewBookingBlockReason(isPast, mainLeft, reserveLeft);
+    const canCreate = !blockReason && occupancyAvailable && !isExcludedBookingDate;
 
     const card = document.createElement('div');
     card.className = 'slot-card';
+    if (myBookingCount > 0) card.classList.add('slot-booked', 'has-supplier-bookings');
+    else if (canCreate && freeCount > 0) card.classList.add('slot-free');
+    else if (occupancyAvailable && freeCount <= 0) card.classList.add('slot-full', 'inactive');
+    else card.classList.add('slot-closed', 'inactive');
 
     const timeElement = document.createElement('div');
     timeElement.className = 'slot-time';
@@ -265,130 +354,56 @@ document.addEventListener('DOMContentLoaded', async () => {
     card.appendChild(timeElement);
 
     if (myBookingCount > 0) {
-      card.classList.add('has-supplier-bookings');
-
       const bookingList = document.createElement('div');
       bookingList.className = 'supplier-bookings';
       bookingList.setAttribute('aria-label', 'Ваши записи в этом временном периоде');
 
-      const typeNames = {};
-      if (Array.isArray(settings.supply_types)) {
-        settings.supply_types.forEach(st => { typeNames[String(st.id)] = String(st.name || st.id); });
-      }
-
-      hourBookings.forEach((booking, index) => {
-        const row = document.createElement('div');
-        row.className = 'supplier-booking-row';
-        row.setAttribute('role', 'group');
-        row.setAttribute('tabindex', '0');
-        const documentType = orderTypeLabels[booking.order_type] || 'Документ';
-        const fullOrderNumber = String(booking.order_number || '').trim();
-        const shortOrderNumber = fullOrderNumber.length > 6 ? `${fullOrderNumber.slice(0, 6)}…` : (fullOrderNumber || 'без номера');
-        const detailLabel = `${documentType} №${fullOrderNumber || 'без номера'}, ${selectedDate}, ${hour}:00–${hour + 1}:00`;
-        row.setAttribute('aria-label', `${detailLabel}. Нажмите, чтобы открыть подробности`);
-        row.title = 'Открыть подробности записи';
-
-        const main = document.createElement('div');
-        main.className = 'supplier-booking-main';
-
-        const header = document.createElement('div');
-        header.className = 'supplier-booking-header';
-
-        const title = document.createElement('div');
-        title.className = 'supplier-booking-title';
-        title.textContent = `Запись ${index + 1} · ${documentType} №${shortOrderNumber}`;
-        title.title = detailLabel;
-        header.appendChild(title);
-
-        if (canEditRegistryForDate(selectedDate)) {
-          const editButton = document.createElement('button');
-          editButton.type = 'button';
-          editButton.className = 'supplier-booking-edit';
-          editButton.title = `Изменить запись ${index + 1}`;
-          editButton.setAttribute('aria-label', `Изменить запись ${index + 1}: ${detailLabel}`);
-          editButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4Z"/></svg>';
-          editButton.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            openEditModal(booking, hour);
-          });
-          header.appendChild(editButton);
-        }
-        main.appendChild(header);
-
-        const supplyTypeIds = Array.isArray(booking.supply_types) && booking.supply_types.length
-          ? booking.supply_types.map(String)
-          : (booking.supply_type ? [String(booking.supply_type)] : []);
-        if (supplyTypeIds.length) {
-          const iconLine = document.createElement('div');
-          iconLine.className = 'supplier-booking-type-icons';
-          iconLine.setAttribute('aria-label', 'Типы поставки');
-          supplyTypeIds.forEach(typeId => {
-            const typeName = typeNames[typeId] || typeId;
-            const typeIcon = document.createElement('span');
-            typeIcon.className = 'supplier-booking-type-icon';
-            typeIcon.textContent = getSupplyIcon(typeId, typeName);
-            typeIcon.title = typeName;
-            typeIcon.setAttribute('aria-label', `Тип поставки: ${typeName}`);
-            typeIcon.setAttribute('role', 'img');
-            typeIcon.tabIndex = 0;
-            iconLine.appendChild(typeIcon);
-          });
-          main.appendChild(iconLine);
-        }
-
-        row.appendChild(main);
-        row.addEventListener('click', () => openDetailsModal(booking, hour));
-        row.addEventListener('keydown', (event) => {
-          if (event.target !== row) return;
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            openDetailsModal(booking, hour);
-          }
-        });
-        bookingList.appendChild(row);
-      });
-      card.appendChild(bookingList);
-
-      if (myBookingCount < MAX_SUPPLIER_BOOKINGS_PER_HOUR) {
-        const blockReason = getNewBookingBlockReason(isPast, mainLeft, reserveLeft);
-        if (!blockReason) {
-          const addWrap = document.createElement('div');
-          addWrap.className = 'supplier-booking-add-wrap';
+      for (let slotNumber = 1; slotNumber <= MAX_SUPPLIER_BOOKINGS_PER_HOUR; slotNumber++) {
+        const booking = bookingByNumber.get(slotNumber);
+        if (booking) {
+          const recordButton = document.createElement('button');
+          recordButton.type = 'button';
+          recordButton.className = 'supplier-booking-row is-booked';
+          recordButton.textContent = `Запись ${slotNumber}`;
+          const docType = orderTypeLabels[booking.order_type] || 'Документ';
+          const docNumber = String(booking.order_number || '').trim();
+          recordButton.title = `Запись ${slotNumber}: ${docType}${docNumber ? ` №${docNumber}` : ''}. Открыть подробнее`;
+          recordButton.setAttribute('aria-label', recordButton.title);
+          recordButton.addEventListener('click', () => openDetailsModal(booking, hour));
+          bookingList.appendChild(recordButton);
+        } else {
           const addButton = document.createElement('button');
           addButton.type = 'button';
-          addButton.className = 'supplier-booking-add';
-          addButton.title = 'Создать новую запись';
-          addButton.setAttribute('aria-label', 'Создать новую запись');
-          addButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
-          addButton.addEventListener('click', (event) => {
+          addButton.className = `supplier-booking-row is-add${canCreate ? '' : ' is-disabled'}`;
+          addButton.title = canCreate ? `Добавить запись ${slotNumber}` : (blockReason || 'Нет свободных слотов');
+          addButton.setAttribute('aria-label', addButton.title);
+          addButton.disabled = !canCreate;
+          addButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+          if (canCreate) addButton.addEventListener('click', (event) => {
             event.preventDefault();
             event.stopPropagation();
-            openCreateModal(hour, mainLeft);
+            openCreateModal(hour, mainLeft, slotNumber);
           });
-          addWrap.appendChild(addButton);
-          card.appendChild(addWrap);
+          bookingList.appendChild(addButton);
         }
       }
+      card.appendChild(bookingList);
+
+      const status = freeCount > 0 && canCreate
+        ? makeSlotStatus(`Свободных мест: ${freeCount}`, 'status-availability')
+        : makeSlotStatus((occupancyAvailable && freeCount <= 0) ? 'Нет свободных слотов' : (blockReason || 'Нет свободных слотов'), 'status-unavailable');
+      card.appendChild(status);
     } else {
-      if (isExcludedBookingDate) {
-        card.classList.add('inactive');
-        card.appendChild(makeSlotStatus('Дата закрыта администратором', 'status-warning'));
-        card.appendChild(makeSlotButton('Запись закрыта', 'btn-disabled', null, true));
-      } else if (isPast) {
-        card.classList.add('inactive');
-        card.appendChild(makeSlotStatus('Время вышло', 'status-muted'));
-        card.appendChild(makeSlotButton('Недоступно', 'btn-disabled', null, true));
-      } else if (!occupancyAvailable) {
-        card.classList.add('inactive');
-        card.appendChild(makeSlotStatus('Не удалось проверить занятость', 'status-warning'));
-        card.appendChild(makeSlotButton('Временно недоступно', 'btn-disabled', null, true));
-      } else if (mainLeft <= 0 && reserveLeft <= 0) {
-        card.classList.add('inactive');
-        card.appendChild(makeSlotStatus('Мест нет', 'status-unavailable'));
-        card.appendChild(makeSlotButton('Занято', 'btn-disabled', null, true));
-      } else {
+      if (canCreate && freeCount > 0) {
         card.appendChild(makeSlotButton('Записаться', 'btn-book', () => openCreateModal(hour, mainLeft)));
+        card.appendChild(makeSlotStatus(`Свободных мест: ${freeCount}`, 'status-availability'));
+      } else {
+        const unavailableText = (occupancyAvailable && freeCount <= 0)
+          ? 'Нет свободных слотов'
+          : (blockReason || 'Запись недоступна');
+        card.classList.add('slot-full', 'inactive');
+        card.appendChild(makeSlotButton('Записаться', 'btn-disabled', null, true));
+        card.appendChild(makeSlotStatus(unavailableText, 'status-unavailable'));
       }
     }
 
@@ -406,13 +421,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Переменные состояния для редактирования
   let currentMainLeft = 0;
   let currentEditBookingId = null;
+  let requestedSupplierSlotNumber = null;
   let existingFileUrl = null;
 
   const createModal = document.getElementById('bookingModal');
   const hourInput = document.getElementById('selectedHour');
 
-  function openCreateModal(hour, mainLeft) {
+  function openCreateModal(hour, mainLeft, preferredSlotNumber = null) {
     currentEditBookingId = null;
+    requestedSupplierSlotNumber = Number(preferredSlotNumber) >= 1 && Number(preferredSlotNumber) <= MAX_SUPPLIER_BOOKINGS_PER_HOUR
+      ? Number(preferredSlotNumber) : null;
     existingFileUrl = null;
     hourInput.value = hour;
     currentMainLeft = mainLeft;
@@ -435,6 +453,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function openEditModal(b, hour) {
     currentEditBookingId = b.id;
+    requestedSupplierSlotNumber = null;
     existingFileUrl = b.registry_file_url;
     hourInput.value = hour; 
 
@@ -537,8 +556,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       payload.slot_date = selectedDate;
       payload.slot_hour = parseInt(hourInput.value);
       payload.status = 'active';
-      const { error } = await sb.from('bookings').insert([payload]);
+      const { data: createdBooking, error } = await sb.from('bookings').insert([payload]).select('id').single();
       errorResult = error;
+      if (!error && createdBooking?.id && requestedSupplierSlotNumber) {
+        rememberSupplierSlotNumber(createdBooking.id, payload.slot_hour, requestedSupplierSlotNumber);
+      }
     }
 
     if (errorResult) {
@@ -554,6 +576,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('closeDetailsModalBtn').onclick = () => detailsModal.style.display = 'none';
 
   function openDetailsModal(b, hour) {
+    const slotNumber = Number(b._displaySlotNumber) || 1;
+    const detailsTitle = document.getElementById('bookingDetailsTitle');
+    if (detailsTitle) detailsTitle.textContent = `Запись ${slotNumber} — подробнее`;
     const supplyDict = {}; 
     if(settings.supply_types) settings.supply_types.forEach(st => supplyDict[st.id] = st.name);
     
