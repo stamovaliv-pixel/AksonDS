@@ -247,7 +247,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const hour = Number(booking.slot_hour);
         const time = Number.isFinite(hour) ? `${String(hour).padStart(2, '0')}:00–${String(hour + 1).padStart(2, '0')}:00` : '';
         const bookingTypes = booking.supply_types?.length ? booking.supply_types : [booking.supply_type].filter(Boolean);
-        const rowIsReturn = returnFilterSelected || (!filterSupply && bookingTypes.some(isReturnSupplyType));
+        const rowIsReturn = returnFilterSelected;
         const documentNumber = rowIsReturn
           ? extractVzuDocuments(booking.comment).join(', ')
           : String(booking.order_number || '');
