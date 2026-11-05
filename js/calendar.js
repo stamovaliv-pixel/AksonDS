@@ -24,188 +24,341 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (data) sessionStorage.setItem('app_settings', JSON.stringify(data));
     return data || {};
   }
+
   const settings = await getSettings();
-  if (!settings || Object.keys(settings).length === 0) return console.error('Не удалось загрузить настройки');
+  if (!settings || Object.keys(settings).length === 0) {
+    return console.error('Не удалось загрузить настройки');
+  }
 
   // Принудительно показываем цветные полоски даже для неактивных дней
   const styleBlock = document.createElement('style');
   styleBlock.innerHTML = `
     .day-cell.inactive::before { display: block !important; }
-    .day-cell.inactive { background-color: #f1f5f9 !important; opacity: 0.5 !important; cursor: not-allowed !important; pointer-events: none !important; }
-    .day-cell.inactive.booked { pointer-events: auto !important; cursor: pointer !important; }
+    .day-cell.inactive {
+      background-color: #f1f5f9 !important;
+      opacity: 0.5 !important;
+      cursor: not-allowed !important;
+      pointer-events: none !important;
+    }
+    .day-cell.inactive.booked {
+      pointer-events: auto !important;
+      cursor: pointer !important;
+    }
   `;
   document.head.appendChild(styleBlock);
 
   const calendarGrid = document.getElementById('calendarGrid');
   const upcomingList = document.getElementById('upcomingBookingsList');
-  
+
   const modal = document.getElementById('bookingDetailsModal');
   const closeBtn = document.getElementById('closeDetailsModalBtn');
   const trashBtn = document.getElementById('deleteBookingBtn');
   const editBtn = document.getElementById('editCalendarBookingBtn');
 
-  if (closeBtn) closeBtn.onclick = () => modal.style.display = 'none';
-  window.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+  if (closeBtn) {
+    closeBtn.onclick = () => modal.style.display = 'none';
+  }
+
+  window.onclick = (e) => {
+    if (e.target === modal) modal.style.display = 'none';
+  };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   const isoToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   const countTo = new Date(today);
   countTo.setDate(countTo.getDate() + 35);
+
   const countToIso = `${countTo.getFullYear()}-${String(countTo.getMonth() + 1).padStart(2, '0')}-${String(countTo.getDate()).padStart(2, '0')}`;
-  const [{ data: userBookings, error: bookingsError }, { data: bookingCounts, error: countsError }] = await Promise.all([
+
+  const [
+    { data: userBookings, error: bookingsError },
+    { data: bookingCounts, error: countsError }
+  ] = await Promise.all([
     sb.from('bookings')
       .select('id, slot_date, slot_hour, supply_type, supply_types, order_type, order_number, profile_id')
-      .eq('profile_id', user.id).eq('status', 'active').gte('slot_date', isoToday)
-      .order('slot_date', { ascending: true }).order('slot_hour', { ascending: true }),
-    sb.rpc('get_calendar_booking_counts', { p_from: isoToday, p_to: countToIso })
+      .eq('profile_id', user.id)
+      .eq('status', 'active')
+      .gte('slot_date', isoToday)
+      .order('slot_date', { ascending: true })
+      .order('slot_hour', { ascending: true }),
+
+    sb.rpc('get_calendar_booking_counts', {
+      p_from: isoToday,
+      p_to: countToIso
+    })
   ]);
+
   if (bookingsError || countsError) {
     console.error('Ошибка загрузки календаря:', bookingsError || countsError);
     alert('Не удалось загрузить доступность календаря. Обновите страницу.');
     return;
   }
+
   const bookedDates = new Set();
   userBookings.forEach(b => bookedDates.add(b.slot_date));
 
   const dateCapacities = {};
-  (bookingCounts || []).forEach(row => { dateCapacities[row.slot_date] = Number(row.booking_count || 0); });
+  (bookingCounts || []).forEach(row => {
+    dateCapacities[row.slot_date] = Number(row.booking_count || 0);
+  });
 
   const supplyTypes = {};
+
   if (settings.supply_types) {
     settings.supply_types.forEach(st => {
       supplyTypes[String(st.id)] = String(st.name || st.id);
-      if (st.name) supplyTypes[String(st.name)] = String(st.name);
+
+      if (st.name) {
+        supplyTypes[String(st.name)] = String(st.name);
+      }
     });
   }
-  const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
+
+  const orderTypes = {
+    'order': 'Заказ',
+    'upd': 'УПД',
+    'etrn': 'ЭТрН'
+  };
 
   const getSupplyIcon = (id, name) => {
     const key = String(id ?? '').toLowerCase();
     const n = String(name ?? '').toLowerCase();
+
     if (key === 'orders_im' || n.includes('им')) return '📦';
     if (key === 'return' || n.includes('возврат')) return '↩️';
     if (key === 'mix' || n.includes('микс')) return '🔀';
     if (n.includes('сток')) return '🏭';
     if (n.includes('кросс')) return '🚚';
+
     return '🏷️';
   };
 
   const getBookingSupplyValues = (booking) => {
-    let values = Array.isArray(booking.supply_types) ? booking.supply_types : [];
-    if (!values.length && Array.isArray(booking.supply_type)) values = booking.supply_type;
-    if (!values.length && booking.supply_type !== null && booking.supply_type !== undefined && String(booking.supply_type).trim()) values = [booking.supply_type];
+    let values = Array.isArray(booking.supply_types)
+      ? booking.supply_types
+      : [];
+
+    if (!values.length && Array.isArray(booking.supply_type)) {
+      values = booking.supply_type;
+    }
+
+    if (
+      !values.length &&
+      booking.supply_type !== null &&
+      booking.supply_type !== undefined &&
+      String(booking.supply_type).trim()
+    ) {
+      values = [booking.supply_type];
+    }
+
     return values.map(value => {
-      if (value && typeof value === 'object') return value.id ?? value.name ?? '';
+      if (value && typeof value === 'object') {
+        return value.id ?? value.name ?? '';
+      }
+
       return value;
     }).map(value => String(value ?? '').trim()).filter(Boolean);
   };
 
   const renderSupplyTypeDetails = (container, booking) => {
     if (!container) return;
+
     container.replaceChildren();
+
     const values = getBookingSupplyValues(booking);
+
     if (!values.length) {
       container.textContent = 'Не указан';
       return;
     }
+
     values.forEach((value, index) => {
       const name = supplyTypes[value] || value;
-      if (index > 0) container.appendChild(document.createTextNode('  '));
+
+      if (index > 0) {
+        container.appendChild(document.createTextNode('  '));
+      }
+
       const icon = document.createElement('span');
       icon.className = 'supply-type-icon';
       icon.textContent = getSupplyIcon(value, name);
       icon.title = `Тип поставки: ${name}`;
       icon.setAttribute('aria-label', `Тип поставки: ${name}`);
       icon.setAttribute('role', 'img');
+
       container.appendChild(icon);
     });
   };
 
   if (upcomingList) {
     upcomingList.innerHTML = '';
+
     if (userBookings.length === 0) {
-      upcomingList.innerHTML = '<div style="grid-column: 1 / -1; color: var(--color-text-muted); font-size: 14px;">У вас пока нет активных слотов.</div>';
+      upcomingList.innerHTML = `
+        <div style="grid-column: 1 / -1; color: var(--color-text-muted); font-size: 14px;">
+          У вас пока нет активных слотов.
+        </div>
+      `;
     } else {
       const nextSeven = userBookings.slice(0, 7);
+
       nextSeven.forEach(booking => {
         const bDate = new Date(booking.slot_date);
-        const dateStr = bDate.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+        const dateStr = bDate.toLocaleDateString('ru-RU', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        });
+
         const timeStr = `${booking.slot_hour}:00 - ${booking.slot_hour + 1}:00`;
-        
-        const orderName = orderTypes[booking.order_type] || booking.order_type || 'Документ';
+
+        const orderName =
+          orderTypes[booking.order_type] ||
+          booking.order_type ||
+          'Документ';
+
         const orderNum = booking.order_number;
-        
+
         const item = document.createElement('div');
         item.className = 'booking-item';
-        item.title = "Нажмите для просмотра деталей";
-        item.innerHTML = `<div class="booking-date">${dateStr}</div><div class="booking-time">${timeStr}</div>`;
-        
+        item.title = 'Нажмите для просмотра деталей';
+
+        item.innerHTML = `
+          <div class="booking-date">${dateStr}</div>
+          <div class="booking-time">${timeStr}</div>
+        `;
+
         item.addEventListener('click', () => {
           document.getElementById('modalDate').innerText = dateStr;
           document.getElementById('modalTime').innerText = timeStr;
-          renderSupplyTypeDetails(document.getElementById('modalType'), booking);
-          document.getElementById('modalDoc').innerText = `${orderName} №${orderNum}`;
-          
+
+          renderSupplyTypeDetails(
+            document.getElementById('modalType'),
+            booking
+          );
+
+          document.getElementById('modalDoc').innerText =
+            `${orderName} №${orderNum}`;
+
           trashBtn.onclick = async () => {
-            if (confirm(`Вы уверены, что хотите отменить запись на ${dateStr} (${timeStr})?`)) {
-              const { error: delError } = await sb.from('bookings').delete().eq('id', booking.id);
-              if (delError) alert('Ошибка при отмене: ' + delError.message);
-              else window.location.reload();
+            if (confirm(
+              `Вы уверены, что хотите отменить запись на ${dateStr} (${timeStr})?`
+            )) {
+              const { error: delError } = await sb
+                .from('bookings')
+                .delete()
+                .eq('id', booking.id);
+
+              if (delError) {
+                alert('Ошибка при отмене: ' + delError.message);
+              } else {
+                window.location.reload();
+              }
             }
           };
+
           if (editBtn) {
-            const todayLocal = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Almaty', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-            const editable = String(booking.slot_date || '') >= todayLocal;
+            const todayLocal = new Intl.DateTimeFormat('en-CA', {
+              timeZone: 'Asia/Almaty',
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit'
+            }).format(new Date());
+
+            const editable =
+              String(booking.slot_date || '') >= todayLocal;
+
             editBtn.style.display = editable ? 'inline-flex' : 'none';
+
             editBtn.onclick = () => {
-              window.location.href = `day.html?date=${encodeURIComponent(booking.slot_date)}&editBooking=${encodeURIComponent(booking.id)}`;
+              window.location.href =
+                `day.html?date=${encodeURIComponent(booking.slot_date)}&editBooking=${encodeURIComponent(booking.id)}`;
             };
           }
+
           modal.style.display = 'flex';
         });
+
         upcomingList.appendChild(item);
       });
     }
   }
 
   if (calendarGrid) {
-    calendarGrid.innerHTML = ''; 
-    const diffToMonday = today.getDay() === 0 ? 6 : today.getDay() - 1;
+    calendarGrid.innerHTML = '';
+
+    const diffToMonday =
+      today.getDay() === 0 ? 6 : today.getDay() - 1;
+
     const startDate = new Date(today);
     startDate.setDate(today.getDate() - diffToMonday);
 
     const endActiveDate = new Date(today);
     endActiveDate.setDate(today.getDate() + 29);
+
     const currentRealHour = new Date().getHours();
+
     const startHour = settings.slot_start_hour ?? 9;
     const endHour = settings.slot_end_hour ?? 17;
     const slotsPerHour = settings.slots_per_hour ?? 5;
-    const maxCapacityPerDay = (endHour - startHour + 1) * slotsPerHour;
+
+    // ИСПРАВЛЕНИЕ:
+    // Дневная вместимость учитывает основные и резервные места.
+    // Основные места доступны всем типам поставок.
+    // Резервные места остаются доступны только для «Заказы ИМ».
+    const reserveSlotsPerHour = Number(
+      settings.reserve_slots_per_hour ?? 0
+    );
+
+    const maxCapacityPerDay =
+      (Number(endHour) - Number(startHour) + 1) *
+      (Number(slotsPerHour) + reserveSlotsPerHour);
 
     for (let i = 0; i < 35; i++) {
       const d = new Date(startDate);
+
       d.setDate(startDate.getDate() + i);
       d.setHours(0, 0, 0, 0);
 
-      const isoDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const isoDate =
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
       const dayCell = document.createElement('div');
-      
+
       let isActive = d >= today && d <= endActiveDate;
-      const excludedDates = Array.isArray(settings.booking_excluded_dates) ? settings.booking_excluded_dates : [];
+
+      const excludedDates = Array.isArray(settings.booking_excluded_dates)
+        ? settings.booking_excluded_dates
+        : [];
+
       const isExcludedDate = excludedDates.includes(isoDate);
-      if (isExcludedDate) isActive = false;
-      
+
+      if (isExcludedDate) {
+        isActive = false;
+      }
+
       const jsDay = d.getDay();
       const dbDay = jsDay === 0 ? 7 : jsDay;
-      if (settings.available_days && !settings.available_days.includes(dbDay)) {
-        isActive = false; 
+
+      if (
+        settings.available_days &&
+        !settings.available_days.includes(dbDay)
+      ) {
+        isActive = false;
       }
-      
-      let isFull = (dateCapacities[isoDate] || 0) >= maxCapacityPerDay;
-      if (isoDate === isoToday && currentRealHour >= endHour) isFull = true;
+
+      // Дата заполнена только при исчерпании общей вместимости:
+      // основные + резервные места.
+      let isFull =
+        (dateCapacities[isoDate] || 0) >= maxCapacityPerDay;
+
+      if (isoDate === isoToday && currentRealHour >= endHour) {
+        isFull = true;
+      }
 
       let isClickable = false;
 
@@ -225,10 +378,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         dayCell.style.backgroundColor = '#f8fafc';
       }
 
-      dayCell.innerHTML = `<div class="date-text">${d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}</div>`;
+      dayCell.innerHTML = `
+        <div class="date-text">
+          ${d.toLocaleDateString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit'
+          })}
+        </div>
+      `;
+
       if (isExcludedDate) {
         dayCell.title = 'Запись на эту дату закрыта администратором';
-        dayCell.setAttribute('aria-label', `${d.toLocaleDateString('ru-RU')}: запись закрыта администратором`);
+
+        dayCell.setAttribute(
+          'aria-label',
+          `${d.toLocaleDateString('ru-RU')}: запись закрыта администратором`
+        );
+
         dayCell.classList.add('date-excluded');
       }
 
@@ -243,9 +409,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   const logoutBtn = document.getElementById('logoutBtn');
+
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async (e) => {
-      e.preventDefault(); await sb.auth.signOut(); window.location.href = '../index.html';
+      e.preventDefault();
+      await sb.auth.signOut();
+      window.location.href = '../index.html';
     });
   }
 });
