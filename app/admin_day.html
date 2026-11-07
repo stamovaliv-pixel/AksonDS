@@ -10,6 +10,13 @@
     .app-header { margin-top: 0; box-shadow: none; border-bottom: none; padding-bottom: 15px; }
     .top-gradient-bar { width: 100%; height: 2px; background: linear-gradient(90deg, var(--color-gradient-start), var(--color-gradient-end)); margin-bottom: 20px; }
     .header-nav { display: flex; gap: 20px; align-items: center; }
+    .booking-verify { width: 30px; height: 30px; min-width: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 4px; margin-left: 7px; border: 1px solid transparent; border-radius: 8px; background: rgba(239,68,68,.10); color: #dc5555; cursor: pointer; vertical-align: middle; transition: background .18s ease, box-shadow .18s ease, transform .18s ease; }
+    .booking-verify svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .booking-verify:hover { transform: translateY(-1px); }
+    .booking-verify.is-verified { background: rgba(34,197,94,.15); color: #16a34a; border-color: rgba(34,197,94,.24); box-shadow: 0 0 0 3px rgba(34,197,94,.13); }
+    .booking-verify.is-unverified { animation: bookingVerifyPulse 1.8s ease-in-out infinite; }
+    @keyframes bookingVerifyPulse { 50% { box-shadow: 0 0 0 4px rgba(239,68,68,.22); } }
+
     .nav-icon { display: inline-flex; align-items: center; justify-content: center; padding: 5px; transition: transform 0.2s ease; text-decoration: none; }
     
     .hour-block { position: relative; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 20px; padding: 15px; }
@@ -385,7 +392,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js?v=security-20261023"></script>
-  <script src="../js/admin_day.js?v=43-icon-only-supply-types"></script>
+  <script src="../js/admin_day.js?v=45-file-verification"></script>
   <script src="../js/theme-toggle.js?v=3"></script>
 </body>
 </html>
