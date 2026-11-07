@@ -61,7 +61,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Если всё хорошо, направляем по ролям
-    if (['operator', 'admin', 'viewer'].includes(data.role)) {
+    if (data.role === 'admin') {
+      window.location.href = 'app/admin_overview.html';
+    } else if (['operator', 'viewer'].includes(data.role)) {
       window.location.href = 'app/admin_calendar.html';
     } else {
       window.location.href = 'app/calendar.html';

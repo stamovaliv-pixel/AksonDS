@@ -50,11 +50,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isOperator = profile.role === 'operator';
   const isViewer = profile.role === 'viewer';
   if (isViewer) document.body.classList.add('role-viewer');
-  if (isAdmin && !document.querySelector('.header-nav a[href="admin_overview.html"]')) {
-    const nav = document.querySelector('.header-nav');
-    if (nav) { const link = document.createElement('a'); link.href = 'admin_overview.html'; link.className = 'nav-icon'; link.title = 'Обзор заявок'; link.textContent = '▦'; nav.prepend(link); }
-  }
-
   // ОПТИМИЗАЦИЯ: Кэширование настроек
   async function getSettings() {
     const cached = sessionStorage.getItem('app_settings');
@@ -331,6 +326,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const compName = b.profiles?.company_name || 'Неизвестно';
       const tkHtml = b.is_tk ? `<div class="tk-dot" title="Транспортная компания (ТК)"></div>` : `<div style="width:10px;"></div>`;
+      const isBookingVerified = verifiedBookingIds.has(String(b.id));
+      const verifyHtml = isAdmin ? `<button type="button" class="booking-verify ${isBookingVerified ? 'is-verified' : 'is-unverified'}" data-verify-booking="${escapeHtml(b.id)}" title="${isBookingVerified ? 'Запись верифицирована' : 'Запись не верифицирована'}" aria-label="${isBookingVerified ? 'Запись верифицирована' : 'Запись не верифицирована'}">${isBookingVerified ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 11v4"/><path d="M12 18h.01"/></svg>'}</button>` : '';
 
       const dataStr = encodeURIComponent(JSON.stringify({
         id: b.id, profileId: b.profile_id, slotDate: b.slot_date, hour: b.slot_hour, doc: b.order_number,
@@ -341,8 +338,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       return `
         <div class="slot-box ${cssClass}" data-info="${dataStr}">
-          <div class="sb-header"><div class="sb-title" title="${escapeHtml(compName)}">${escapeHtml(compName)}</div>${isAdmin ? `<button type="button" class="booking-verify ${verifiedBookingIds.has(String(b.id)) ? 'is-verified' : 'is-unverified'}" data-verify-booking="${escapeHtml(b.id)}" title="${verifiedBookingIds.has(String(b.id)) ? 'Запись верифицирована' : 'Запись не верифицирована'}" aria-label="Верификация">${verifiedBookingIds.has(String(b.id)) ? '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 11v4"/><path d="M12 18h.01"/></svg>'}</button>` : ''}<button class="btn-dots" type="button" aria-label="Детали записи">⋮</button></div>
-          <div class="sb-icons"><div style="display:flex; gap:4px; font-size:16px;">${iconsHtml}</div>${tkHtml}</div>
+          <div class="sb-header"><div class="sb-title" title="${escapeHtml(compName)}">${escapeHtml(compName)}</div><button class="btn-dots" type="button" aria-label="Детали записи">⋮</button></div>
+          <div class="sb-icons"><div style="display:flex; gap:4px; font-size:16px;">${iconsHtml}</div><div class="sb-status-icons">${verifyHtml}${tkHtml}</div></div>
           <div class="card-actions" data-id="${escapeHtml(b.id)}">
             <div class="inline-input-group"><label>Приб.</label><input type="time" class="inline-arr viewer-disable ${fieldCompletionClass(b.arrival_time ? b.arrival_time.substring(0,5) : '')}" value="${escapeHtml(b.arrival_time ? b.arrival_time.substring(0,5) : '')}"></div>
             <div class="inline-input-group"><label>Убыл</label><input type="time" class="inline-dep viewer-disable ${fieldCompletionClass(b.departure_time ? b.departure_time.substring(0,5) : '')}" value="${escapeHtml(b.departure_time ? b.departure_time.substring(0,5) : '')}"></div>
@@ -390,6 +387,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         button.classList.toggle('is-unverified', currentlyVerified);
         button.innerHTML = currentlyVerified ? '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 11v4"/><path d="M12 18h.01"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>';
         button.title = currentlyVerified ? 'Запись не верифицирована' : 'Запись верифицирована';
+        button.setAttribute('aria-label', button.title);
       } catch (error) { alert('Не удалось изменить верификацию: ' + error.message); }
       finally { button.disabled = false; }
     });
