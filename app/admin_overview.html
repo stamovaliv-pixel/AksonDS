@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="../css/dark-mode.css?v=4">
   <link rel="stylesheet" href="../css/mobile-refinements.css?v=2">
   <link rel="stylesheet" href="../css/admin-navigation.css?v=1">
-  <link rel="stylesheet" href="../css/admin-overview.css?v=3">
+  <link rel="stylesheet" href="../css/admin-overview.css?v=4-stickers-export">
   <script>
     try {
       if (localStorage.getItem('akson-dockslot-theme') === 'dark') {
@@ -76,30 +76,37 @@
       <div class="overview-filter-actions">
         <button type="button" class="overview-btn overview-btn-primary" id="applyBtn">Применить</button>
         <button type="button" class="overview-btn overview-btn-secondary" id="resetBtn">Сбросить</button>
-        <button type="button" class="overview-btn overview-btn-secondary" id="exportBtn" title="Выгрузить заявки в CSV">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"></path><path d="M15 3v5h4M12 11v7m-3-3 3 3 3-3"></path></svg>
-          Экспорт CSV
+        <button type="button" class="overview-export-btn" id="exportBtn" title="Выбрать разделы для выгрузки" aria-label="Выбрать разделы для выгрузки" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 3h10l4 4v14H5z"></path><path d="M15 3v5h4M12 11v7m-3-3 3 3 3-3"></path></svg>
         </button>
       </div>
     </section>
 
     <div class="overview-state" id="overviewState" role="status" aria-live="polite"></div>
 
-    <section class="overview-metrics" aria-label="Сводка заявок">
-      <button type="button" class="overview-metric total" data-kind="all" aria-controls="listPanel">
-        <span class="overview-metric-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"></path><path d="M3 6h.01M3 12h.01M3 18h.01"></path></svg></span>
-        <span class="overview-metric-copy"><span class="overview-metric-label">Всего заявок</span><strong class="overview-metric-value" id="totalCount">—</strong><span class="overview-metric-hint">Все активные заявки на дату</span></span>
-      </button>
-      <button type="button" class="overview-metric verified" data-kind="verified" aria-controls="listPanel">
-        <span class="overview-metric-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path><path d="M21 12a9 9 0 1 1-5.3-8.2"></path></svg></span>
-        <span class="overview-metric-copy"><span class="overview-metric-label">Верифицированы</span><strong class="overview-metric-value" id="verifiedCount">—</strong><span class="overview-metric-hint">Подтверждённые заявки</span></span>
-      </button>
-      <button type="button" class="overview-metric returns" data-kind="returns" aria-controls="listPanel">
-        <span class="overview-metric-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"></path><path d="M4 9h10a6 6 0 0 1 0 12h-2"></path></svg></span>
-        <span class="overview-metric-copy"><span class="overview-metric-label">Возвраты</span><strong class="overview-metric-value" id="returnCount">—</strong><span class="overview-metric-hint">Поставка с типом «Возврат»</span></span>
-      </button>
+    <section class="overview-metrics" aria-label="Сводка заявок" id="overviewMetrics">
+      <article class="overview-metric-shell" data-export-shell="all">
+        <button type="button" class="overview-metric total" data-kind="all" aria-controls="listPanel">
+          <span class="overview-metric-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"></path><path d="M3 6h.01M3 12h.01M3 18h.01"></path></svg></span>
+          <span class="overview-metric-copy"><span class="overview-metric-label">Всего заявок</span><strong class="overview-metric-value" id="totalCount">—</strong><span class="overview-metric-hint">Все активные заявки на дату</span></span>
+        </button>
+        <label class="overview-export-choice" hidden><input type="checkbox" data-export-kind="all"><span>Включить в реестр</span></label>
+      </article>
+      <article class="overview-metric-shell" data-export-shell="unverified">
+        <button type="button" class="overview-metric unverified" data-kind="unverified" aria-controls="listPanel">
+          <span class="overview-metric-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M12 11v4m0 3h.01"></path></svg></span>
+          <span class="overview-metric-copy"><span class="overview-metric-label">Не верифицированы</span><strong class="overview-metric-value" id="unverifiedCount">—</strong><span class="overview-metric-hint">Заявки без подтверждения</span></span>
+        </button>
+        <label class="overview-export-choice" hidden><input type="checkbox" data-export-kind="unverified"><span>Включить в реестр</span></label>
+      </article>
+      <article class="overview-metric-shell" data-export-shell="returns">
+        <button type="button" class="overview-metric returns" data-kind="returns" aria-controls="listPanel">
+          <span class="overview-metric-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"></path><path d="M4 9h10a6 6 0 0 1 0 12h-2"></path></svg></span>
+          <span class="overview-metric-copy"><span class="overview-metric-label">Возвраты</span><strong class="overview-metric-value" id="returnCount">—</strong><span class="overview-metric-hint">Поставка с типом «Возврат»</span></span>
+        </button>
+        <label class="overview-export-choice" hidden><input type="checkbox" data-export-kind="returns"><span>Включить в реестр</span></label>
+      </article>
     </section>
-
     <section class="overview-list-panel" id="listPanel" hidden>
       <div class="overview-panel-head">
         <div><h2 id="listTitle">Заявки</h2><p class="overview-panel-subtitle" id="listSubtitle"></p></div>
@@ -108,52 +115,67 @@
       <div class="overview-booking-list" id="bookingList"></div>
     </section>
 
-    <section class="overview-workspace" aria-label="Персональные инструменты и ближайшие записи">
-      <div class="overview-personal-stack">
-        <section class="overview-panel" aria-labelledby="notesHeading">
-          <div class="overview-panel-head">
-            <div class="overview-panel-title-wrap"><span class="overview-panel-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M8 13h8M8 17h6"></path></svg></span><h2 id="notesHeading">Личные заметки</h2></div>
-          </div>
-          <form class="overview-form" id="notesForm">
-            <input type="hidden" id="noteId">
-            <input type="text" id="noteTitle" maxlength="160" placeholder="Заголовок заметки (необязательно)" aria-label="Заголовок заметки">
-            <textarea id="noteContent" maxlength="8000" placeholder="Запишите важную информацию…" aria-label="Текст заметки" required></textarea>
-            <div class="overview-form-actions">
-              <button type="submit" class="overview-btn overview-btn-primary" id="saveNoteBtn">Сохранить заметку</button>
-              <button type="button" class="overview-btn overview-btn-secondary" id="cancelNoteEdit" hidden>Отмена</button>
-            </div>
-          </form>
-          <div class="overview-personal-list" id="notesList"><div class="overview-empty">Загрузка заметок…</div></div>
-        </section>
-
-        <section class="overview-panel" aria-labelledby="remindersHeading">
-          <div class="overview-panel-head">
-            <div class="overview-panel-title-wrap"><span class="overview-panel-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span><h2 id="remindersHeading">Напоминания</h2></div>
-          </div>
-          <form class="overview-form" id="reminderForm">
-            <input type="text" id="reminderText" maxlength="2000" placeholder="О чём напомнить?" required>
-            <input type="datetime-local" id="reminderAt" required aria-label="Дата и время напоминания">
-            <button type="submit" class="overview-btn overview-btn-primary" id="saveReminderBtn">Добавить напоминание</button>
-          </form>
-          <div class="overview-personal-list" id="remindersList"><div class="overview-empty">Загрузка напоминаний…</div></div>
-        </section>
-      </div>
-
-      <section class="overview-panel overview-upcoming-panel" aria-labelledby="upcomingHeading">
+    <section class="overview-workspace" aria-label="Личные заметки и напоминания">
+      <section class="overview-panel overview-personal-panel overview-notes-panel" aria-labelledby="notesHeading">
         <div class="overview-panel-head">
-          <div><h2 id="upcomingHeading">Ближайшие записи</h2><p class="overview-panel-subtitle">Активные заявки на следующие 7 дней</p></div>
+          <div class="overview-panel-title-wrap"><span class="overview-panel-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M8 13h8M8 17h5"></path></svg></span><h2 id="notesHeading">Личные заметки</h2></div>
+          <button type="button" class="overview-add-btn" id="addNoteBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span>Добавить заметку</span></button>
         </div>
-        <div class="overview-upcoming-list" id="upcomingList"><div class="overview-empty">Загрузка записей…</div></div>
+        <div class="overview-personal-list" id="notesList"><div class="overview-empty">Загрузка заметок…</div></div>
+      </section>
+
+      <section class="overview-panel overview-personal-panel overview-reminders-panel" aria-labelledby="remindersHeading">
+        <div class="overview-panel-head">
+          <div class="overview-panel-title-wrap"><span class="overview-panel-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span><h2 id="remindersHeading">Напоминания</h2></div>
+          <button type="button" class="overview-add-btn overview-add-btn-reminder" id="addReminderBtn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg><span>Добавить напоминание</span></button>
+        </div>
+        <div class="overview-personal-list" id="remindersList"><div class="overview-empty">Загрузка напоминаний…</div></div>
       </section>
     </section>
   </main>
+
+
+  <dialog class="overview-modal" id="noteModal" aria-labelledby="noteModalTitle">
+    <form class="overview-modal-card" id="notesForm">
+      <header class="overview-modal-head">
+        <div><span class="overview-modal-kicker">Личная заметка</span><h2 id="noteModalTitle">Новая заметка</h2></div>
+        <button type="button" class="overview-modal-close" data-close-dialog="noteModal" aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+      </header>
+      <div class="overview-modal-fields">
+        <input type="hidden" id="noteId">
+        <label>Заголовок <span>необязательно</span><input type="text" id="noteTitle" maxlength="160" placeholder="Например, важный звонок"></label>
+        <label>Текст заметки<textarea id="noteContent" maxlength="8000" rows="5" placeholder="Запишите важную информацию…" required></textarea></label>
+      </div>
+      <footer class="overview-modal-actions">
+        <button type="button" class="overview-btn overview-btn-secondary" data-close-dialog="noteModal">Отмена</button>
+        <button type="submit" class="overview-btn overview-btn-primary" id="saveNoteBtn">Сохранить заметку</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <dialog class="overview-modal" id="reminderModal" aria-labelledby="reminderModalTitle">
+    <form class="overview-modal-card" id="reminderForm">
+      <header class="overview-modal-head">
+        <div><span class="overview-modal-kicker">Личная задача</span><h2 id="reminderModalTitle">Новое напоминание</h2></div>
+        <button type="button" class="overview-modal-close" data-close-dialog="reminderModal" aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+      </header>
+      <div class="overview-modal-fields">
+        <label>О чём напомнить?<textarea id="reminderText" maxlength="2000" rows="4" placeholder="Текст напоминания…" required></textarea></label>
+        <label>Дата и время<input type="datetime-local" id="reminderAt" required aria-label="Дата и время напоминания"></label>
+      </div>
+      <footer class="overview-modal-actions">
+        <button type="button" class="overview-btn overview-btn-secondary" data-close-dialog="reminderModal">Отмена</button>
+        <button type="submit" class="overview-btn overview-btn-primary" id="saveReminderBtn">Сохранить напоминание</button>
+      </footer>
+    </form>
+  </dialog>
 
   <div class="overview-toast" id="overviewToast" role="status" aria-live="polite"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js?v=security-20261023"></script>
   <script src="../js/admin-navigation.js?v=1"></script>
-  <script src="../js/admin_overview.js?v=3-dashboard"></script>
+  <script src="../js/admin_overview.js?v=4-stickers-export"></script>
   <script src="../js/theme-toggle.js?v=3"></script>
 </body>
 </html>
