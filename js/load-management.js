@@ -21,8 +21,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentRunId = null;
   let currentRunStatus = null;
   let toastTimer = null;
-  let maxHourlyLimit = 8;
-  let maxDailyLimit = 64;
+  let maxMainHourly = 5; let maxReserveHourly = 3;
+  let maxMainDaily = 40; let maxReserveDaily = 24;
 
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -73,68 +73,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function renderPlan(days, hours) {
     daysList.replaceChildren();
-    if (!days?.length) {
-      emptyState.hidden = false;
-      daysList.hidden = true;
-      planFooter.hidden = true;
-      $('planMeta').textContent = 'Для выбранного периода нет рабочих дат или расчёт ещё не создан.';
-      return;
-    }
-    emptyState.hidden = true;
-    daysList.hidden = false;
-    planFooter.hidden = currentRunStatus !== 'draft';
-    $('planMeta').textContent = `${days.length} рабочих дат · прогноз по истории за 8 недель`;
-
-    const hoursByDate = new Map();
-    (hours || []).forEach((item) => {
-      if (!hoursByDate.has(item.slot_date)) hoursByDate.set(item.slot_date, []);
-      hoursByDate.get(item.slot_date).push(item);
+    if (!days?.length) { emptyState.hidden=false; daysList.hidden=true; planFooter.hidden=true; $('planMeta').textContent='Для выбранного периода нет рабочих дат или расчёт ещё не создан.'; return; }
+    emptyState.hidden=true; daysList.hidden=false; planFooter.hidden=currentRunStatus!=='draft';
+    $('planMeta').textContent=`${days.length} рабочих дат · отдельно основные места и резерв только для заказов ИМ`;
+    const byDate=new Map(); (hours||[]).forEach(h=>{if(!byDate.has(h.slot_date))byDate.set(h.slot_date,[]);byDate.get(h.slot_date).push(h);});
+    days.forEach(day=>{
+      const card=document.createElement('article'); card.className='load-day-card';
+      const head=document.createElement('div'); head.className='load-day-heading';
+      const copy=document.createElement('div'); copy.className='load-day-copy';
+      copy.innerHTML=`<strong>${escapeHtml(dateLabel(day.slot_date))}</strong><span>Прогноз: основные ${Number(day.main_forecast_count)} · ИМ ${Number(day.reserve_forecast_count)} | Записано: основные ${Number(day.main_current_count)} · ИМ ${Number(day.reserve_current_count)}</span>`;
+      const controls=document.createElement('div'); controls.className='load-day-dual-limits';
+      controls.innerHTML=`<label class="load-daily-limit"><span>Основные / день</span><input type="number" min="0" max="${maxMainDaily}" value="${Number(day.main_daily_limit)}" data-daily-date="${escapeHtml(day.slot_date)}" data-stream="main"><small>Рек. ${Number(day.recommended_main_daily_limit)}</small></label><label class="load-daily-limit"><span>Резерв ИМ / день</span><input type="number" min="0" max="${maxReserveDaily}" value="${Number(day.reserve_daily_limit)}" data-daily-date="${escapeHtml(day.slot_date)}" data-stream="reserve"><small>Рек. ${Number(day.recommended_reserve_daily_limit)}</small></label>`;
+      head.append(copy,controls); card.append(head);
+      const rows=document.createElement('div'); rows.className='load-hour-grid';
+      (byDate.get(day.slot_date)||[]).forEach(h=>{
+        const row=document.createElement('div'); row.className='load-hour-row load-hour-row-dual';
+        row.innerHTML=`<span class="load-hour-time">${String(h.slot_hour).padStart(2,'0')}:00</span><span class="load-hour-forecast">Основные: ${Number(h.main_current_count)} / прогноз ${Number(h.main_forecast_count)}<br>ИМ: ${Number(h.reserve_current_count)} / прогноз ${Number(h.reserve_forecast_count)}</span><label class="load-hour-limit"><span>Основные (макс. ${maxMainHourly})</span><input type="number" min="0" max="${maxMainHourly}" value="${Number(h.main_hourly_limit)}" data-hour-date="${escapeHtml(h.slot_date)}" data-hour="${Number(h.slot_hour)}" data-stream="main"></label><label class="load-hour-limit"><span>Резерв ИМ (макс. ${maxReserveHourly})</span><input type="number" min="0" max="${maxReserveHourly}" value="${Number(h.reserve_hourly_limit)}" data-hour-date="${escapeHtml(h.slot_date)}" data-hour="${Number(h.slot_hour)}" data-stream="reserve"></label>`;
+        rows.append(row);
+      }); card.append(rows); daysList.append(card);
     });
-
-    days.forEach((day) => {
-      const card = document.createElement('article');
-      card.className = 'load-day-card';
-      const isAdjusted = Number(day.daily_limit) !== Number(day.recommended_daily_limit);
-      const heading = document.createElement('div');
-      heading.className = 'load-day-heading';
-      const headingCopy = document.createElement('div');
-      headingCopy.innerHTML = `<strong>${escapeHtml(dateLabel(day.slot_date))}</strong><span>Прогноз: <b>${Number(day.forecast_count)}</b> · уже записано: <b>${Number(day.current_count)}</b> · история: ${Number(day.source_days_count)} активных из 8</span>`;
-      const daily = document.createElement('label');
-      daily.className = 'load-daily-limit';
-      daily.innerHTML = `<span>Лимит на день</span><input type="number" min="0" step="1" max="${maxDailyLimit}" value="${Number(day.daily_limit)}" data-daily-date="${escapeHtml(day.slot_date)}" aria-label="Дневной лимит ${escapeHtml(day.slot_date)}"><small>Рекомендация: ${Number(day.recommended_daily_limit)}${isAdjusted ? ' · изменено' : ''}</small>`;
-      heading.append(headingCopy, daily);
-      card.append(heading);
-
-      const hourRows = document.createElement('div');
-      hourRows.className = 'load-hour-grid';
-      (hoursByDate.get(day.slot_date) || []).forEach((hour) => {
-        const row = document.createElement('div');
-        row.className = 'load-hour-row';
-        const adjusted = Number(hour.hourly_limit) !== Number(hour.recommended_hourly_limit);
-        row.innerHTML = `<span class="load-hour-time">${String(hour.slot_hour).padStart(2, '0')}:00</span><span class="load-hour-forecast">Прогноз <b>${Number(hour.forecast_count)}</b><br>Записано ${Number(hour.current_count)}</span><label class="load-hour-limit"><span>Лимит</span><input type="number" min="0" max="${maxHourlyLimit}" step="1" value="${Number(hour.hourly_limit)}" data-hour-date="${escapeHtml(hour.slot_date)}" data-hour="${Number(hour.slot_hour)}" aria-label="Лимит на ${Number(hour.slot_hour)}:00"><small>Рек. ${Number(hour.recommended_hourly_limit)}${adjusted ? ' · изм.' : ''}</small></label>`;
-        hourRows.append(row);
-      });
-      card.append(hourRows);
-      daysList.append(card);
-    });
-
-    if (currentRunStatus === 'approved') {
-      $('approvalState').textContent = 'Этот план уже подтверждён';
-      $('approveBtn').textContent = 'План подтверждён';
-      $('approveBtn').disabled = true;
-    } else {
-      $('approvalState').textContent = 'Проверь предложенные значения';
-      $('approveBtn').textContent = 'Подтвердить план';
-      $('approveBtn').disabled = false;
-    }
+    $('approvalState').textContent=currentRunStatus==='approved'?'Этот план уже подтверждён':'Проверь предложенные значения';
+    $('approveBtn').textContent=currentRunStatus==='approved'?'План подтверждён':'Подтвердить план'; $('approveBtn').disabled=currentRunStatus!=='draft';
   }
 
   async function loadPlan(runId, status) {
     currentRunId = runId;
     currentRunStatus = status;
     const [{ data: days, error: dayError }, { data: hours, error: hourError }] = await Promise.all([
-      sb.from('load_forecast_days').select('slot_date,forecast_count,current_count,recommended_daily_limit,daily_limit,source_days_count').eq('run_id', runId).order('slot_date'),
-      sb.from('load_forecast_hours').select('slot_date,slot_hour,forecast_count,current_count,recommended_hourly_limit,hourly_limit,source_days_count').eq('run_id', runId).order('slot_date').order('slot_hour')
+      sb.from('load_forecast_days').select('slot_date,forecast_count,current_count,recommended_daily_limit,daily_limit,source_days_count,main_forecast_count,reserve_forecast_count,main_current_count,reserve_current_count,recommended_main_daily_limit,main_daily_limit,recommended_reserve_daily_limit,reserve_daily_limit').eq('run_id', runId).order('slot_date'),
+      sb.from('load_forecast_hours').select('slot_date,slot_hour,forecast_count,current_count,recommended_hourly_limit,hourly_limit,source_days_count,main_forecast_count,reserve_forecast_count,main_current_count,reserve_current_count,recommended_main_hourly_limit,main_hourly_limit,recommended_reserve_hourly_limit,reserve_hourly_limit').eq('run_id', runId).order('slot_date').order('slot_hour')
     ]);
     if (dayError) throw dayError;
     if (hourError) throw hourError;
@@ -189,8 +156,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (settingsError) throw settingsError;
     if (runsError) throw runsError;
     if (capacityError) throw capacityError;
-    maxHourlyLimit = Number(capacity?.slots_per_hour || 0) + Number(capacity?.reserve_slots_per_hour || 0);
-    maxDailyLimit = maxHourlyLimit * Math.max(1, Number(capacity?.slot_end_hour || 16) - Number(capacity?.slot_start_hour || 9) + 1);
+    maxMainHourly=Number(capacity?.slots_per_hour||0); maxReserveHourly=Number(capacity?.reserve_slots_per_hour||0);
+    const hoursCount=Math.max(1,Number(capacity?.slot_end_hour||16)-Number(capacity?.slot_start_hour||9)+1);
+    maxMainDaily=maxMainHourly*hoursCount; maxReserveDaily=maxReserveHourly*hoursCount;
     control = settings;
     renderMode();
     const draft = (runs || []).find((run) => run.status === 'draft');
@@ -220,15 +188,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function approvePlan() {
     if (!currentRunId || currentRunStatus !== 'draft') return;
-    const dailyOverrides = [...daysList.querySelectorAll('[data-daily-date]')].map((input) => ({
-      slot_date: input.dataset.dailyDate,
-      daily_limit: Number(input.value)
-    }));
-    const hourlyOverrides = [...daysList.querySelectorAll('[data-hour-date]')].map((input) => ({
-      slot_date: input.dataset.hourDate,
-      slot_hour: Number(input.dataset.hour),
-      hourly_limit: Number(input.value)
-    }));
+    const dailyMap = new Map();
+    [...daysList.querySelectorAll('[data-daily-date]')].forEach(input => {
+      const row=dailyMap.get(input.dataset.dailyDate)||{slot_date:input.dataset.dailyDate};
+      row[input.dataset.stream==='main'?'main_daily_limit':'reserve_daily_limit']=Number(input.value); dailyMap.set(input.dataset.dailyDate,row);
+    });
+    const hourMap = new Map();
+    [...daysList.querySelectorAll('[data-hour-date]')].forEach(input => {
+      const key=`${input.dataset.hourDate}|${input.dataset.hour}`;
+      const row=hourMap.get(key)||{slot_date:input.dataset.hourDate,slot_hour:Number(input.dataset.hour)};
+      row[input.dataset.stream==='main'?'main_hourly_limit':'reserve_hourly_limit']=Number(input.value); hourMap.set(key,row);
+    });
+    const dailyOverrides=[...dailyMap.values()]; const hourlyOverrides=[...hourMap.values()];
     const hasEmptyInput = [...daysList.querySelectorAll('input[type="number"]')].some((input) => input.value.trim() === '' || !Number.isFinite(Number(input.value)));
     if (hasEmptyInput || [...dailyOverrides, ...hourlyOverrides].some((item) => Object.values(item).some((value) => value === null || Number.isNaN(value)))) {
       showToast('Проверь числовые значения лимитов.', true);
