@@ -1,0 +1,67 @@
+/* Shared icon sizing and states for administrative navigation only. */
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px !important;
+}
+
+.header-nav a.nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
+  box-sizing: border-box;
+  padding: 0;
+  border-radius: 10px;
+  color: #3b82f6;
+  text-decoration: none;
+  background: transparent;
+  transition: color .18s ease, background-color .18s ease, transform .18s ease;
+}
+
+.header-nav a.nav-icon svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor !important;
+  stroke-width: 1.85 !important;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.header-nav a.nav-icon:hover {
+  color: var(--color-primary);
+  background: rgba(59, 130, 246, .08);
+  transform: translateY(-1px);
+}
+
+.header-nav a.nav-icon.active {
+  color: var(--color-primary);
+  background: rgba(227, 30, 36, .08);
+}
+
+.header-nav a.nav-icon#logoutBtn {
+  color: #ef4444;
+}
+
+.header-nav a.nav-icon#logoutBtn:hover {
+  color: #dc2626;
+  background: rgba(239, 68, 68, .08);
+}
+
+@media (max-width: 767px) {
+  .header-nav { gap: 7px !important; }
+  .header-nav a.nav-icon {
+    flex-basis: 36px;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+  .header-nav a.nav-icon svg { width: 21px; height: 21px; }
+}
