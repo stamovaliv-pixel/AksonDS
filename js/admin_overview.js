@@ -18,9 +18,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   let reminders = [];
   let exportSelectionMode = false;
   let selectedExportKinds = new Set();
-  let reminderCheckInterval = null;
-  const sessionNotifiedReminders = new Set();
-  const reminderNotificationStorageKey = () => `akson-dockslot-reminder-notified-${currentUser?.id || 'unknown'}`;
 
   const businessDate = (date = new Date()) => {
     const parts = new Intl.DateTimeFormat('en-CA', {
@@ -623,80 +620,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  const getNotifiedReminderMap = () => {
-    try {
-      const raw = localStorage.getItem(reminderNotificationStorageKey());
-      const parsed = raw ? JSON.parse(raw) : {};
-      return parsed && typeof parsed === 'object' ? parsed : {};
-    } catch (_) { return {}; }
-  };
-
-  const saveNotifiedReminderMap = (map) => {
-    try { localStorage.setItem(reminderNotificationStorageKey(), JSON.stringify(map)); }
-    catch (error) { console.warn('Не удалось сохранить отметки уведомлений:', error); }
-  };
-
-  const showDueReminderDialog = (dueItems) => {
-    const content = $('dueReminderContent');
-    content.replaceChildren();
-    dueItems.forEach((reminder) => {
-      const item = createElement('div', 'overview-due-item');
-      item.appendChild(createElement('strong', '', new Date(reminder.remind_at).toLocaleString('ru-RU')));
-      item.appendChild(createElement('div', '', reminder.reminder_text || 'Напоминание'));
-      content.appendChild(item);
-    });
-    openDialog('dueReminderModal');
-  };
-
-  const processDueReminders = () => {
-    if (!currentUser || !reminders.length) return;
-    const notified = getNotifiedReminderMap();
-    const now = Date.now();
-    const due = reminders.filter((reminder) => {
-      const timestamp = new Date(reminder.remind_at).getTime();
-      const notificationKey = `${reminder.id}:${reminder.remind_at}`;
-      return !reminder.is_completed && Number.isFinite(timestamp) && timestamp <= now
-        && notified[String(reminder.id)] !== reminder.remind_at
-        && !sessionNotifiedReminders.has(notificationKey);
-    });
-    if (!due.length) return;
-
-    due.forEach((reminder) => {
-      notified[String(reminder.id)] = reminder.remind_at;
-      sessionNotifiedReminders.add(`${reminder.id}:${reminder.remind_at}`);
-    });
-    saveNotifiedReminderMap(notified);
-    renderReminders();
-
-    let notificationFailed = false;
-    if ('Notification' in window && Notification.permission === 'granted') {
-      due.forEach((reminder) => {
-        try {
-          const notification = new Notification('Аксон ДокСлот — напоминание', {
-            body: reminder.reminder_text || 'Наступило время напоминания.',
-            tag: `akson-dockslot-reminder-${reminder.id}`,
-            icon: '../assets/apple-touch-icon.png'
-          });
-          notification.onclick = () => { window.focus(); notification.close(); };
-        } catch (error) {
-          console.warn('Не удалось показать системное уведомление:', error);
-          notificationFailed = true;
-        }
-      });
-    } else {
-      notificationFailed = true;
-    }
-
-    if (notificationFailed) showDueReminderDialog(due);
-    else toast(due.length === 1 ? 'Сработало напоминание.' : `Сработало напоминаний: ${due.length}.`);
-  };
-
-  const requestReminderNotificationPermission = async () => {
-    if (!('Notification' in window) || Notification.permission !== 'default') return;
-    try { await Notification.requestPermission(); }
-    catch (error) { console.warn('Запрос разрешения на уведомления не выполнен:', error); }
-  };
-
   const loadReminders = async () => {
     const { data, error } = await sb
       .from('admin_personal_reminders')
@@ -707,7 +630,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (error) throw error;
     reminders = data || [];
     renderReminders();
-    processDueReminders();
   };
 
   const renderReminders = () => {
@@ -752,7 +674,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       return toast('Укажите текст и корректные дату и время напоминания.', true);
     }
     $('saveReminderBtn').disabled = true;
-    await requestReminderNotificationPermission();
     try {
       const { error } = await sb.from('admin_personal_reminders').insert({
         admin_id: currentUser.id,
@@ -971,10 +892,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       })
     ];
     await Promise.all(independentLoads);
-    processDueReminders();
-    if (reminderCheckInterval) window.clearInterval(reminderCheckInterval);
-    reminderCheckInterval = window.setInterval(processDueReminders, 15000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) processDueReminders(); });
+    // Due reminder notifications are processed by the shared notification module.
   };
 
   initialize().catch((error) => {
