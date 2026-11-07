@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Управление нагрузкой — AKSon Logistics</title>
+  <link rel="stylesheet" href="../css/theme.css?v=4-1-date-exceptions">
+  <link rel="stylesheet" href="../css/main.css?v=4-1-date-exceptions">
+  <link rel="stylesheet" href="../css/admin-navigation.css?v=8-dynamic-load">
+  <link rel="stylesheet" href="../css/dark-mode.css?v=5-role-calendar-colors">
+  <link rel="stylesheet" href="../css/mobile-refinements.css?v=2" media="(max-width: 767px)">
+  <link rel="stylesheet" href="../css/notifications.css?v=8-dynamic-load">
+  <link rel="stylesheet" href="../css/load-management.css?v=super-admin-v2">
+  <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
+</head>
+<body class="app-body load-management-page">
+  <header class="app-header">
+    <div class="header-logo"><img src="../assets/logistic-logo.svg" alt="АКСОН Логистика" class="app-logo"></div>
+    <div class="header-nav"><button class="theme-toggle" type="button" data-theme-toggle title="Темный режим" aria-label="Темный режим"></button><a href="#" id="logoutBtn" class="nav-icon" title="Выход" aria-label="Выход"></a></div>
+  </header>
+  <div class="top-gradient-bar"></div>
+  <main class="load-page-shell">
+    <section class="load-page-heading">
+      <div>
+        <div class="load-eyebrow">АКСОН ДОКСЛОТ · ОПЕРАЦИОННОЕ УПРАВЛЕНИЕ</div>
+        <h1>Управление нагрузкой</h1>
+        <p>Прогноз потока машин и подтверждение лимитов на 14 дней</p>
+      </div>
+      <div class="load-status-chip" id="planStatus"><span class="load-status-dot"></span><span>Проверка состояния…</span></div>
+    </section>
+
+    <section class="load-mode-card" aria-label="Режим динамического управления">
+      <div class="load-mode-copy">
+        <span class="load-mode-label">ДИНАМИЧЕСКИЙ АЛГОРИТМ</span>
+        <strong id="modeTitle">Алгоритм выключен</strong>
+        <span id="modeDescription">Работает текущая схема основных и резервных слотов.</span>
+      </div>
+      <label class="load-switch" id="modeSwitchWrap" title="Включить или выключить динамические лимиты">
+        <input id="modeSwitch" type="checkbox" aria-label="Динамическое управление нагрузкой">
+        <span class="load-switch-track"><span></span></span>
+      </label>
+    </section>
+    <p class="load-mode-note" id="modeNote">По умолчанию алгоритм отключён. Подтверждённые прогнозы не влияют на запись, пока абсолютный администратор не включит этот переключатель.</p>
+
+    <section class="load-summary-grid" aria-label="Параметры расчёта">
+      <article class="load-summary-card"><span>Период прогноза</span><strong>14 дней</strong><small>Только рабочие даты РЦ</small></article>
+      <article class="load-summary-card"><span>Историческая база</span><strong>8 недель</strong><small>Сравнение одинаковых дней недели</small></article>
+      <article class="load-summary-card"><span>Метод расчёта</span><strong>75-й процентиль</strong><small>С запасом 15%, в пределах мощности</small></article>
+    </section>
+
+    <section class="load-plan-panel">
+      <div class="load-panel-heading">
+        <div><h2>Предложение системы</h2><p id="planMeta">Запусти расчёт, чтобы получить рекомендуемые лимиты.</p></div>
+        <button class="load-btn load-btn-secondary" id="recalculateBtn" type="button"><span aria-hidden="true">↻</span> Рассчитать</button>
+      </div>
+      <div class="load-empty" id="emptyState">
+        <div class="load-empty-icon" aria-hidden="true">⌁</div>
+        <strong>План ещё не рассчитан</strong>
+        <span>Система сравнит последние 8 недель и предложит лимиты на следующие 14 дней.</span>
+        <button class="load-btn load-btn-primary" id="emptyCalculateBtn" type="button">Рассчитать нагрузку</button>
+      </div>
+      <div class="load-days-list" id="daysList" hidden></div>
+      <div class="load-plan-footer" id="planFooter" hidden>
+        <div class="load-footer-copy"><strong id="approvalState">Проверь предложенные значения</strong><span>Можно изменить дневной и любой почасовой лимит перед подтверждением.</span></div>
+        <button class="load-btn load-btn-primary" id="approveBtn" type="button">Подтвердить план</button>
+      </div>
+    </section>
+
+    <section class="load-history-panel">
+      <div class="load-panel-heading"><div><h2>История управления</h2><p>Расчёты, подтверждения и переключение режима</p></div></div>
+      <div id="historyList" class="load-history-list"><span class="load-muted">Загрузка истории…</span></div>
+    </section>
+    <div class="load-toast" id="loadToast" role="status" aria-live="polite"></div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supabase-client.js?v=security-20261023"></script>
+  <script src="../js/auth-profile.js?v=2-dashboard-profile"></script>
+  <script src="../js/push-config.js?v=2-windows-push"></script>
+  <script src="../js/notifications.js?v=super-admin-v2"></script>
+  <script src="../js/admin-navigation.js?v=super-admin-v2"></script>
+  <script src="../js/load-management.js?v=super-admin-v2"></script>
+</body>
+</html>
