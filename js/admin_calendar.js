@@ -2,11 +2,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
   if (!sb) return;
   const escapeHtml = window.escapeHtml;
-  const { data: { user } } = await sb.auth.getUser();
+  const authProfile = await window.dockslotGetAuthProfile?.();
+  const user = authProfile?.user;
+  const profile = authProfile?.profile;
   if (!user) return window.location.href = '../index.html';
 
-  const { data: profile, error: profileError } = await sb.from('profiles').select('role, is_blocked').eq('id', user.id).single();
-  if (profileError || !profile || profile.is_blocked || !['admin', 'operator', 'viewer'].includes(profile.role)) {
+  if (authProfile?.error || !profile || profile.is_blocked || !['admin', 'operator', 'viewer'].includes(profile.role)) {
     return window.location.href = 'calendar.html';
   }
 

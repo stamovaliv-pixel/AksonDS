@@ -3,8 +3,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!sb) return;
   const escapeHtml = window.escapeHtml;
 
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return window.location.href = '../index.html';
+  const authProfile = await window.dockslotGetAuthProfile?.();
+  const user = authProfile?.user;
+  if (!user || authProfile?.error || !authProfile.profile || authProfile.profile.is_blocked) return window.location.href = '../index.html';
 
   const urlParams = new URLSearchParams(window.location.search);
   const selectedDate = urlParams.get('date');

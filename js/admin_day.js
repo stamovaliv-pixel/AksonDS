@@ -39,10 +39,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('dateDisplay').innerText = dateObj.toLocaleDateString('ru-RU');
 
   // Серверная RLS остаётся основной защитой; клиентская проверка не даёт показывать неверные элементы UI.
-  const { data: { user } } = await sb.auth.getUser();
+  const authProfile = await window.dockslotGetAuthProfile?.();
+  const user = authProfile?.user;
+  const profile = authProfile?.profile;
   if (!user) return window.location.href = '../index.html';
-  const { data: profile, error: profileError } = await sb.from('profiles').select('role, is_blocked').eq('id', user.id).single();
-  if (profileError || !profile || profile.is_blocked || !['admin', 'operator', 'viewer'].includes(profile.role)) {
+  if (authProfile?.error || !profile || profile.is_blocked || !['admin', 'operator', 'viewer'].includes(profile.role)) {
     await sb.auth.signOut();
     return window.location.href = '../index.html';
   }

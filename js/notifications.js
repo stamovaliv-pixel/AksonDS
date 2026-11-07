@@ -49,21 +49,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const init = async () => {
     try {
-      // Read the already stored session locally instead of making an extra Auth
-      // network round-trip. The role is still confirmed from profiles below;
-      // RLS remains the actual authorization boundary for notification data.
-      const { data: sessionData, error: sessionError } = await sb.auth.getSession();
-      if (sessionError || !sessionData?.session?.user) return;
-      user = sessionData.session.user;
-
-      const { data: profile, error: profileError } = await sb
-        .from('profiles')
-        .select('role, is_blocked')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (profileError || !profile || profile.is_blocked) return;
-
-      userRole = String(profile.role || '').toLowerCase();
+      // Share the same server-validated identity and DB profile used by navigation/page guards.
+      const authProfile = await window.dockslotGetAuthProfile?.();
+      if (!authProfile?.user || authProfile.error || !authProfile.profile || authProfile.profile.is_blocked) return;
+      user = authProfile.user;
+      userRole = String(authProfile.profile.role || '').toLowerCase();
       // Suppliers and view-only users have no notification preferences in this specification.
       if (!['admin', 'operator'].includes(userRole)) return;
 

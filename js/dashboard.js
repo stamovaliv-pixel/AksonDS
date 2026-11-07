@@ -2,8 +2,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
   if (!sb) return;
 
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) {
+  const authProfile = await window.dockslotGetAuthProfile?.();
+  const user = authProfile?.user;
+  if (!user || authProfile?.error || !authProfile.profile || authProfile.profile.is_blocked) {
     window.location.href = '../index.html';
     return;
   }

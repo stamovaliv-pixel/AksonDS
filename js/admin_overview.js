@@ -76,17 +76,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const getProfile = async () => {
-    const { data: authData, error: authError } = await sb.auth.getUser();
-    if (authError || !authData?.user) {
+    const authProfile = await window.dockslotGetAuthProfile?.();
+    if (!authProfile?.user) {
       window.location.href = '../index.html';
       return null;
     }
-    const { data: profile, error } = await sb
-      .from('profiles')
-      .select('role, is_blocked')
-      .eq('id', authData.user.id)
-      .single();
-    if (error || !profile || profile.is_blocked) {
+    const profile = authProfile.profile;
+    if (authProfile.error || !profile || profile.is_blocked) {
       await sb.auth.signOut();
       window.location.href = '../index.html';
       return null;
@@ -95,7 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       window.location.href = ['operator', 'viewer'].includes(profile.role) ? 'admin_calendar.html' : 'calendar.html';
       return null;
     }
-    currentUser = authData.user;
+    currentUser = authProfile.user;
     return profile;
   };
 

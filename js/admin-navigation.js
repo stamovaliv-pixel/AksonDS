@@ -238,26 +238,18 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!sb) return;
   (async () => {
     try {
-      // getSession reads the already stored browser session; unlike getUser it avoids
-      // an extra Auth network round-trip used only to decide which navigation links to show.
-      const { data: sessionData, error: sessionError } = await sb.auth.getSession();
-      if (sessionError) throw sessionError;
-      const user = sessionData?.session?.user;
-      if (!user) return;
+      const authProfile = await window.dockslotGetAuthProfile?.();
+      if (!authProfile?.user) return;
 
-      const roleCacheKey = `akson-dockslot-nav-role:${user.id}`;
+      const roleCacheKey = `akson-dockslot-nav-role:${authProfile.user.id}`;
       let cachedRole = null;
       try { cachedRole = sessionStorage.getItem(roleCacheKey); } catch (_) { /* storage unavailable */ }
       if (['admin', 'operator', 'viewer'].includes(cachedRole)) renderRole(cachedRole);
 
-      // Confirm the role in the database in the background. Cached role affects only
-      // navigation presentation; all page access remains protected by RLS and page guards.
-      const { data: profile, error: profileError } = await sb
-        .from('profiles')
-        .select('role, is_blocked')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (profileError || !profile || profile.is_blocked) return;
+      // The shared helper confirms the current JWT and reads the profile once per page.
+      // Cached role affects presentation only; page guards and RLS remain authoritative.
+      const profile = authProfile.profile;
+      if (authProfile.error || !profile || profile.is_blocked) return;
       const role = String(profile.role || '').toLowerCase();
       try { sessionStorage.setItem(roleCacheKey, role); } catch (_) { /* storage unavailable */ }
       renderRole(role);

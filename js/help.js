@@ -5,13 +5,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (!sb || !root) return;
 
   try {
-    const { data: authData, error: authError } = await sb.auth.getUser();
-    if (authError || !authData?.user) {
+    const authProfile = await window.dockslotGetAuthProfile?.();
+    if (!authProfile?.user) {
       window.location.replace('../index.html');
       return;
     }
-    const { data: profile, error } = await sb.from('profiles').select('role, is_blocked').eq('id', authData.user.id).single();
-    if (error || !profile || profile.is_blocked) {
+    const profile = authProfile.profile;
+    if (authProfile.error || !profile || profile.is_blocked) {
       window.location.replace('../index.html');
       return;
     }
