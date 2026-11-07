@@ -206,3 +206,14 @@ html[data-theme="dark"] .ak-notifications-toast { border-color: #344150; backgro
   .ak-notification-pref-controls { flex-wrap: wrap; justify-content: flex-end; }
   .ak-notification-scope { min-width: 118px; }
 }
+
+
+/* v2: per-device browser / Windows system Push controls. */
+.ak-push-section { padding-top: 13px; border-top: 1px solid var(--color-border, #e2e8f0); }
+.ak-push-settings-description { margin: 0 0 10px; color: var(--color-text-muted, #64748b); font-size: 11px; line-height: 1.55; }
+.ak-push-settings-status { margin: 0 0 11px; padding: 10px 11px; border: 1px solid var(--color-border, #e2e8f0); border-radius: 10px; background: rgba(148,163,184,.06); color: var(--color-text-main, #334155); font-size: 11px; line-height: 1.5; }
+.ak-push-settings-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ak-push-settings-actions [hidden] { display: none !important; }
+.ak-push-settings-actions button { min-height: 35px; }
+html[data-theme="dark"] .ak-push-settings-status { border-color: #344150; background: rgba(148,163,184,.07); color: #cbd5e1; }
+@media (max-width: 600px) { .ak-push-settings-actions { display: grid; grid-template-columns: 1fr; } }
