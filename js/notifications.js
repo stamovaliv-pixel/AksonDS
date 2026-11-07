@@ -86,7 +86,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const nav = document.querySelector('.header-nav');
     if (!nav) return;
 
-    const bell = create('button', 'ak-notifications-bell');
+    let left = nav.querySelector('.header-nav-left');
+    if (!left) {
+      const existingChildren = [...nav.children];
+      left = create('div', 'header-nav-left');
+      const right = create('div', 'header-nav-right');
+      nav.replaceChildren(left, right);
+      const themeButton = existingChildren.find((node) => node.matches?.('[data-theme-toggle]'));
+      if (themeButton) left.appendChild(themeButton);
+      existingChildren.filter((node) => node !== themeButton).forEach((node) => right.appendChild(node));
+    }
+
+    const bell = create('button', 'ak-notifications-bell nav-icon');
     bell.type = 'button';
     bell.id = 'akNotificationsBell';
     bell.title = 'Уведомления';
@@ -95,9 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
     bell.setAttribute('aria-expanded', 'false');
     bell.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span class="ak-notifications-badge" id="akNotificationsBadge" hidden></span>';
 
-    // Keep the bell as the rightmost item in the navigation, not between page links.
-    // The shared stylesheet aligns the navigation's right edge with the page content column.
-    nav.appendChild(bell);
+    // Notifications live in the left navigation cluster, immediately beside the theme control.
+    left.prepend(bell);
 
     const overlay = create('div', 'ak-notifications-overlay');
     overlay.id = 'akNotificationsOverlay';
