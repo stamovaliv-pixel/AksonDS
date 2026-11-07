@@ -6,16 +6,19 @@
   <title>Управление днем - AKSon Logistics</title>
   <link rel="stylesheet" href="../css/theme.css?v=4-1-date-exceptions">
   <link rel="stylesheet" href="../css/main.css?v=4-1-date-exceptions">
+  <link rel="stylesheet" href="../css/admin-navigation.css?v=1">
   <style>
     .app-header { margin-top: 0; box-shadow: none; border-bottom: none; padding-bottom: 15px; }
     .top-gradient-bar { width: 100%; height: 2px; background: linear-gradient(90deg, var(--color-gradient-start), var(--color-gradient-end)); margin-bottom: 20px; }
     .header-nav { display: flex; gap: 20px; align-items: center; }
-    .booking-verify { width: 30px; height: 30px; min-width: 30px; display: inline-flex; align-items: center; justify-content: center; padding: 4px; margin-left: 7px; border: 1px solid transparent; border-radius: 8px; background: rgba(239,68,68,.10); color: #dc5555; cursor: pointer; vertical-align: middle; transition: background .18s ease, box-shadow .18s ease, transform .18s ease; }
-    .booking-verify svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .booking-verify { width: 24px; height: 24px; min-width: 24px; display: inline-flex; align-items: center; justify-content: center; padding: 4px; margin: 0; border: 1px solid transparent; border-radius: 7px; background: rgba(239,68,68,.07); color: #dc5555; cursor: pointer; vertical-align: middle; transition: background .18s ease, box-shadow .18s ease, transform .18s ease; }
+    .booking-verify svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .booking-verify:hover { transform: translateY(-1px); }
-    .booking-verify.is-verified { background: rgba(34,197,94,.15); color: #16a34a; border-color: rgba(34,197,94,.24); box-shadow: 0 0 0 3px rgba(34,197,94,.13); }
-    .booking-verify.is-unverified { animation: bookingVerifyPulse 1.8s ease-in-out infinite; }
-    @keyframes bookingVerifyPulse { 50% { box-shadow: 0 0 0 4px rgba(239,68,68,.22); } }
+    .booking-verify.is-verified { background: rgba(34,197,94,.10); color: #16a34a; border-color: rgba(34,197,94,.18); }
+    .booking-verify.is-unverified { animation: bookingVerifyPulse 2.4s ease-in-out infinite; }
+    .sb-status-icons { display: inline-flex; align-items: center; gap: 7px; }
+    @keyframes bookingVerifyPulse { 50% { box-shadow: 0 0 0 2px rgba(239,68,68,.12); } }
+    @media (prefers-reduced-motion: reduce) { .booking-verify.is-unverified { animation: none; } }
 
     .nav-icon { display: inline-flex; align-items: center; justify-content: center; padding: 5px; transition: transform 0.2s ease; text-decoration: none; }
     
@@ -392,7 +395,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js?v=security-20261023"></script>
-  <script src="../js/admin_day.js?v=45-file-verification"></script>
+  <script src="../js/admin-navigation.js?v=1"></script>
+  <script src="../js/admin_day.js?v=46-file-verification-overview"></script>
   <script src="../js/theme-toggle.js?v=3"></script>
 </body>
 </html>
