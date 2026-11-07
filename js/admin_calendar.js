@@ -308,41 +308,109 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const isSearchActive = filterSupplier !== '' || filterDoc !== '' || filterSupply !== '' || filterOrder !== '';
 
-    let query = sb.from('bookings').select('id, profile_id, slot_date, slot_hour, order_number, order_type, supply_type, supply_types, is_tk, comment, registry_file_url, profiles!inner(company_name, inn)').eq('status', 'active');
-    
-    if (filterDoc) query = query.ilike('order_number', `%${filterDoc}%`);
-    if (filterOrder) query = query.eq('order_type', filterOrder);
-    if (filterSupplier) query = query.or(`company_name.ilike.%${filterSupplier}%,inn.ilike.%${filterSupplier}%`, { foreignTable: 'profiles' });
-    
-    if (filterSupply) {
-  query = query.contains('supply_types', JSON.stringify([filterSupply]));
-}
-
-    const { data: bookings } = await query;
-    const bookingCountsByDate = new Map();
-    (bookings || []).forEach((booking) => {
-      const dateKey = String(booking.slot_date || '');
-      if (!dateKey) return;
-      bookingCountsByDate.set(dateKey, (bookingCountsByDate.get(dateKey) || 0) + 1);
-    });
-    const bookedDates = new Set(bookingCountsByDate.keys());
-
+    // Сначала рассчитываем фактический видимый диапазон календаря.
     const startDate = new Date(today);
     let totalDays = 35;
     if (showPast) {
-      // Start with the earliest requested date (30 days before today), then align the first
-      // calendar column to Monday so dates never shift under the wrong weekday header.
       const firstRequestedDate = new Date(today);
       firstRequestedDate.setDate(firstRequestedDate.getDate() - 30);
       const leadingDays = firstRequestedDate.getDay() === 0 ? 6 : firstRequestedDate.getDay() - 1;
       startDate.setTime(firstRequestedDate.getTime());
       startDate.setDate(startDate.getDate() - leadingDays);
-      // Keep the former right edge (today + 29 days) and finish on Sunday so the grid has full weeks.
       totalDays = Math.ceil((60 + leadingDays) / 7) * 7;
     } else {
       const diffToMonday = today.getDay() === 0 ? 6 : today.getDay() - 1;
       startDate.setDate(today.getDate() - diffToMonday);
     }
+
+    const toISODate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    const rangeFrom = toISODate(startDate);
+    const rangeEndDate = new Date(startDate);
+    rangeEndDate.setDate(rangeEndDate.getDate() + totalDays - 1);
+    const rangeTo = toISODate(rangeEndDate);
+
+    const bookingCountsByDate = new Map();
+    let bookings = [];
+
+    if (isSearchActive) {
+      // Детальные строки нужны только для поиска. Ограничиваем запрос видимым диапазоном.
+      let query = sb.from('bookings')
+        .select('id, profile_id, slot_date, slot_hour, order_number, order_type, supply_type, supply_types, is_tk, comment, registry_file_url, profiles!inner(company_name, inn)')
+        .eq('status', 'active')
+        .gte('slot_date', rangeFrom)
+        .lte('slot_date', rangeTo);
+
+      if (filterDoc) query = query.ilike('order_number', `%${filterDoc}%`);
+      if (filterOrder) query = query.eq('order_type', filterOrder);
+      if (filterSupplier) query = query.or(`company_name.ilike.%${filterSupplier}%,inn.ilike.%${filterSupplier}%`, { foreignTable: 'profiles' });
+      if (filterSupply) query = query.contains('supply_types', JSON.stringify([filterSupply]));
+
+      const { data, error } = await query;
+      if (error) throw error;
+      bookings = data || [];
+      bookings.forEach((booking) => {
+        const dateKey = String(booking.slot_date || '');
+        if (dateKey) bookingCountsByDate.set(dateKey, (bookingCountsByDate.get(dateKey) || 0) + 1);
+      });
+    } else {
+      // Для прошедших дней RPC намеренно не используется: серверная функция разрешает
+      // только диапазон от бизнес-сегодня. Историю запрашиваем отдельно и только в пределах сетки.
+      const businessTodayISO = getBusinessTodayISODate();
+      const historyTo = rangeTo < businessTodayISO ? rangeTo : (() => {
+        const date = new Date(`${businessTodayISO}T00:00:00`);
+        date.setDate(date.getDate() - 1);
+        return toISODate(date);
+      })();
+      const hasHistoryRange = rangeFrom <= historyTo;
+      const futureFrom = rangeFrom > businessTodayISO ? rangeFrom : businessTodayISO;
+      const hasFutureRange = futureFrom <= rangeTo;
+
+      const tasks = [];
+      if (hasHistoryRange) {
+        tasks.push((async () => {
+          const { data, error } = await sb.from('bookings')
+            .select('slot_date')
+            .eq('status', 'active')
+            .gte('slot_date', rangeFrom)
+            .lte('slot_date', historyTo);
+          if (error) throw error;
+          (data || []).forEach((row) => {
+            const key = String(row.slot_date || '');
+            if (key) bookingCountsByDate.set(key, (bookingCountsByDate.get(key) || 0) + 1);
+          });
+        })());
+      }
+      if (hasFutureRange) {
+        tasks.push((async () => {
+          const { data, error } = await sb.rpc('get_calendar_booking_counts', {
+            p_from: futureFrom,
+            p_to: rangeTo
+          });
+          if (!error) {
+            (data || []).forEach((row) => {
+              const key = String(row.slot_date || '');
+              if (key) bookingCountsByDate.set(key, Number(row.booking_count) || 0);
+            });
+            return;
+          }
+
+          // Совместимый ограниченный fallback на случай временной ошибки RPC.
+          console.warn('[DockSlot calendar] Не удалось получить агрегаты календаря, используем ограниченную выборку:', error.message || error);
+          const fallback = await sb.from('bookings')
+            .select('slot_date')
+            .eq('status', 'active')
+            .gte('slot_date', futureFrom)
+            .lte('slot_date', rangeTo);
+          if (fallback.error) throw fallback.error;
+          (fallback.data || []).forEach((row) => {
+            const key = String(row.slot_date || '');
+            if (key) bookingCountsByDate.set(key, (bookingCountsByDate.get(key) || 0) + 1);
+          });
+        })());
+      }
+      await Promise.all(tasks);
+    }
+
     const grid = document.getElementById('calendarGrid');
     if (grid) {
       grid.classList.toggle('is-selecting', dateSelectionMode);

@@ -27,7 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeView = 'inbox';
   let realtimeChannel = null;
   let fallbackPoll = null;
-  let reminderPoll = null;
   let toastTimer = null;
   const desktopNotificationIds = new Set();
 
@@ -70,20 +69,18 @@ document.addEventListener('DOMContentLoaded', () => {
       setupRealtime();
       await refreshPushSettingsUI();
 
-      if (userRole === 'admin') {
-        processDueReminders();
-        reminderPoll = window.setInterval(processDueReminders, 15000);
-        document.addEventListener('visibilitychange', () => {
-          if (!document.hidden) processDueReminders();
-        });
-      }
+      // Due reminder notifications are processed by the verified active pg_cron job
+      // (akson-dockslot-due-reminders). Do not poll the same RPC from every admin tab.
     } catch (error) {
       console.error('[DockSlot notifications] Initialization failed:', error);
     }
   };
 
   const mountBellAndModal = () => {
-    const bell = create('button', 'ak-notifications-bell ak-notifications-bell--floating');
+    const nav = document.querySelector('.header-nav');
+    if (!nav) return;
+
+    const bell = create('button', 'ak-notifications-bell');
     bell.type = 'button';
     bell.id = 'akNotificationsBell';
     bell.title = 'Уведомления';
@@ -91,7 +88,10 @@ document.addEventListener('DOMContentLoaded', () => {
     bell.setAttribute('aria-haspopup', 'dialog');
     bell.setAttribute('aria-expanded', 'false');
     bell.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span class="ak-notifications-badge" id="akNotificationsBadge" hidden></span>';
-    document.body.appendChild(bell);
+
+    // Keep the bell as the rightmost item in the navigation, not between page links.
+    // The shared stylesheet aligns the navigation's right edge with the page content column.
+    nav.appendChild(bell);
 
     const overlay = create('div', 'ak-notifications-overlay');
     overlay.id = 'akNotificationsOverlay';
@@ -749,19 +749,9 @@ document.addEventListener('DOMContentLoaded', () => {
     fallbackPoll = null;
   };
 
-  const processDueReminders = async () => {
-    if (userRole !== 'admin') return;
-    const { error } = await sb.rpc('akson_process_due_reminder_notifications');
-    if (error) {
-      // pg_cron can process reminders independently; this call is the active-tab fallback.
-      console.warn('[DockSlot notifications] Reminder processing fallback:', error.message || error);
-    }
-  };
-
   window.addEventListener('beforeunload', () => {
     if (realtimeChannel) sb.removeChannel(realtimeChannel);
     if (fallbackPoll) window.clearInterval(fallbackPoll);
-    if (reminderPoll) window.clearInterval(reminderPoll);
   });
 
   init();
