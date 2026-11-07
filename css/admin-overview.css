@@ -300,3 +300,12 @@ html[data-theme="dark"] .overview-filter-actions .overview-export-btn.is-active 
   .overview-detail-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .overview-detail-wide { grid-column: 1 / -1; }
 }
+
+
+/* v5: matching personal-panel icon colors and softer sticker backgrounds */
+.overview-notes-panel .overview-panel-icon { color: #8b6813; }
+.overview-reminders-panel .overview-panel-icon { color: #96345f; }
+.overview-sticker--note { background: #fff9e3; }
+.overview-sticker--reminder { background: #fff2f6; }
+html[data-theme="dark"] .overview-sticker--note { background: #756a43; }
+html[data-theme="dark"] .overview-sticker--reminder { background: #765263; }
