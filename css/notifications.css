@@ -217,3 +217,56 @@ html[data-theme="dark"] .ak-notifications-toast { border-color: #344150; backgro
 .ak-push-settings-actions button { min-height: 35px; }
 html[data-theme="dark"] .ak-push-settings-status { border-color: #344150; background: rgba(148,163,184,.07); color: #cbd5e1; }
 @media (max-width: 600px) { .ak-push-settings-actions { display: grid; grid-template-columns: 1fr; } }
+
+/* v3: bell aligned to the right edge of the page content, with a compact corner counter. */
+body:not(.overview-page) .app-header {
+  padding-right: max(20px, calc((100vw - 1200px) / 2));
+}
+body.overview-page .app-header {
+  padding-right: max(18px, calc((100vw - 1360px) / 2));
+}
+.header-nav .ak-notifications-bell {
+  margin-left: 2px;
+  overflow: visible;
+}
+.ak-notifications-bell svg {
+  width: 23px;
+  height: 23px;
+}
+.ak-notifications-badge {
+  top: 3px;
+  right: 5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  border: 2px solid var(--color-surface, #fff);
+  border-radius: 999px;
+  background: #e04452;
+  box-shadow: 0 1px 4px rgba(127, 29, 29, .24);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  transform: translate(24%, -24%);
+}
+.ak-push-settings-actions #akPushTestButton {
+  border-color: rgba(59, 130, 246, .18);
+  color: var(--color-primary, #2563eb);
+}
+.ak-push-settings-actions #akPushTestButton:hover:not(:disabled) {
+  background: rgba(59, 130, 246, .07);
+}
+@media (max-width: 600px) {
+  .app-header,
+  body:not(.overview-page) .app-header,
+  body.overview-page .app-header {
+    padding-right: 15px;
+  }
+  .header-nav { gap: 10px; }
+  .header-nav .ak-notifications-bell {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+  .ak-notifications-badge { top: 2px; right: 4px; }
+}
