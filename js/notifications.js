@@ -77,8 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const mountBellAndModal = () => {
-    const nav = document.querySelector('.header-nav');
-    if (!nav) return;
+    if (document.getElementById('akNotificationsBell')) return;
 
     const bell = create('button', 'ak-notifications-bell');
     bell.type = 'button';
@@ -89,9 +88,8 @@ document.addEventListener('DOMContentLoaded', () => {
     bell.setAttribute('aria-expanded', 'false');
     bell.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span class="ak-notifications-badge" id="akNotificationsBadge" hidden></span>';
 
-    // Keep the bell as the rightmost item in the navigation, not between page links.
-    // The shared stylesheet aligns the navigation's right edge with the page content column.
-    nav.appendChild(bell);
+    // Keep the notification control floating above the page, independent of navigation and scroll.
+    document.body.appendChild(bell);
 
     const overlay = create('div', 'ak-notifications-overlay');
     overlay.id = 'akNotificationsOverlay';
