@@ -25,24 +25,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let contactId = null;
 
-  // 1. Загружаем реквизиты из profiles (с безопасной обработкой ошибок)
-  try {
-    const { data: profile, error: profileErr } = await sb
-      .from('profiles')
-      .select('inn, company_name')
-      .eq('id', user.id)
-      .maybeSingle(); // maybeSingle не вызывает краш скрипта при отсутствии данных
-
-    if (profile && pageTitle) {
-      const inn = profile.inn || 'Не указан';
-      const name = profile.company_name || 'Не указано';
-      pageTitle.innerText = `Личный кабинет: ${name} (ИНН: ${inn})`;
-    } else if (pageTitle) {
-      pageTitle.innerText = `Личный кабинет`;
-    }
-  } catch (err) {
-    console.error('Ошибка загрузки профиля:', err);
-    if (pageTitle) pageTitle.innerText = `Личный кабинет`;
+  // 1. Используем профиль, уже загруженный общим auth-profile.js.
+  // Это исключает повторный запрос к profiles на странице личного кабинета.
+  const profile = authProfile.profile;
+  if (profile && pageTitle) {
+    const inn = profile.inn || 'Не указан';
+    const name = profile.company_name || 'Не указано';
+    pageTitle.innerText = `Личный кабинет: ${name} (ИНН: ${inn})`;
+  } else if (pageTitle) {
+    pageTitle.innerText = 'Личный кабинет';
   }
 
   // 2. Загружаем контакты из contacts

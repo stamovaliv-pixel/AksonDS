@@ -18,7 +18,7 @@
 
           const { data: profile, error: profileError } = await sb
             .from('profiles')
-            .select('role, is_blocked')
+            .select('role, is_blocked, inn, company_name')
             .eq('id', user.id)
             .maybeSingle();
 
