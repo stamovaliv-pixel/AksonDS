@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const page = window.location.pathname.split('/').pop() || '';
     return page === 'admin_day.html' ? 'admin_calendar.html' : page;
   };
-  const decorateActive = (menuTrigger = null) => {
+  const decorateActive = (menuTrigger = null, role = '') => {
     const page = activePage();
     right.querySelectorAll('a.nav-icon[data-nav-key]').forEach((link) => {
       const active = link.dataset.navKey === page;
@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
       else link.removeAttribute('aria-current');
     });
     if (menuTrigger) {
-      const inTools = ['suppliers.html', 'analytics.html', 'settings.html', 'help.html', ...(normalized === 'super_admin' ? ['load_management.html'] : [])].includes(page);
+      const inTools = ['suppliers.html', 'analytics.html', 'settings.html', 'help.html', ...(role === 'super_admin' ? ['load_management.html'] : [])].includes(page);
       menuTrigger.classList.toggle('active', inTools);
       menuTrigger.setAttribute('aria-pressed', String(inTools));
     }
@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
         menu.wrapper,
         logout
       );
-      decorateActive(menu.trigger);
+      decorateActive(menu.trigger, normalized);
     } else if (['operator', 'viewer'].includes(normalized)) {
       if (appHeader) appHeader.append(themeButton);
       else nav.append(themeButton);
