@@ -202,3 +202,7 @@ html[data-theme="dark"] .admin-tools-close:hover { background: #202b37; color: #
   .header-nav .nav-icon, .header-nav .theme-toggle, .header-nav .ak-notifications-bell { flex-basis: 32px; width: 32px; min-width: 32px; height: 32px; min-height: 32px; }
   .header-nav .nav-icon svg, .header-nav .theme-toggle svg, .header-nav .ak-notifications-bell svg { width: 20px; height: 20px; }
 }
+
+/* v4 nav is intentionally limited to the actual page destinations. */
+.app-header > .header-nav { min-width: 0; }
+.header-nav-right { justify-content: flex-end; }
