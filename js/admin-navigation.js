@@ -39,14 +39,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     settings: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"></circle><path d="m19.4 15 .06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33 1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1 1.65 1.65 0 0 0 0 1.74Z"></path></svg>'
   };
 
-  const existingBell = nav.querySelector('#akNotificationsBell');
   const existingTheme = nav.querySelector('[data-theme-toggle]');
   const existingLogout = nav.querySelector('#logoutBtn');
-  const left = create('div', 'header-nav-left');
   const right = create('div', 'header-nav-right');
-  nav.replaceChildren(left, right);
-
-  if (existingBell) left.appendChild(existingBell);
+  nav.replaceChildren(right);
 
   const themeButton = existingTheme || create('button', 'theme-toggle', '');
   themeButton.type = 'button';
@@ -61,7 +57,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     themeButton.setAttribute('aria-label', hint);
   };
   setThemeIcon();
-  left.appendChild(themeButton);
+  themeButton.classList.add('dockslot-theme-anchor');
+  const appHeader = nav.closest('.app-header');
+  if (appHeader) appHeader.appendChild(themeButton);
+  else right.prepend(themeButton);
 
   const makeLink = (href, label, icon, activeKey) => {
     const link = create('a', 'nav-icon', icons[icon]);
@@ -106,7 +105,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     tools.setAttribute('aria-haspopup', 'dialog');
     tools.setAttribute('aria-expanded', 'false');
     right.appendChild(tools);
-    right.appendChild(makeLink('help.html', 'Помощь', 'help', 'help.html'));
     right.appendChild(logout);
     mountToolsModal(tools);
   } else if (['operator', 'viewer'].includes(role)) {
@@ -129,7 +127,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const page = window.location.pathname.split('/').pop() || '';
   const activePage = page === 'admin_day.html' ? 'admin_calendar.html' : page;
   const toolsButton = right.querySelector('.admin-tools-trigger');
-  if (toolsButton && ['suppliers.html', 'analytics.html', 'settings.html'].includes(activePage)) {
+  if (toolsButton && ['suppliers.html', 'analytics.html', 'settings.html', 'help.html'].includes(activePage)) {
     toolsButton.classList.add('active');
     toolsButton.setAttribute('aria-pressed', 'true');
   }
@@ -154,6 +152,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <a class="admin-tools-card" href="suppliers.html"><span class="admin-tools-card-icon">${icons.users}</span><span><strong>Пользователи</strong><small>Учётные записи и поставщики</small></span><svg class="admin-tools-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"></path></svg></a>
           <a class="admin-tools-card" href="analytics.html"><span class="admin-tools-card-icon">${icons.analytics}</span><span><strong>Аналитика</strong><small>Показатели и качество поставок</small></span><svg class="admin-tools-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"></path></svg></a>
           <a class="admin-tools-card" href="settings.html"><span class="admin-tools-card-icon">${icons.settings}</span><span><strong>Настройки</strong><small>Слоты, расписание и параметры</small></span><svg class="admin-tools-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"></path></svg></a>
+          <a class="admin-tools-card" href="help.html"><span class="admin-tools-card-icon">${icons.help}</span><span><strong>Помощь</strong><small>Инструкции по работе с ДокСлотом</small></span><svg class="admin-tools-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"></path></svg></a>
         </div>
       </section>`;
     document.body.appendChild(overlay);
