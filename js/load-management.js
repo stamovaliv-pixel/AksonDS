@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const heading = document.createElement('div');
       heading.className = 'load-day-heading';
       const headingCopy = document.createElement('div');
-      headingCopy.innerHTML = `<strong>${escapeHtml(dateLabel(day.slot_date))}</strong><span>Прогноз: <b>${Number(day.forecast_count)}</b> · уже записано: <b>${Number(day.current_count)}</b> · история: ${Number(day.source_days_count)} дней</span>`;
+      headingCopy.innerHTML = `<strong>${escapeHtml(dateLabel(day.slot_date))}</strong><span>Прогноз: <b>${Number(day.forecast_count)}</b> · уже записано: <b>${Number(day.current_count)}</b> · история: ${Number(day.source_days_count)} активных из 8</span>`;
       const daily = document.createElement('label');
       daily.className = 'load-daily-limit';
       daily.innerHTML = `<span>Лимит на день</span><input type="number" min="0" step="1" max="${maxDailyLimit}" value="${Number(day.daily_limit)}" data-daily-date="${escapeHtml(day.slot_date)}" aria-label="Дневной лимит ${escapeHtml(day.slot_date)}"><small>Рекомендация: ${Number(day.recommended_daily_limit)}${isAdjusted ? ' · изменено' : ''}</small>`;
