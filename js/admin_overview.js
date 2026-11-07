@@ -11,7 +11,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let toastTimer = null;
   let currentUser = null;
   let activeDetailBookingId = null;
-  let verificationRealtimeChannel = null;
+  let verificationRealtimeChannels = [];
+  let verificationRealtimeVersion = 0;
   let settings = { supply_types: [] };
   let bookings = [];
   let verifiedIds = new Set();
@@ -376,12 +377,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('dateFilter').disabled = true;
     try {
       await fetchBookingsForDate(date);
+      await subscribeVerificationRealtime();
       renderOverview();
     } catch (error) {
       console.error('Ошибка загрузки обзора:', error);
       showState(`Не удалось загрузить записи: ${error.message || 'неизвестная ошибка'}`, true);
       bookings = [];
       verifiedIds = new Set();
+      await subscribeVerificationRealtime();
       renderOverview({ keepState: true });
     } finally {
       $('applyBtn').disabled = false;
@@ -532,33 +535,61 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  const subscribeVerificationRealtime = () => {
-    if (verificationRealtimeChannel || !currentUser?.id) return;
-    verificationRealtimeChannel = sb
-      .channel(`dockslot-verification-overview-${currentUser.id}`)
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'booking_verification'
-      }, (payload) => {
-        const row = payload.new || payload.old;
-        const bookingId = row?.booking_id == null ? '' : String(row.booking_id);
-        if (!bookingId || !bookings.some((booking) => String(booking.id) === bookingId)) return;
-        const verified = payload.eventType !== 'DELETE' && payload.new?.verified === true;
-        if (verified) verifiedIds.add(bookingId);
-        else verifiedIds.delete(bookingId);
-        renderOverview({ keepState: true });
-        if (activeDetailBookingId === bookingId && $('bookingDetailsModal')?.open) {
-          setDetailText('detailVerification', verified ? 'Верифицирована' : 'Не верифицирована');
-        }
-      })
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.warn('Realtime верификации временно недоступен:', status);
-        }
-      });
-    window.addEventListener('pagehide', () => {
-      if (verificationRealtimeChannel) sb.removeChannel(verificationRealtimeChannel);
-    }, { once: true });
+  const subscribeVerificationRealtime = async () => {
+    if (!currentUser?.id) return;
+    const subscriptionVersion = ++verificationRealtimeVersion;
+    const previousChannels = verificationRealtimeChannels;
+    verificationRealtimeChannels = [];
+    if (previousChannels.length) {
+      await Promise.all(previousChannels.map((channel) => sb.removeChannel(channel).catch((error) => {
+        console.warn('Не удалось закрыть предыдущую Realtime-подписку:', error);
+      })));
+    }
+    // A date change can start another load while old channels are being removed.
+    if (subscriptionVersion !== verificationRealtimeVersion) return;
+
+    const verificationIds = [...new Set((bookings || []).map((booking) => String(booking.id)))];
+    const validVerificationIds = verificationIds.filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+    if (verificationIds.length !== validVerificationIds.length) {
+      console.warn('Realtime верификации: обнаружены некорректные ID записей; часть подписок пропущена.');
+    }
+    if (!validVerificationIds.length) return;
+
+    const handleVerificationChange = (payload) => {
+      const row = payload.new || payload.old;
+      const bookingId = row?.booking_id == null ? '' : String(row.booking_id);
+      if (!bookingId || !bookings.some((booking) => String(booking.id) === bookingId)) return;
+      const verified = payload.eventType !== 'DELETE' && payload.new?.verified === true;
+      if (verified) verifiedIds.add(bookingId);
+      else verifiedIds.delete(bookingId);
+      renderOverview({ keepState: true });
+      if (activeDetailBookingId === bookingId && $('bookingDetailsModal')?.open) {
+        setDetailText('detailVerification', verified ? 'Верифицирована' : 'Не верифицирована');
+      }
+    };
+
+    // Supabase Realtime `in` filters are limited to 100 values per subscription.
+    for (let offset = 0; offset < validVerificationIds.length; offset += 100) {
+      const chunk = validVerificationIds.slice(offset, offset + 100);
+      const channel = sb
+        .channel(`dockslot-verification-overview-${currentUser.id}-${subscriptionVersion}-${Math.floor(offset / 100)}`)
+        .on('postgres_changes', {
+          event: '*', schema: 'public', table: 'booking_verification',
+          filter: `booking_id=in.(${chunk.join(',')})`
+        }, handleVerificationChange)
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn('Realtime верификации временно недоступен:', status);
+          }
+        });
+      verificationRealtimeChannels.push(channel);
+    }
   };
+
+  window.addEventListener('pagehide', () => {
+    verificationRealtimeChannels.forEach((channel) => sb.removeChannel(channel));
+    verificationRealtimeChannels = [];
+  }, { once: true });
 
 
   const loadNotes = async () => {
@@ -861,8 +892,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const initialize = async () => {
     const profile = await getProfile();
     if (!profile) return;
-    subscribeVerificationRealtime();
-
     $('logoutBtn').addEventListener('click', async (event) => {
       event.preventDefault();
       await sb.auth.signOut();

@@ -399,28 +399,44 @@ document.addEventListener('DOMContentLoaded', async () => {
     button.setAttribute('aria-label', button.title);
   };
 
-  if (isAdmin) {
-    const verificationChannel = sb
-      .channel(`dockslot-verification-day-${user.id}-${selectedDate}`)
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'booking_verification'
-      }, (payload) => {
-        const row = payload.new || payload.old;
-        const bookingId = row?.booking_id == null ? '' : String(row.booking_id);
-        if (!bookingId || !(bookings || []).some((booking) => String(booking.id) === bookingId)) return;
-        const verified = payload.eventType !== 'DELETE' && payload.new?.verified === true;
-        if (verified) verifiedBookingIds.add(bookingId);
-        else verifiedBookingIds.delete(bookingId);
-        container.querySelectorAll('[data-verify-booking]').forEach((button) => {
-          if (String(button.dataset.verifyBooking) === bookingId) paintVerificationButton(button, verified);
-        });
-      })
-      .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.warn('Realtime верификации временно недоступен:', status);
-        }
+  if (isAdmin && (bookings || []).length) {
+    // Subscribe only to verification rows belonging to the currently displayed day.
+    // Realtime `in` filters accept up to 100 values, so split unusually busy days
+    // into chunks without falling back to a global table subscription.
+    const verificationIds = [...new Set((bookings || []).map((booking) => String(booking.id)))];
+    const invalidIds = verificationIds.filter((id) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+    if (invalidIds.length) console.warn('Realtime верификации: обнаружены некорректные ID записей; часть подписок пропущена.');
+    const validVerificationIds = verificationIds.filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+    const verificationChannels = [];
+    const handleVerificationChange = (payload) => {
+      const row = payload.new || payload.old;
+      const bookingId = row?.booking_id == null ? '' : String(row.booking_id);
+      if (!bookingId || !(bookings || []).some((booking) => String(booking.id) === bookingId)) return;
+      const verified = payload.eventType !== 'DELETE' && payload.new?.verified === true;
+      if (verified) verifiedBookingIds.add(bookingId);
+      else verifiedBookingIds.delete(bookingId);
+      container.querySelectorAll('[data-verify-booking]').forEach((button) => {
+        if (String(button.dataset.verifyBooking) === bookingId) paintVerificationButton(button, verified);
       });
-    window.addEventListener('pagehide', () => sb.removeChannel(verificationChannel), { once: true });
+    };
+    for (let offset = 0; offset < validVerificationIds.length; offset += 100) {
+      const chunk = validVerificationIds.slice(offset, offset + 100);
+      const verificationChannel = sb
+        .channel(`dockslot-verification-day-${user.id}-${selectedDate}-${Math.floor(offset / 100)}`)
+        .on('postgres_changes', {
+          event: '*', schema: 'public', table: 'booking_verification',
+          filter: `booking_id=in.(${chunk.join(',')})`
+        }, handleVerificationChange)
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn('Realtime верификации временно недоступен:', status);
+          }
+        });
+      verificationChannels.push(verificationChannel);
+    }
+    window.addEventListener('pagehide', () => {
+      verificationChannels.forEach((channel) => sb.removeChannel(channel));
+    }, { once: true });
 
     container.addEventListener('click', async (event) => {
       const button = event.target.closest('[data-verify-booking]');
