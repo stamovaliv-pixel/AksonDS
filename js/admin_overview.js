@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const toastEl = $('overviewToast');
   let toastTimer = null;
   let currentUser = null;
+  let activeDetailBookingId = null;
+  let verificationRealtimeChannel = null;
   let settings = { supply_types: [] };
   let bookings = [];
   let verifiedIds = new Set();
@@ -278,6 +280,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const openBookingDetails = (bookingId) => {
+    activeDetailBookingId = String(bookingId);
     const booking = bookings.find((item) => String(item.id) === String(bookingId));
     if (!booking) return toast('Не удалось найти запись. Обновите список.', true);
     const profile = getBookingSupplier(booking);
@@ -483,7 +486,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     const wasVerified = verifiedIds.has(String(bookingId));
     button.disabled = true;
     try {
-      if (wasVerified) {
+      // Read the authoritative state first. If another administrator has already
+      // changed it, refresh this view instead of applying a stale inverse action.
+      const { data: currentRow, error: readError } = await sb
+        .from('booking_verification')
+        .select('verified')
+        .eq('booking_id', bookingId)
+        .maybeSingle();
+      if (readError) throw readError;
+      const serverVerified = Boolean(currentRow?.verified);
+      if (serverVerified !== wasVerified) {
+        if (serverVerified) verifiedIds.add(String(bookingId));
+        else verifiedIds.delete(String(bookingId));
+        renderOverview({ keepState: true });
+        if (activeDetailBookingId === String(bookingId)) {
+          setDetailText('detailVerification', serverVerified ? 'Верифицирована' : 'Не верифицирована');
+        }
+        toast('Другой администратор уже изменил статус. Обновили состояние записи.');
+        return;
+      }
+
+      if (serverVerified) {
         const { error } = await sb.from('booking_verification').delete().eq('booking_id', bookingId);
         if (error) throw error;
         verifiedIds.delete(String(bookingId));
@@ -497,13 +520,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (error) throw error;
         verifiedIds.add(String(bookingId));
       }
-      renderOverview();
-      toast(wasVerified ? 'Верификация снята.' : 'Запись верифицирована.');
+      renderOverview({ keepState: true });
+      if (activeDetailBookingId === String(bookingId)) {
+        setDetailText('detailVerification', verifiedIds.has(String(bookingId)) ? 'Верифицирована' : 'Не верифицирована');
+      }
+      toast(serverVerified ? 'Верификация снята.' : 'Запись верифицирована.');
     } catch (error) {
       console.error('Ошибка изменения верификации:', error);
       toast(`Не удалось изменить верификацию: ${error.message || 'ошибка сохранения'}`, true);
       button.disabled = false;
     }
+  };
+
+  const subscribeVerificationRealtime = () => {
+    if (verificationRealtimeChannel || !currentUser?.id) return;
+    verificationRealtimeChannel = sb
+      .channel(`dockslot-verification-overview-${currentUser.id}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'booking_verification'
+      }, (payload) => {
+        const row = payload.new || payload.old;
+        const bookingId = row?.booking_id == null ? '' : String(row.booking_id);
+        if (!bookingId || !bookings.some((booking) => String(booking.id) === bookingId)) return;
+        const verified = payload.eventType !== 'DELETE' && payload.new?.verified === true;
+        if (verified) verifiedIds.add(bookingId);
+        else verifiedIds.delete(bookingId);
+        renderOverview({ keepState: true });
+        if (activeDetailBookingId === bookingId && $('bookingDetailsModal')?.open) {
+          setDetailText('detailVerification', verified ? 'Верифицирована' : 'Не верифицирована');
+        }
+      })
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Realtime верификации временно недоступен:', status);
+        }
+      });
+    window.addEventListener('pagehide', () => {
+      if (verificationRealtimeChannel) sb.removeChannel(verificationRealtimeChannel);
+    }, { once: true });
   };
 
 
@@ -807,6 +861,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const initialize = async () => {
     const profile = await getProfile();
     if (!profile) return;
+    subscribeVerificationRealtime();
 
     $('logoutBtn').addEventListener('click', async (event) => {
       event.preventDefault();
@@ -978,7 +1033,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   initialize().catch((error) => {
-    console.error('Критическая ошибка страницы «Рабочий стол»:', error);
+    console.error('Критическая ошибка страницы «Обзор»:', error);
     showState(`Не удалось открыть обзор: ${error.message || 'неизвестная ошибка'}`, true);
   });
 });

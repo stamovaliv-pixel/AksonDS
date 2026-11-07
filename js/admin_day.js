@@ -389,7 +389,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     container.appendChild(block);
   }
 
+  const paintVerificationButton = (button, verified) => {
+    button.classList.toggle('is-verified', Boolean(verified));
+    button.classList.toggle('is-unverified', !verified);
+    button.innerHTML = verified
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 11v4"/><path d="M12 18h.01"/></svg>';
+    button.title = verified ? 'Запись верифицирована' : 'Запись не верифицирована';
+    button.setAttribute('aria-label', button.title);
+  };
+
   if (isAdmin) {
+    const verificationChannel = sb
+      .channel(`dockslot-verification-day-${user.id}-${selectedDate}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'booking_verification'
+      }, (payload) => {
+        const row = payload.new || payload.old;
+        const bookingId = row?.booking_id == null ? '' : String(row.booking_id);
+        if (!bookingId || !(bookings || []).some((booking) => String(booking.id) === bookingId)) return;
+        const verified = payload.eventType !== 'DELETE' && payload.new?.verified === true;
+        if (verified) verifiedBookingIds.add(bookingId);
+        else verifiedBookingIds.delete(bookingId);
+        container.querySelectorAll('[data-verify-booking]').forEach((button) => {
+          if (String(button.dataset.verifyBooking) === bookingId) paintVerificationButton(button, verified);
+        });
+      })
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('Realtime верификации временно недоступен:', status);
+        }
+      });
+    window.addEventListener('pagehide', () => sb.removeChannel(verificationChannel), { once: true });
+
     container.addEventListener('click', async (event) => {
       const button = event.target.closest('[data-verify-booking]');
       if (!button) return;
@@ -397,20 +429,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       const currentlyVerified = button.classList.contains('is-verified');
       button.disabled = true;
       try {
-        if (currentlyVerified) {
+        // Check the server state before changing it. A stale second administrator
+        // receives the current state instead of reversing another person's action.
+        const { data: currentRow, error: readError } = await sb
+          .from('booking_verification')
+          .select('verified')
+          .eq('booking_id', bookingId)
+          .maybeSingle();
+        if (readError) throw readError;
+        const serverVerified = Boolean(currentRow?.verified);
+        if (serverVerified !== currentlyVerified) {
+          if (serverVerified) verifiedBookingIds.add(String(bookingId));
+          else verifiedBookingIds.delete(String(bookingId));
+          paintVerificationButton(button, serverVerified);
+          alert('Другой администратор уже изменил статус. Состояние записи обновлено.');
+          return;
+        }
+
+        if (serverVerified) {
           const { error } = await sb.from('booking_verification').delete().eq('booking_id', bookingId);
           if (error) throw error;
           verifiedBookingIds.delete(String(bookingId));
+          paintVerificationButton(button, false);
         } else {
           const { error } = await sb.from('booking_verification').upsert({ booking_id: bookingId, verified: true, verified_by: user.id, verified_at: new Date().toISOString() }, { onConflict: 'booking_id' });
           if (error) throw error;
           verifiedBookingIds.add(String(bookingId));
+          paintVerificationButton(button, true);
         }
-        button.classList.toggle('is-verified', !currentlyVerified);
-        button.classList.toggle('is-unverified', currentlyVerified);
-        button.innerHTML = currentlyVerified ? '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 11v4"/><path d="M12 18h.01"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>';
-        button.title = currentlyVerified ? 'Запись не верифицирована' : 'Запись верифицирована';
-        button.setAttribute('aria-label', button.title);
       } catch (error) { alert('Не удалось изменить верификацию: ' + error.message); }
       finally { button.disabled = false; }
     });
