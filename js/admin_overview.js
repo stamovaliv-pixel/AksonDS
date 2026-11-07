@@ -16,7 +16,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let activeListKind = null;
   let notes = [];
   let reminders = [];
-  let upcomingBookings = [];
+  let exportSelectionMode = false;
+  let selectedExportKinds = new Set();
 
   const businessDate = (date = new Date()) => {
     const parts = new Intl.DateTimeFormat('en-CA', {
@@ -198,7 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const getListRows = (kind) => {
     const rows = getFilteredBookings();
-    if (kind === 'verified') return rows.filter((booking) => verifiedIds.has(String(booking.id)));
+    if (kind === 'unverified') return rows.filter((booking) => !verifiedIds.has(String(booking.id)));
     if (kind === 'returns') return rows.filter(isReturnBooking);
     return rows;
   };
@@ -209,7 +210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     list.replaceChildren();
     const titleByKind = {
       all: 'Все заявки',
-      verified: 'Верифицированные заявки',
+      unverified: 'Неверифицированные заявки',
       returns: 'Заявки с типом поставки «Возврат»'
     };
     const rows = getListRows(activeListKind);
@@ -236,8 +237,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const documentCell = createElement('div', 'overview-booking-main overview-booking-hide-mobile');
       documentCell.appendChild(createElement('strong', '', booking.order_number || 'Без номера'));
       documentCell.appendChild(createElement('span', '', getSupplyTypeLabel(booking)));
-
-      const orderCell = createElement('div', 'overview-booking-meta overview-booking-hide-mobile', ({ order: 'Заказ', upd: 'УПД', etrn: 'ЭТрН' })[booking.order_type] || booking.order_type || '—');
+            const orderCell = createElement('div', 'overview-booking-meta overview-booking-hide-mobile', ({ order: 'Заказ', upd: 'УПД', etrn: 'ЭТрН' })[booking.order_type] || booking.order_type || '—');
       const verifyButton = createElement('button', `overview-verify-btn ${verified ? 'is-verified' : 'is-unverified'}`);
       verifyButton.type = 'button';
       verifyButton.dataset.verifyBooking = String(booking.id);
@@ -253,7 +253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const renderOverview = (options = {}) => {
     const rows = getFilteredBookings();
     $('totalCount').textContent = String(rows.length);
-    $('verifiedCount').textContent = String(rows.filter((booking) => verifiedIds.has(String(booking.id))).length);
+    $('unverifiedCount').textContent = String(rows.filter((booking) => !verifiedIds.has(String(booking.id))).length);
     $('returnCount').textContent = String(rows.filter(isReturnBooking).length);
     $('dateCaption').textContent = $('dateFilter').value
       ? `Данные на ${formatDate($('dateFilter').value)}`
@@ -296,12 +296,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  const exportCsv = () => {
-    const rows = getFilteredBookings();
+  const setExportSelectionMode = (enabled) => {
+    exportSelectionMode = Boolean(enabled);
+    if (!exportSelectionMode) selectedExportKinds.clear();
+    $('overviewMetrics').classList.toggle('is-export-selecting', exportSelectionMode);
+    $('exportBtn').classList.toggle('is-active', exportSelectionMode);
+    $('exportBtn').classList.remove('is-ready');
+    $('exportBtn').setAttribute('aria-pressed', String(exportSelectionMode));
+    $('exportBtn').title = exportSelectionMode ? 'Выгрузить выбранные разделы' : 'Выбрать разделы для выгрузки';
+    $('exportBtn').setAttribute('aria-label', $('exportBtn').title);
+    document.querySelectorAll('.overview-export-choice').forEach((label) => { label.hidden = !exportSelectionMode; });
+    document.querySelectorAll('[data-export-kind]').forEach((checkbox) => {
+      checkbox.checked = false;
+      checkbox.closest('.overview-metric-shell')?.classList.remove('is-selected');
+    });
+  };
+
+  const updateExportSelectionState = () => {
+    $('exportBtn').classList.toggle('is-ready', exportSelectionMode && selectedExportKinds.size > 0);
+  };
+
+  const exportCsv = (kinds) => {
+    const filteredRows = getFilteredBookings();
+    const selectedRows = new Map();
+    if (kinds.has('all')) filteredRows.forEach((booking) => selectedRows.set(String(booking.id), booking));
+    if (kinds.has('unverified')) filteredRows.filter((booking) => !verifiedIds.has(String(booking.id))).forEach((booking) => selectedRows.set(String(booking.id), booking));
+    if (kinds.has('returns')) filteredRows.filter(isReturnBooking).forEach((booking) => selectedRows.set(String(booking.id), booking));
+
+    const rows = [...selectedRows.values()].sort((a, b) => Number(a.slot_hour || 0) - Number(b.slot_hour || 0));
     if (!rows.length) {
-      toast('Нет заявок для выгрузки по выбранным фильтрам.', true);
-      return;
+      toast('В выбранных разделах нет заявок для выгрузки.', true);
+      return false;
     }
+
     const cell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
     const orderNames = { order: 'Заказ', upd: 'УПД', etrn: 'ЭТрН' };
     const headings = [
@@ -336,12 +363,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `akson-dockslot-${$('dateFilter').value || 'all'}-bookings.csv`;
+    anchor.download = `akson-dockslot-${$('dateFilter').value || 'all'}-registry.csv`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast(`Подготовлено строк: ${rows.length}`);
+    toast(`Консолидированный реестр сформирован: ${rows.length} заявок.`);
+    return true;
+  };
+
+  const handleExportClick = () => {
+    if (!exportSelectionMode) {
+      setExportSelectionMode(true);
+      toast('Выберите один или несколько дашбордов для выгрузки.');
+      return;
+    }
+    if (!selectedExportKinds.size) {
+      setExportSelectionMode(false);
+      toast('Выбор выгрузки отменён.');
+      return;
+    }
+    const completed = exportCsv(new Set(selectedExportKinds));
+    if (completed) setExportSelectionMode(false);
   };
 
   const updateVerification = async (button) => {
@@ -373,50 +416,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  const renderUpcomingBookings = () => {
-    const list = $('upcomingList');
-    list.replaceChildren();
-    const upcoming = upcomingBookings.filter(matchesCurrentFilters);
-    if (!upcoming.length) {
-      const message = upcomingBookings.length
-        ? 'За ближайшие 7 дней нет заявок, соответствующих текущим фильтрам.'
-        : 'На ближайшие 7 дней активных записей нет.';
-      list.appendChild(createElement('div', 'overview-empty', message));
-      return;
-    }
-
-    upcoming.forEach((booking) => {
-      const profile = Array.isArray(booking.profiles) ? booking.profiles[0] : booking.profiles;
-      const item = createElement('button', 'overview-upcoming-item');
-      item.type = 'button';
-      item.dataset.date = booking.slot_date;
-      const dateCell = createElement('span', 'overview-upcoming-date');
-      const [year, month, day] = String(booking.slot_date).split('-');
-      dateCell.appendChild(createElement('strong', '', day || '—'));
-      dateCell.appendChild(createElement('span', '', month ? `${month}.${year}` : ''));
-      const info = createElement('span', 'overview-upcoming-info');
-      info.appendChild(createElement('strong', '', profile?.company_name || 'Поставщик'));
-      info.appendChild(createElement('span', '', `${formatTime(booking.slot_hour)} · ${getSupplyTypeLabel(booking)} · ${booking.order_number || 'Без номера'}`));
-      item.append(dateCell, info);
-      list.appendChild(item);
-    });
-  };
-
-  const loadUpcomingBookings = async () => {
-    const today = businessDate();
-    const endDate = addDays(today, 7);
-    const { data, error } = await sb
-      .from('bookings')
-      .select('id, slot_date, slot_hour, order_number, order_type, supply_type, supply_types, profiles!inner(company_name, inn)')
-      .eq('status', 'active')
-      .gte('slot_date', today)
-      .lte('slot_date', endDate)
-      .order('slot_date', { ascending: true })
-      .order('slot_hour', { ascending: true });
-    if (error) throw error;
-    upcomingBookings = data || [];
-    renderUpcomingBookings();
-  };
 
   const loadNotes = async () => {
     const { data, error } = await sb
@@ -433,22 +432,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     const list = $('notesList');
     list.replaceChildren();
     if (!notes.length) {
-      list.appendChild(createElement('div', 'overview-empty', 'Заметок пока нет. Добавьте первую заметку выше.'));
+      list.appendChild(createElement('div', 'overview-empty overview-sticker-empty', 'Здесь появятся ваши заметки. Нажмите «Добавить заметку».'));
       return;
     }
     notes.forEach((note) => {
-      const item = createElement('article', 'overview-personal-item');
-      const content = createElement('div', 'overview-personal-content');
-      content.appendChild(createElement('strong', '', note.title || 'Заметка без заголовка'));
-      content.appendChild(createElement('p', '', note.content));
-      content.appendChild(createElement('span', 'overview-personal-time', `Изменено: ${new Date(note.updated_at || note.created_at).toLocaleString('ru-RU')}`));
-      const actions = createElement('div', 'overview-item-actions');
-      const edit = createElement('button', 'overview-mini-btn', 'Изменить');
+      const item = createElement('article', 'overview-sticker overview-sticker--note');
+      const head = createElement('div', 'overview-sticker-head');
+      head.appendChild(createElement('strong', '', note.title || 'Заметка'));
+      head.appendChild(createElement('span', '', new Date(note.updated_at || note.created_at).toLocaleDateString('ru-RU')));
+      const expand = createElement('button', 'overview-sticker-expand', note.content || '');
+      expand.type = 'button';
+      expand.dataset.expandNote = String(note.id);
+      expand.setAttribute('aria-expanded', 'false');
+      const hint = createElement('span', 'overview-sticker-hint', 'Нажмите, чтобы раскрыть');
+      const actions = createElement('div', 'overview-sticker-actions');
+      const edit = createElement('button', 'overview-sticker-action', 'Изменить');
       edit.type = 'button'; edit.dataset.editNote = String(note.id);
-      const remove = createElement('button', 'overview-mini-btn', 'Удалить');
+      const remove = createElement('button', 'overview-sticker-action', 'Удалить');
       remove.type = 'button'; remove.dataset.deleteNote = String(note.id);
       actions.append(edit, remove);
-      item.append(content, actions);
+      item.append(head, expand, hint, actions);
       list.appendChild(item);
     });
   };
@@ -456,8 +459,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   const resetNoteForm = () => {
     $('notesForm').reset();
     $('noteId').value = '';
+    $('noteModalTitle').textContent = 'Новая заметка';
     $('saveNoteBtn').textContent = 'Сохранить заметку';
-    $('cancelNoteEdit').hidden = true;
+  };
+
+  const openDialog = (dialogId) => {
+    const dialog = $(dialogId);
+    if (!dialog) return;
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+  };
+
+  const closeDialog = (dialogId) => {
+    const dialog = $(dialogId);
+    if (!dialog) return;
+    if (typeof dialog.close === 'function' && dialog.open) dialog.close();
+    else dialog.removeAttribute('open');
   };
 
   const saveNote = async (event) => {
@@ -478,6 +495,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const { error } = await query;
       if (error) throw error;
       resetNoteForm();
+      closeDialog('noteModal');
       await loadNotes();
       toast(noteId ? 'Заметка обновлена.' : 'Заметка сохранена.');
     } catch (error) {
@@ -494,12 +512,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('noteId').value = String(note.id);
     $('noteTitle').value = note.title || '';
     $('noteContent').value = note.content || '';
+    $('noteModalTitle').textContent = 'Изменить заметку';
     $('saveNoteBtn').textContent = 'Сохранить изменения';
-    $('cancelNoteEdit').hidden = false;
-    $('noteTitle').focus();
+    openDialog('noteModal');
+    window.setTimeout(() => $('noteTitle').focus(), 50);
   };
-
-  const deleteNote = async (noteId) => {
+    const deleteNote = async (noteId) => {
     if (!window.confirm('Удалить эту заметку?')) return;
     try {
       const { error } = await sb.from('admin_personal_notes').delete().eq('id', noteId).eq('admin_id', currentUser.id);
@@ -530,7 +548,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const list = $('remindersList');
     list.replaceChildren();
     if (!reminders.length) {
-      list.appendChild(createElement('div', 'overview-empty', 'Напоминаний пока нет.'));
+      list.appendChild(createElement('div', 'overview-empty overview-sticker-empty', 'Здесь появятся ваши напоминания. Нажмите «Добавить напоминание».'));
       return;
     }
     const now = Date.now();
@@ -538,18 +556,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       const reminderDate = new Date(reminder.remind_at).getTime();
       const isCompleted = Boolean(reminder.is_completed);
       const isOverdue = !isCompleted && Number.isFinite(reminderDate) && reminderDate < now;
-      const item = createElement('article', `overview-personal-item overview-reminder-item ${isCompleted ? 'is-completed' : (isOverdue ? 'is-overdue' : 'is-upcoming')}`);
-      const content = createElement('div', 'overview-personal-content');
-      content.appendChild(createElement('strong', '', reminder.reminder_text));
-      content.appendChild(createElement('span', 'overview-personal-time', new Date(reminder.remind_at).toLocaleString('ru-RU', { dateStyle: 'medium', timeStyle: 'short' })));
-      content.appendChild(createElement('span', 'overview-reminder-state', isCompleted ? 'Выполнено' : (isOverdue ? 'Просрочено' : 'Предстоит')));
-      const actions = createElement('div', 'overview-item-actions');
-      const toggle = createElement('button', 'overview-mini-btn', isCompleted ? 'Вернуть' : 'Выполнено');
+      const statusClass = isCompleted ? 'is-completed' : (isOverdue ? 'is-overdue' : 'is-upcoming');
+      const item = createElement('article', `overview-sticker overview-sticker--reminder ${statusClass}`);
+      const head = createElement('div', 'overview-sticker-head');
+      head.appendChild(createElement('strong', '', isCompleted ? 'Выполнено' : (isOverdue ? 'Просрочено' : 'Напоминание')));
+      head.appendChild(createElement('span', '', new Date(reminder.remind_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
+      const expand = createElement('button', 'overview-sticker-expand', reminder.reminder_text || '');
+      expand.type = 'button';
+      expand.dataset.expandReminder = String(reminder.id);
+      expand.setAttribute('aria-expanded', 'false');
+      const hint = createElement('span', 'overview-sticker-hint', 'Нажмите, чтобы раскрыть');
+      const actions = createElement('div', 'overview-sticker-actions');
+      const toggle = createElement('button', 'overview-sticker-action', isCompleted ? 'Вернуть' : 'Выполнено');
       toggle.type = 'button'; toggle.dataset.toggleReminder = String(reminder.id); toggle.dataset.completed = String(isCompleted);
-      const remove = createElement('button', 'overview-mini-btn', 'Удалить');
+      const remove = createElement('button', 'overview-sticker-action', 'Удалить');
       remove.type = 'button'; remove.dataset.deleteReminder = String(reminder.id);
       actions.append(toggle, remove);
-      item.append(content, actions);
+      item.append(head, expand, hint, actions);
       list.appendChild(item);
     });
   };
@@ -573,6 +596,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       if (error) throw error;
       $('reminderForm').reset();
+      closeDialog('reminderModal');
       await loadReminders();
       toast('Напоминание добавлено.');
     } catch (error) {
@@ -631,11 +655,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     $('applyBtn').addEventListener('click', () => {
+      setExportSelectionMode(false);
       activeListKind = null;
       $('listPanel').hidden = true;
       loadOverviewDate($('dateFilter').value);
     });
     $('dateFilter').addEventListener('change', () => {
+      setExportSelectionMode(false);
       activeListKind = null;
       $('listPanel').hidden = true;
       loadOverviewDate($('dateFilter').value);
@@ -643,10 +669,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     ['supplierFilter', 'docFilter', 'supplyFilter', 'orderFilter'].forEach((id) => {
       $(id).addEventListener(id.endsWith('Filter') && id !== 'supplyFilter' && id !== 'orderFilter' ? 'input' : 'change', () => {
         renderOverview();
-        renderUpcomingBookings();
       });
     });
     $('resetBtn').addEventListener('click', async () => {
+      setExportSelectionMode(false);
       $('supplierFilter').value = '';
       $('docFilter').value = '';
       $('supplyFilter').value = '';
@@ -661,7 +687,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         showState(`Не удалось определить ближайшую дату: ${error.message || 'ошибка'}`, true);
       }
     });
-    $('exportBtn').addEventListener('click', exportCsv);
+    $('exportBtn').addEventListener('click', handleExportClick);
+    $('overviewMetrics').addEventListener('change', (event) => {
+      const checkbox = event.target.closest('[data-export-kind]');
+      if (!checkbox) return;
+      if (checkbox.checked) selectedExportKinds.add(checkbox.dataset.exportKind);
+      else selectedExportKinds.delete(checkbox.dataset.exportKind);
+      checkbox.closest('.overview-metric-shell')?.classList.toggle('is-selected', checkbox.checked);
+      updateExportSelectionState();
+    });
     $('closeList').addEventListener('click', () => {
       $('listPanel').hidden = true;
       activeListKind = null;
@@ -673,25 +707,51 @@ document.addEventListener('DOMContentLoaded', async () => {
       const button = event.target.closest('[data-verify-booking]');
       if (button) updateVerification(button);
     });
-    $('upcomingList').addEventListener('click', (event) => {
-      const item = event.target.closest('[data-date]');
-      if (item?.dataset.date) window.location.href = `admin_day.html?date=${encodeURIComponent(item.dataset.date)}`;
-    });
 
+    $('addNoteBtn').addEventListener('click', () => { resetNoteForm(); openDialog('noteModal'); });
     $('notesForm').addEventListener('submit', saveNote);
-    $('cancelNoteEdit').addEventListener('click', resetNoteForm);
+    $('addReminderBtn').addEventListener('click', () => openDialog('reminderModal'));
+    $('reminderForm').addEventListener('submit', saveReminder);
+    document.querySelectorAll('[data-close-dialog]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const dialogId = button.dataset.closeDialog;
+        closeDialog(dialogId);
+        if (dialogId === 'noteModal') resetNoteForm();
+        if (dialogId === 'reminderModal') $('reminderForm').reset();
+      });
+    });
+    $('noteModal').addEventListener('close', resetNoteForm);
+    $('reminderModal').addEventListener('close', () => $('reminderForm').reset());
+    ['noteModal', 'reminderModal'].forEach((dialogId) => {
+      $(dialogId).addEventListener('click', (event) => { if (event.target === $(dialogId)) closeDialog(dialogId); });
+    });
     $('notesList').addEventListener('click', (event) => {
       const editButton = event.target.closest('[data-edit-note]');
       const deleteButton = event.target.closest('[data-delete-note]');
+      const expandButton = event.target.closest('[data-expand-note]');
       if (editButton) editNote(editButton.dataset.editNote);
       if (deleteButton) deleteNote(deleteButton.dataset.deleteNote);
+      if (expandButton) {
+        const card = expandButton.closest('.overview-sticker');
+        const expanded = card.classList.toggle('is-expanded');
+        expandButton.setAttribute('aria-expanded', String(expanded));
+        const hint = card.querySelector('.overview-sticker-hint');
+        if (hint) hint.textContent = expanded ? 'Нажмите, чтобы свернуть' : 'Нажмите, чтобы раскрыть';
+      }
     });
-    $('reminderForm').addEventListener('submit', saveReminder);
     $('remindersList').addEventListener('click', (event) => {
       const toggle = event.target.closest('[data-toggle-reminder]');
       const remove = event.target.closest('[data-delete-reminder]');
+      const expandButton = event.target.closest('[data-expand-reminder]');
       if (toggle) toggleReminder(toggle.dataset.toggleReminder, toggle.dataset.completed === 'true');
       if (remove) deleteReminder(remove.dataset.deleteReminder);
+      if (expandButton) {
+        const card = expandButton.closest('.overview-sticker');
+        const expanded = card.classList.toggle('is-expanded');
+        expandButton.setAttribute('aria-expanded', String(expanded));
+        const hint = card.querySelector('.overview-sticker-hint');
+        if (hint) hint.textContent = expanded ? 'Нажмите, чтобы свернуть' : 'Нажмите, чтобы раскрыть';
+      }
     });
 
     try {
@@ -714,10 +774,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       loadReminders().catch((error) => {
         console.error('Не удалось загрузить напоминания:', error);
         $('remindersList').replaceChildren(createElement('div', 'overview-empty', `Не удалось загрузить напоминания. Проверьте SQL-миграцию: ${error.message || ''}`));
-      }),
-      loadUpcomingBookings().catch((error) => {
-        console.error('Не удалось загрузить ближайшие записи:', error);
-        $('upcomingList').replaceChildren(createElement('div', 'overview-empty', `Не удалось загрузить ближайшие записи: ${error.message || ''}`));
       })
     ];
     await Promise.all(independentLoads);
