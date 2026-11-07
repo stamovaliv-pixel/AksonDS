@@ -50,6 +50,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isOperator = profile.role === 'operator';
   const isViewer = profile.role === 'viewer';
   if (isViewer) document.body.classList.add('role-viewer');
+  if (isAdmin && !document.querySelector('.header-nav a[href="admin_overview.html"]')) {
+    const nav = document.querySelector('.header-nav');
+    if (nav) { const link = document.createElement('a'); link.href = 'admin_overview.html'; link.className = 'nav-icon'; link.title = 'Обзор заявок'; link.textContent = '▦'; nav.prepend(link); }
+  }
 
   // ОПТИМИЗАЦИЯ: Кэширование настроек
   async function getSettings() {
@@ -211,6 +215,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     .eq('slot_date', selectedDate)
     .eq('status', 'active');
 
+  let verifiedBookingIds = new Set();
+  if (isAdmin && (bookings || []).length) {
+    const { data: verificationRows, error: verificationError } = await sb.from('booking_verification')
+      .select('booking_id, verified').in('booking_id', bookings.map(b => b.id));
+    if (verificationError) console.warn('Не удалось загрузить верификацию:', verificationError.message);
+    verifiedBookingIds = new Set((verificationRows || []).filter(v => v.verified).map(v => String(v.booking_id)));
+  }
   let allProfiles = [];
   let selectedSupplier = null;
   let currentEditBooking = null;
@@ -330,7 +341,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       return `
         <div class="slot-box ${cssClass}" data-info="${dataStr}">
-          <div class="sb-header"><div class="sb-title" title="${escapeHtml(compName)}">${escapeHtml(compName)}</div><button class="btn-dots" type="button" aria-label="Детали записи">⋮</button></div>
+          <div class="sb-header"><div class="sb-title" title="${escapeHtml(compName)}">${escapeHtml(compName)}</div>${isAdmin ? `<button type="button" class="booking-verify ${verifiedBookingIds.has(String(b.id)) ? 'is-verified' : 'is-unverified'}" data-verify-booking="${escapeHtml(b.id)}" title="${verifiedBookingIds.has(String(b.id)) ? 'Запись верифицирована' : 'Запись не верифицирована'}" aria-label="Верификация">${verifiedBookingIds.has(String(b.id)) ? '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 11v4"/><path d="M12 18h.01"/></svg>'}</button>` : ''}<button class="btn-dots" type="button" aria-label="Детали записи">⋮</button></div>
           <div class="sb-icons"><div style="display:flex; gap:4px; font-size:16px;">${iconsHtml}</div>${tkHtml}</div>
           <div class="card-actions" data-id="${escapeHtml(b.id)}">
             <div class="inline-input-group"><label>Приб.</label><input type="time" class="inline-arr viewer-disable ${fieldCompletionClass(b.arrival_time ? b.arrival_time.substring(0,5) : '')}" value="${escapeHtml(b.arrival_time ? b.arrival_time.substring(0,5) : '')}"></div>
@@ -356,6 +367,32 @@ document.addEventListener('DOMContentLoaded', async () => {
       : '';
     block.innerHTML = `<div class="hour-header"><span class="hour-period-label">${hour}:00 - ${hour+1}:00</span>${hourCountBadge}</div><div class="cards-grid">${cardsHtml}</div>`;
     container.appendChild(block);
+  }
+
+  if (isAdmin) {
+    container.addEventListener('click', async (event) => {
+      const button = event.target.closest('[data-verify-booking]');
+      if (!button) return;
+      const bookingId = button.dataset.verifyBooking;
+      const currentlyVerified = button.classList.contains('is-verified');
+      button.disabled = true;
+      try {
+        if (currentlyVerified) {
+          const { error } = await sb.from('booking_verification').delete().eq('booking_id', bookingId);
+          if (error) throw error;
+          verifiedBookingIds.delete(String(bookingId));
+        } else {
+          const { error } = await sb.from('booking_verification').upsert({ booking_id: bookingId, verified: true, verified_by: user.id, verified_at: new Date().toISOString() }, { onConflict: 'booking_id' });
+          if (error) throw error;
+          verifiedBookingIds.add(String(bookingId));
+        }
+        button.classList.toggle('is-verified', !currentlyVerified);
+        button.classList.toggle('is-unverified', currentlyVerified);
+        button.innerHTML = currentlyVerified ? '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 11v4"/><path d="M12 18h.01"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>';
+        button.title = currentlyVerified ? 'Запись не верифицирована' : 'Запись верифицирована';
+      } catch (error) { alert('Не удалось изменить верификацию: ' + error.message); }
+      finally { button.disabled = false; }
+    });
   }
 
   if (!isViewer) {
