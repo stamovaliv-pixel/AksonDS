@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Генератор ключей Push — Аксон ДокСлот</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter,Segoe UI,Arial,sans-serif; background:#f4f7fb; color:#182230; }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:28px 16px; }
+    main { width:min(760px,100%); margin:auto; padding:26px; border:1px solid #dce4ef; border-radius:20px; background:white; box-shadow:0 14px 40px #13233b12; }
+    h1 { margin:0 0 8px; font-size:24px; } p { color:#64748b; line-height:1.55; font-size:14px; }
+    .notice { padding:12px 14px; border-radius:12px; background:#eff6ff; color:#1e40af; font-size:13px; line-height:1.55; }
+    .field { margin:20px 0; } label { display:block; margin-bottom:7px; font-size:13px; font-weight:700; }
+    textarea { width:100%; min-height:68px; padding:11px; resize:vertical; border:1px solid #d6deea; border-radius:10px; font:12px/1.5 Consolas,monospace; overflow-wrap:anywhere; }
+    .actions { display:flex; flex-wrap:wrap; gap:10px; }
+    button { border:0; border-radius:10px; padding:11px 16px; font-weight:700; cursor:pointer; background:#2563eb; color:white; }
+    button.secondary { background:#eef2f7; color:#243246; } button:disabled { opacity:.55; cursor:wait; }
+    .small { font-size:12px; }
+    #result[hidden] { display:none; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Ключи системных уведомлений ДокСлота</h1>
+  <p>Генератор создаёт VAPID-ключи для Web Push и отдельный секрет для связи Supabase Database Webhook с Edge Function. Всё генерируется локально в этом браузере.</p>
+  <div class="notice"><b>Важно:</b> приватный VAPID-ключ и секрет webhook нельзя добавлять в GitHub, HTML-код сайта или отправлять в чат. Они предназначены только для Secrets в Supabase. Публичный VAPID-ключ, наоборот, будет добавлен в <code>js/push-config.js</code>.</div>
+  <div class="actions" style="margin-top:18px">
+    <button id="generate" type="button">Сгенерировать ключи</button>
+  </div>
+  <section id="result" hidden>
+    <div class="field"><label for="publicKey">Публичный VAPID-ключ — добавить в js/push-config.js и Supabase Secret VAPID_PUBLIC_KEY</label><textarea id="publicKey" readonly></textarea><div class="actions"><button class="secondary" data-copy="publicKey" type="button">Копировать публичный ключ</button></div></div>
+    <div class="field"><label for="privateKey">Приватный VAPID-ключ — только Supabase Secret VAPID_PRIVATE_KEY</label><textarea id="privateKey" readonly></textarea><div class="actions"><button class="secondary" data-copy="privateKey" type="button">Копировать приватный ключ</button></div></div>
+    <div class="field"><label for="webhookSecret">Секрет webhook — Supabase Secret DOCKSLOT_WEBHOOK_SECRET и HTTP header x-dockslot-webhook-secret</label><textarea id="webhookSecret" readonly></textarea><div class="actions"><button class="secondary" data-copy="webhookSecret" type="button">Копировать секрет webhook</button></div></div>
+  </section>
+  <p class="small" id="status" role="status"></p>
+</main>
+<script>
+  const toBase64Url = bytes => {
+    let binary = '';
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  };
+  const fromBase64Url = value => {
+    const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+    return Uint8Array.from(atob(padded), char => char.charCodeAt(0));
+  };
+  document.getElementById('generate').addEventListener('click', async () => {
+    const button = document.getElementById('generate');
+    const status = document.getElementById('status');
+    button.disabled = true;
+    status.textContent = 'Генерация…';
+    try {
+      if (!crypto?.subtle || !crypto.getRandomValues) throw new Error('Web Crypto недоступен. Откройте файл в актуальном Chrome или Edge.');
+      const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+      const jwk = await crypto.subtle.exportKey('jwk', pair.privateKey);
+      if (!jwk.x || !jwk.y || !jwk.d) throw new Error('Браузер не вернул компоненты ключей.');
+      const publicBytes = new Uint8Array(65);
+      publicBytes[0] = 4;
+      publicBytes.set(fromBase64Url(jwk.x), 1);
+      publicBytes.set(fromBase64Url(jwk.y), 33);
+      const webhookBytes = crypto.getRandomValues(new Uint8Array(32));
+      document.getElementById('publicKey').value = toBase64Url(publicBytes);
+      document.getElementById('privateKey').value = jwk.d;
+      document.getElementById('webhookSecret').value = toBase64Url(webhookBytes);
+      document.getElementById('result').hidden = false;
+      status.textContent = 'Готово. Сохраните значения в нужных местах. Не генерируйте ключи повторно после настройки, иначе текущие подписки потребуется подключить заново.';
+    } catch (error) {
+      status.textContent = error?.message || 'Не удалось создать ключи.';
+    } finally { button.disabled = false; }
+  });
+  document.querySelectorAll('[data-copy]').forEach(button => button.addEventListener('click', async () => {
+    const field = document.getElementById(button.dataset.copy);
+    try { await navigator.clipboard.writeText(field.value); button.textContent = 'Скопировано'; }
+    catch { field.focus(); field.select(); document.execCommand('copy'); button.textContent = 'Скопировано'; }
+    setTimeout(() => button.textContent = button.dataset.copy === 'publicKey' ? 'Копировать публичный ключ' : button.dataset.copy === 'privateKey' ? 'Копировать приватный ключ' : 'Копировать секрет webhook', 1600);
+  }));
+</script>
+</body>
+</html>
