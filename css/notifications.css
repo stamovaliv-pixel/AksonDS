@@ -1,28 +1,42 @@
 /* AKSon DockSlot — personal in-app notifications. */
-.header-nav .ak-notifications-bell {
-  position: relative;
+.ak-notifications-bell {
+  position: fixed;
+  right: max(26px, env(safe-area-inset-right));
+  bottom: max(26px, env(safe-area-inset-bottom));
+  z-index: 10040;
   display: inline-flex;
-  width: 42px;
-  height: 42px;
-  flex: 0 0 42px;
+  width: 58px;
+  height: 58px;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 0;
-  border-radius: 12px;
-  background: transparent;
-  color: var(--color-text-muted, #64748b);
+  border: 1px solid rgba(255, 255, 255, .72);
+  border-radius: 50%;
+  background: linear-gradient(145deg, #3988ef 0%, #2467c9 100%);
+  color: #fff;
   cursor: pointer;
-  transition: color .18s ease, background .18s ease, transform .18s ease;
+  box-shadow: 0 8px 24px rgba(30, 86, 160, .30), 0 3px 8px rgba(15, 23, 42, .16), inset 0 1px 0 rgba(255,255,255,.25);
+  animation: ak-notifications-float 3.4s ease-in-out infinite;
+  transition: box-shadow .2s ease, filter .2s ease, transform .2s ease;
+  -webkit-tap-highlight-color: transparent;
 }
-.header-nav .ak-notifications-bell:hover,
-.header-nav .ak-notifications-bell:focus-visible {
-  color: var(--color-primary, #3b82f6);
-  background: rgba(59, 130, 246, .08);
-  transform: translateY(-1px);
+.ak-notifications-bell:hover,
+.ak-notifications-bell:focus-visible {
+  color: #fff;
+  filter: brightness(1.07);
+  box-shadow: 0 12px 30px rgba(30, 86, 160, .38), 0 4px 10px rgba(15, 23, 42, .18), inset 0 1px 0 rgba(255,255,255,.3);
+  transform: translateY(-3px) scale(1.035);
   outline: none;
 }
-.ak-notifications-bell svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ak-notifications-bell:active { transform: translateY(-1px) scale(.98); }
+.ak-notifications-bell svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+@keyframes ak-notifications-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ak-notifications-bell { animation: none; transition: box-shadow .2s ease, filter .2s ease; }
+}
 .ak-notifications-badge {
   position: absolute;
   top: 3px;
@@ -196,7 +210,6 @@ html[data-theme="dark"] .ak-notifications-secondary-btn { border-color: #465466;
 html[data-theme="dark"] .ak-notifications-toast { border-color: #344150; background: #18212b; }
 
 @media (max-width: 600px) {
-  .header-nav .ak-notifications-bell { width: 36px; height: 36px; flex-basis: 36px; }
   .ak-notifications-overlay { align-items: flex-end; padding: 0; }
   .ak-notifications-dialog { width: 100%; max-height: min(86dvh, 760px); border-radius: 20px 20px 0 0; border-bottom: 0; }
   .ak-notifications-head { padding: 17px 17px 13px; }
@@ -218,7 +231,7 @@ html[data-theme="dark"] .ak-notifications-toast { border-color: #344150; backgro
 html[data-theme="dark"] .ak-push-settings-status { border-color: #344150; background: rgba(148,163,184,.07); color: #cbd5e1; }
 @media (max-width: 600px) { .ak-push-settings-actions { display: grid; grid-template-columns: 1fr; } }
 
-/* Floating notification bell badge baseline. */
+/* Floating bell: badge stays anchored to the button in every viewport. */
 .ak-notifications-badge {
   top: 3px;
   right: 5px;
@@ -243,143 +256,11 @@ html[data-theme="dark"] .ak-push-settings-status { border-color: #344150; backgr
   background: rgba(59, 130, 246, .07);
 }
 @media (max-width: 600px) {
-  .app-header,
-  body:not(.overview-page) .app-header,
-  body.overview-page .app-header {
-    padding-right: 15px;
+  .ak-notifications-bell {
+    right: max(18px, env(safe-area-inset-right));
+    bottom: max(18px, env(safe-area-inset-bottom));
+    width: 54px;
+    height: 54px;
   }
-  .header-nav { gap: 10px; }
-  .header-nav .ak-notifications-bell {
-    width: 36px;
-    height: 36px;
-    flex-basis: 36px;
-  }
-  .ak-notifications-badge { top: 2px; right: 4px; }
-}
-
-/* v5: notifications are a floating quick-access control, independent of header layout. */
-.ak-notifications-bell.ak-notifications-bell--floating {
-  position: fixed !important;
-  right: max(22px, env(safe-area-inset-right));
-  bottom: max(22px, env(safe-area-inset-bottom));
-  z-index: 10040;
-  display: inline-flex;
-  width: 54px !important;
-  min-width: 54px !important;
-  height: 54px !important;
-  min-height: 54px !important;
-  flex: 0 0 54px;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 1px solid rgba(148, 163, 184, .22) !important;
-  border-radius: 50%;
-  background: var(--color-surface, #fff) !important;
-  color: var(--color-text-muted, #64748b) !important;
-  box-shadow: 0 5px 17px rgba(15, 23, 42, .13), 0 1px 3px rgba(15, 23, 42, .07);
-  cursor: pointer;
-  transition: transform .18s ease, box-shadow .18s ease, color .18s ease, border-color .18s ease;
-}
-.ak-notifications-bell.ak-notifications-bell--floating svg {
-  width: 23px;
-  height: 23px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.ak-notifications-bell.ak-notifications-bell--floating:hover,
-.ak-notifications-bell.ak-notifications-bell--floating:focus-visible {
-  color: var(--color-primary, #3b82f6) !important;
-  border-color: rgba(59, 130, 246, .23) !important;
-  box-shadow: 0 9px 24px rgba(15, 23, 42, .17), 0 2px 5px rgba(15, 23, 42, .07);
-  transform: translateY(-3px);
-  outline: none;
-}
-.ak-notifications-bell.ak-notifications-bell--floating:active { transform: translateY(-1px) scale(.98); }
-.ak-notifications-bell--floating .ak-notifications-badge {
-  top: 1px;
-  right: 1px;
-  min-width: 19px;
-  width: auto;
-  height: 19px;
-  padding: 0 4px;
-  border: 2px solid var(--color-surface, #fff);
-  border-radius: 999px;
-  background: #e04452;
-  color: #fff;
-  font-size: 9px;
-  line-height: 1;
-  box-shadow: 0 1px 4px rgba(127, 29, 29, .24);
-  transform: translate(24%, -24%);
-}
-html[data-theme="dark"] .ak-notifications-bell.ak-notifications-bell--floating {
-  border-color: rgba(148, 163, 184, .22) !important;
-  background: #18212b !important;
-  color: #a5b2c2 !important;
-  box-shadow: 0 5px 18px rgba(0, 0, 0, .30), 0 1px 3px rgba(0, 0, 0, .18);
-}
-html[data-theme="dark"] .ak-notifications-bell--floating .ak-notifications-badge { border-color: #18212b; }
-@media (max-width: 600px) {
-  .ak-notifications-bell.ak-notifications-bell--floating {
-    right: max(15px, env(safe-area-inset-right));
-    bottom: max(15px, env(safe-area-inset-bottom));
-    width: 49px !important;
-    min-width: 49px !important;
-    height: 49px !important;
-    min-height: 49px !important;
-    flex-basis: 49px;
-  }
-  .ak-notifications-bell.ak-notifications-bell--floating svg { width: 21px; height: 21px; }
-}
-
-/* Shared theme control placement on every page: aligned with the common content grid. */
-.app-header { position: relative; }
-.app-header [data-theme-toggle] {
-  position: absolute !important;
-  left: max(190px, calc((100vw - 1360px) / 2 + 18px));
-  top: 50%;
-  z-index: 4;
-  display: inline-flex !important;
-  width: 38px;
-  min-width: 38px;
-  height: 38px;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  padding: 0;
-  border: 0 !important;
-  border-radius: 10px;
-  background: transparent !important;
-  box-shadow: none !important;
-  color: var(--color-text-muted, #64748b) !important;
-  transform: translateY(-50%);
-}
-.app-header [data-theme-toggle]:hover,
-.app-header [data-theme-toggle]:focus-visible {
-  background: rgba(100, 116, 139, .09) !important;
-  color: var(--color-text-main, #475569) !important;
-  transform: translateY(calc(-50% - 1px));
-  outline: none;
-}
-.app-header [data-theme-toggle] svg { width: 22px; height: 22px; }
-@media (max-width: 767px) {
-  .app-header [data-theme-toggle] {
-    left: 190px;
-    right: auto;
-    top: 50%;
-    transform: translateY(-50%);
-  }
-}
-@media (max-width: 600px) {
-  .app-header [data-theme-toggle] {
-    left: auto;
-    right: max(14px, env(safe-area-inset-right));
-    top: 13px;
-    transform: none;
-  }
-  .app-header [data-theme-toggle]:hover,
-  .app-header [data-theme-toggle]:focus-visible { transform: translateY(-1px); }
+  .ak-notifications-badge { top: 2px; right: 2px; }
 }
