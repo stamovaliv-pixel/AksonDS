@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let fallbackPoll = null;
   let reminderPoll = null;
   let toastTimer = null;
+  const desktopNotificationIds = new Set();
 
   const defaultPreferences = () => {
     const result = {};
@@ -94,9 +95,9 @@ document.addEventListener('DOMContentLoaded', () => {
     bell.setAttribute('aria-expanded', 'false');
     bell.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span class="ak-notifications-badge" id="akNotificationsBadge" hidden></span>';
 
-    const anchor = nav.querySelector('a[href="settings.html"], a#logoutBtn, button#logoutBtn');
-    if (anchor) nav.insertBefore(bell, anchor);
-    else nav.appendChild(bell);
+    // Keep the bell as the rightmost item in the navigation, not between page links.
+    // The shared stylesheet aligns the navigation's right edge with the page content column.
+    nav.appendChild(bell);
 
     const overlay = create('div', 'ak-notifications-overlay');
     overlay.id = 'akNotificationsOverlay';
@@ -319,6 +320,12 @@ document.addEventListener('DOMContentLoaded', () => {
     disablePush.dataset.action = 'push-disable';
     disablePush.hidden = true;
     pushActions.appendChild(disablePush);
+    const testPush = create('button', 'ak-notifications-secondary-btn', 'Проверить системное уведомление');
+    testPush.type = 'button';
+    testPush.id = 'akPushTestButton';
+    testPush.dataset.action = 'push-test';
+    testPush.hidden = true;
+    pushActions.appendChild(testPush);
     pushSection.appendChild(pushActions);
     body.appendChild(pushSection);
 
@@ -378,6 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const action = event.target.closest('[data-action]')?.dataset.action;
     if (action === 'push-enable') { enablePushNotifications(); return; }
     if (action === 'push-disable') { disablePushNotifications(); return; }
+    if (action === 'push-test') { runDesktopNotificationTest(); return; }
     const item = event.target.closest('[data-notification-id]');
     if (item) markNotificationRead(item.dataset.notificationId);
   };
@@ -467,10 +475,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const status = $('akPushSettingsStatus');
     const enable = $('akPushEnableButton');
     const disable = $('akPushDisableButton');
+    const test = $('akPushTestButton');
     if (!status || !enable || !disable) return;
 
     enable.disabled = false;
     disable.hidden = true;
+    if (test) test.hidden = !('Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator);
 
     if (!pushIsSupported()) {
       status.textContent = 'Этот браузер или соединение не поддерживает системные Push-уведомления. Откройте ДокСлот по HTTPS в актуальном Chrome или Edge.';
@@ -520,6 +530,48 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const getRootServiceWorkerRegistration = async () => {
+    let registration = await navigator.serviceWorker.getRegistration('/');
+    if (!registration) registration = await navigator.serviceWorker.register(PUSH_SW_PATH, { scope: '/', updateViaCache: 'none' });
+    try { await registration.update(); } catch (_) { /* An update check is best-effort. */ }
+    if (registration.waiting) registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    const ready = await navigator.serviceWorker.ready;
+    return ready || registration;
+  };
+
+  const runDesktopNotificationTest = async () => {
+    const button = $('akPushTestButton');
+    if (button) { button.disabled = true; button.textContent = 'Проверка…'; }
+    try {
+      if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+        throw new Error('Этот браузер не поддерживает системные уведомления через Service Worker.');
+      }
+      let permission = Notification.permission;
+      if (permission === 'default') permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        throw new Error('Разрешите уведомления для сайта в настройках браузера и повторите проверку.');
+      }
+      const registration = await getRootServiceWorkerRegistration();
+      if (!registration || !registration.active) throw new Error('Service Worker ещё не активирован. Обновите страницу и повторите проверку.');
+      await registration.showNotification('Тестовое уведомление — Аксон ДокСлот', {
+        body: 'Если этот баннер появился в правом нижнем углу Windows, браузер и Windows разрешают системные уведомления.',
+        icon: '/assets/apple-touch-icon.png',
+        badge: '/assets/apple-touch-icon.png',
+        tag: `akson-dockslot-local-test-${Date.now()}`,
+        renotify: true,
+        requireInteraction: true,
+        data: { url: '/app/dashboard.html', notificationId: 'local-test' }
+      });
+      setStatus('Тестовое уведомление передано Windows через Service Worker. Если баннер не появился, проверьте уведомления Chrome/Edge и Windows, а также режим «Не беспокоить».', false);
+    } catch (error) {
+      console.error('[DockSlot Push] Desktop test failed:', error);
+      setStatus(error?.message || 'Не удалось показать тестовое системное уведомление.', true);
+    } finally {
+      if (button) { button.disabled = false; button.textContent = 'Проверить системное уведомление'; }
+      await refreshPushSettingsUI();
+    }
+  };
+
   const enablePushNotifications = async () => {
     const button = $('akPushEnableButton');
     if (button) { button.disabled = true; button.textContent = 'Подключение…'; }
@@ -535,8 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
           : 'Разрешение на уведомления не выдано.');
       }
 
-      const registration = await navigator.serviceWorker.register(PUSH_SW_PATH, { scope: '/' });
-      await navigator.serviceWorker.ready;
+      const registration = await getRootServiceWorkerRegistration();
       let subscription = await registration.pushManager.getSubscription();
       if (subscription) {
         const { data: existingSubscription, error: lookupError } = await sb
@@ -622,12 +673,49 @@ document.addEventListener('DOMContentLoaded', () => {
     toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2600);
   };
 
+  const showRealtimeDesktopNotification = async (row) => {
+    if (!('Notification' in window) || Notification.permission !== 'granted' || !('serviceWorker' in navigator)) return;
+    const id = String(row?.id || '');
+    if (id && desktopNotificationIds.has(id)) return;
+    if (id) {
+      desktopNotificationIds.add(id);
+      if (desktopNotificationIds.size > 150) desktopNotificationIds.clear();
+    }
+    try {
+      const registration = await navigator.serviceWorker.getRegistration('/');
+      const title = String(row?.title || 'Аксон ДокСлот').slice(0, 120);
+      const body = String(row?.body || 'Появилось новое уведомление.').slice(0, 500);
+      const parsedTimestamp = row?.created_at ? new Date(row.created_at).getTime() : Date.now();
+      const notificationOptions = {
+        body,
+        icon: '/assets/apple-touch-icon.png',
+        badge: '/assets/apple-touch-icon.png',
+        tag: id ? `akson-dockslot-${id}` : `akson-dockslot-${Date.now()}`,
+        renotify: false,
+        timestamp: Number.isFinite(parsedTimestamp) ? parsedTimestamp : Date.now(),
+        data: { url: '/app/dashboard.html', notificationId: id }
+      };
+      if (registration?.active) {
+        await registration.showNotification(title, notificationOptions);
+      } else {
+        const fallback = new Notification(title, notificationOptions);
+        fallback.onclick = () => { window.focus(); fallback.close(); };
+      }
+    } catch (error) {
+      console.warn('[DockSlot Push] Realtime desktop notification fallback failed:', error);
+    }
+  };
+
   const handleRealtimePayload = (payload) => {
     const row = payload?.new;
     if (!row || String(row.user_id) !== String(user.id)) return;
     if (payload.eventType === 'INSERT') {
       if (!inbox.some((item) => String(item.id) === String(row.id))) inbox.unshift(row);
       inbox = inbox.slice(0, 100);
+      // A live Realtime event is also shown through the OS notification API while any
+      // DockSlot tab remains open. The stable tag avoids a second alert when Web Push
+      // for the same notification arrives from the service worker.
+      showRealtimeDesktopNotification(row);
     } else if (payload.eventType === 'UPDATE') {
       const index = inbox.findIndex((item) => String(item.id) === String(row.id));
       if (index >= 0) inbox[index] = { ...inbox[index], ...row };
