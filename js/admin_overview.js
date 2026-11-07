@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   let reminders = [];
   let exportSelectionMode = false;
   let selectedExportKinds = new Set();
+  let reminderCheckInterval = null;
+  const sessionNotifiedReminders = new Set();
+  const reminderNotificationStorageKey = () => `akson-dockslot-reminder-notified-${currentUser?.id || 'unknown'}`;
 
   const businessDate = (date = new Date()) => {
     const parts = new Intl.DateTimeFormat('en-CA', {
@@ -204,28 +207,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     return rows;
   };
 
+  const orderTypeLabel = (type) => ({ order: 'Заказ', upd: 'УПД', etrn: 'ЭТрН' })[type] || type || '—';
+
   const renderBookingList = () => {
     if (!activeListKind) return;
     const list = $('bookingList');
     list.replaceChildren();
     const titleByKind = {
-      all: 'Все заявки',
-      unverified: 'Неверифицированные заявки',
-      returns: 'Заявки с типом поставки «Возврат»'
+      all: 'Все записи',
+      unverified: 'Неверифицированные записи',
+      returns: 'Записи с типом поставки «Возврат»'
     };
     const rows = getListRows(activeListKind);
     $('listTitle').textContent = titleByKind[activeListKind];
-    $('listSubtitle').textContent = `${formatDate($('dateFilter').value)} · ${rows.length} ${rows.length === 1 ? 'заявка' : 'заявок'}`;
+    $('listSubtitle').textContent = `${formatDate($('dateFilter').value)} · ${rows.length} ${rows.length === 1 ? 'запись' : (rows.length > 1 && rows.length < 5 ? 'записи' : 'записей')}`;
 
     if (!rows.length) {
-      list.appendChild(createElement('div', 'overview-empty', 'По выбранной дате и фильтрам заявок нет.'));
+      list.appendChild(createElement('div', 'overview-empty', 'По выбранной дате и фильтрам записей нет.'));
       return;
     }
 
     rows.forEach((booking) => {
       const profile = getBookingSupplier(booking);
       const verified = verifiedIds.has(String(booking.id));
-      const row = createElement('div', 'overview-booking-row');
+      const row = createElement('article', 'overview-booking-row');
+      row.dataset.openBooking = String(booking.id);
+      row.tabIndex = 0;
+      row.setAttribute('role', 'button');
+      row.setAttribute('aria-label', `Открыть запись: ${profile.company_name || 'поставщик'}, ${formatDate(booking.slot_date)}, ${formatTime(booking.slot_hour)}`);
+      row.title = 'Открыть подробности записи';
+
       const timeCell = createElement('div', 'overview-booking-main');
       timeCell.appendChild(createElement('strong', '', formatTime(booking.slot_hour)));
       timeCell.appendChild(createElement('span', '', formatDate(booking.slot_date)));
@@ -236,18 +247,89 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const documentCell = createElement('div', 'overview-booking-main overview-booking-hide-mobile');
       documentCell.appendChild(createElement('strong', '', booking.order_number || 'Без номера'));
-      documentCell.appendChild(createElement('span', '', getSupplyTypeLabel(booking)));
-            const orderCell = createElement('div', 'overview-booking-meta overview-booking-hide-mobile', ({ order: 'Заказ', upd: 'УПД', etrn: 'ЭТрН' })[booking.order_type] || booking.order_type || '—');
+      documentCell.appendChild(createElement('span', '', `${orderTypeLabel(booking.order_type)} · ${getSupplyTypeLabel(booking)}`));
+
+      const commentCell = createElement('div', 'overview-booking-comment overview-booking-hide-mobile', booking.comment || 'Комментарий не указан');
+      commentCell.title = booking.comment || 'Комментарий не указан';
+
+      const downloadButton = createElement('button', `overview-download-btn ${booking.registry_file_url ? 'has-file' : 'no-file'}`);
+      downloadButton.type = 'button';
+      downloadButton.disabled = !booking.registry_file_url;
+      downloadButton.dataset.downloadRegistry = String(booking.id);
+      downloadButton.title = booking.registry_file_url ? 'Скачать вложенный реестр' : 'Реестр не приложен';
+      downloadButton.setAttribute('aria-label', downloadButton.title);
+      addIconButton(downloadButton, '<path d="M14 2H6a2 2 0 0 0-2 2v16h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M12 12v6m-3-3 3 3 3-3"></path>');
+
       const verifyButton = createElement('button', `overview-verify-btn ${verified ? 'is-verified' : 'is-unverified'}`);
       verifyButton.type = 'button';
       verifyButton.dataset.verifyBooking = String(booking.id);
-      verifyButton.title = verified ? 'Снять верификацию' : 'Отметить верифицированной';
+      verifyButton.title = verified ? 'Снять верификацию' : 'Отметить запись верифицированной';
       verifyButton.setAttribute('aria-label', verifyButton.title);
       addIconButton(verifyButton, verificationIcon(verified));
 
-      row.append(timeCell, supplierCell, documentCell, orderCell, verifyButton);
+      row.append(timeCell, supplierCell, documentCell, commentCell, downloadButton, verifyButton);
       list.appendChild(row);
     });
+  };
+
+  const setDetailText = (id, value) => {
+    const node = $(id);
+    if (node) node.textContent = value == null || value === '' ? '—' : String(value);
+  };
+
+  const openBookingDetails = (bookingId) => {
+    const booking = bookings.find((item) => String(item.id) === String(bookingId));
+    if (!booking) return toast('Не удалось найти запись. Обновите список.', true);
+    const profile = getBookingSupplier(booking);
+    const hour = Number(booking.slot_hour);
+    const slotTime = Number.isFinite(hour) ? `${String(hour).padStart(2, '0')}:00–${String(hour + 1).padStart(2, '0')}:00` : '—';
+    setDetailText('detailSupplier', profile.company_name || 'Поставщик');
+    setDetailText('detailInn', `ИНН: ${profile.inn || '—'}`);
+    setDetailText('detailDate', formatDate(booking.slot_date));
+    setDetailText('detailTime', slotTime);
+    setDetailText('detailOrderType', orderTypeLabel(booking.order_type));
+    setDetailText('detailOrderNumber', booking.order_number || 'Без номера');
+    setDetailText('detailSupplyType', getSupplyTypeLabel(booking));
+    setDetailText('detailArrival', booking.arrival_time ? String(booking.arrival_time).slice(0, 5) : '—');
+    setDetailText('detailDeparture', booking.departure_time ? String(booking.departure_time).slice(0, 5) : '—');
+    setDetailText('detailGate', booking.gate_number || '—');
+    setDetailText('detailTk', booking.is_tk ? 'Да' : 'Нет');
+    setDetailText('detailVerification', verifiedIds.has(String(booking.id)) ? 'Верифицирована' : 'Не верифицирована');
+    setDetailText('detailComment', booking.comment || 'Комментарий не указан');
+    $('detailOpenDay').href = `admin_day.html?date=${encodeURIComponent(booking.slot_date)}`;
+    const registryButton = $('detailRegistryDownload');
+    registryButton.disabled = !booking.registry_file_url;
+    registryButton.dataset.downloadRegistry = String(booking.id);
+    registryButton.title = booking.registry_file_url ? 'Скачать вложенный реестр' : 'Реестр не приложен';
+    openDialog('bookingDetailsModal');
+  };
+
+  const downloadRegistry = async (bookingId, buttonElement = null) => {
+    const booking = bookings.find((item) => String(item.id) === String(bookingId));
+    if (!booking?.registry_file_url) return;
+    const button = buttonElement || document.querySelector(`[data-download-registry="${CSS.escape(String(bookingId))}"]`);
+    if (button) button.disabled = true;
+    try {
+      const storage = window.registryStorage;
+      const path = storage?.normalizePath ? storage.normalizePath(booking.registry_file_url) : booking.registry_file_url;
+      if (!path) throw new Error('Некорректный путь к реестру.');
+      const { data, error } = await sb.storage.from('registries').createSignedUrl(path, 120, { download: true });
+      if (error) throw error;
+      if (!data?.signedUrl) throw new Error('Не удалось сформировать ссылку на скачивание.');
+      const link = document.createElement('a');
+      link.href = data.signedUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast('Ссылка на реестр подготовлена.');
+    } catch (error) {
+      console.error('Ошибка скачивания реестра:', error);
+      toast(`Не удалось скачать реестр: ${error.message || 'ошибка хранилища'}`, true);
+    } finally {
+      if (button && button.isConnected) button.disabled = false;
+    }
   };
 
   const renderOverview = (options = {}) => {
@@ -257,13 +339,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('returnCount').textContent = String(rows.filter(isReturnBooking).length);
     $('dateCaption').textContent = $('dateFilter').value
       ? `Данные на ${formatDate($('dateFilter').value)}`
-      : 'Нет будущих дат с активными заявками';
+      : 'Нет будущих дат с активными записями';
 
     if (!options.keepState) {
       if (!$('dateFilter').value) {
-        showState('На будущие даты активных заявок пока нет. Выберите дату вручную, чтобы посмотреть записи за другой день.');
+        showState('На будущие даты активных записей пока нет. Выберите дату вручную, чтобы посмотреть записи за другой день.');
       } else if (!bookings.length) {
-        showState(`На ${formatDate($('dateFilter').value)} активных заявок нет.`);
+        showState(`На ${formatDate($('dateFilter').value)} активных записей нет.`);
       } else {
         showState('');
       }
@@ -272,8 +354,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const openList = (kind) => {
+    const isSameVisibleList = activeListKind === kind && !$('listPanel').hidden;
+    if (isSameVisibleList) {
+      activeListKind = null;
+      $('listPanel').hidden = true;
+      document.querySelectorAll('.overview-metric[data-kind]').forEach((metric) => metric.setAttribute('aria-expanded', 'false'));
+      return;
+    }
     activeListKind = kind;
     $('listPanel').hidden = false;
+    document.querySelectorAll('.overview-metric[data-kind]').forEach((metric) => metric.setAttribute('aria-expanded', String(metric.dataset.kind === kind)));
     renderBookingList();
     $('listPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -286,7 +376,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderOverview();
     } catch (error) {
       console.error('Ошибка загрузки обзора:', error);
-      showState(`Не удалось загрузить заявки: ${error.message || 'неизвестная ошибка'}`, true);
+      showState(`Не удалось загрузить записи: ${error.message || 'неизвестная ошибка'}`, true);
       bookings = [];
       verifiedIds = new Set();
       renderOverview({ keepState: true });
@@ -301,7 +391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!exportSelectionMode) selectedExportKinds.clear();
     $('overviewMetrics').classList.toggle('is-export-selecting', exportSelectionMode);
     $('exportBtn').classList.toggle('is-active', exportSelectionMode);
-    $('exportBtn').classList.remove('is-ready');
+    $('exportBtn').classList.remove('is-pulsing');
     $('exportBtn').setAttribute('aria-pressed', String(exportSelectionMode));
     $('exportBtn').title = exportSelectionMode ? 'Выгрузить выбранные разделы' : 'Выбрать разделы для выгрузки';
     $('exportBtn').setAttribute('aria-label', $('exportBtn').title);
@@ -313,7 +403,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const updateExportSelectionState = () => {
-    $('exportBtn').classList.toggle('is-ready', exportSelectionMode && selectedExportKinds.size > 0);
+    $('exportBtn').classList.toggle('is-pulsing', exportSelectionMode && selectedExportKinds.size > 0);
   };
 
   const exportCsv = (kinds) => {
@@ -325,7 +415,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const rows = [...selectedRows.values()].sort((a, b) => Number(a.slot_hour || 0) - Number(b.slot_hour || 0));
     if (!rows.length) {
-      toast('В выбранных разделах нет заявок для выгрузки.', true);
+      toast('В выбранных разделах нет записей для выгрузки.', true);
       return false;
     }
 
@@ -368,7 +458,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     anchor.click();
     anchor.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast(`Консолидированный реестр сформирован: ${rows.length} заявок.`);
+    toast(`Консолидированный реестр сформирован: ${rows.length} записей.`);
     return true;
   };
 
@@ -408,7 +498,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         verifiedIds.add(String(bookingId));
       }
       renderOverview();
-      toast(wasVerified ? 'Верификация снята.' : 'Заявка верифицирована.');
+      toast(wasVerified ? 'Верификация снята.' : 'Запись верифицирована.');
     } catch (error) {
       console.error('Ошибка изменения верификации:', error);
       toast(`Не удалось изменить верификацию: ${error.message || 'ошибка сохранения'}`, true);
@@ -517,7 +607,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     openDialog('noteModal');
     window.setTimeout(() => $('noteTitle').focus(), 50);
   };
-    const deleteNote = async (noteId) => {
+
+  const deleteNote = async (noteId) => {
     if (!window.confirm('Удалить эту заметку?')) return;
     try {
       const { error } = await sb.from('admin_personal_notes').delete().eq('id', noteId).eq('admin_id', currentUser.id);
@@ -532,6 +623,80 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
+  const getNotifiedReminderMap = () => {
+    try {
+      const raw = localStorage.getItem(reminderNotificationStorageKey());
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_) { return {}; }
+  };
+
+  const saveNotifiedReminderMap = (map) => {
+    try { localStorage.setItem(reminderNotificationStorageKey(), JSON.stringify(map)); }
+    catch (error) { console.warn('Не удалось сохранить отметки уведомлений:', error); }
+  };
+
+  const showDueReminderDialog = (dueItems) => {
+    const content = $('dueReminderContent');
+    content.replaceChildren();
+    dueItems.forEach((reminder) => {
+      const item = createElement('div', 'overview-due-item');
+      item.appendChild(createElement('strong', '', new Date(reminder.remind_at).toLocaleString('ru-RU')));
+      item.appendChild(createElement('div', '', reminder.reminder_text || 'Напоминание'));
+      content.appendChild(item);
+    });
+    openDialog('dueReminderModal');
+  };
+
+  const processDueReminders = () => {
+    if (!currentUser || !reminders.length) return;
+    const notified = getNotifiedReminderMap();
+    const now = Date.now();
+    const due = reminders.filter((reminder) => {
+      const timestamp = new Date(reminder.remind_at).getTime();
+      const notificationKey = `${reminder.id}:${reminder.remind_at}`;
+      return !reminder.is_completed && Number.isFinite(timestamp) && timestamp <= now
+        && notified[String(reminder.id)] !== reminder.remind_at
+        && !sessionNotifiedReminders.has(notificationKey);
+    });
+    if (!due.length) return;
+
+    due.forEach((reminder) => {
+      notified[String(reminder.id)] = reminder.remind_at;
+      sessionNotifiedReminders.add(`${reminder.id}:${reminder.remind_at}`);
+    });
+    saveNotifiedReminderMap(notified);
+    renderReminders();
+
+    let notificationFailed = false;
+    if ('Notification' in window && Notification.permission === 'granted') {
+      due.forEach((reminder) => {
+        try {
+          const notification = new Notification('Аксон ДокСлот — напоминание', {
+            body: reminder.reminder_text || 'Наступило время напоминания.',
+            tag: `akson-dockslot-reminder-${reminder.id}`,
+            icon: '../assets/apple-touch-icon.png'
+          });
+          notification.onclick = () => { window.focus(); notification.close(); };
+        } catch (error) {
+          console.warn('Не удалось показать системное уведомление:', error);
+          notificationFailed = true;
+        }
+      });
+    } else {
+      notificationFailed = true;
+    }
+
+    if (notificationFailed) showDueReminderDialog(due);
+    else toast(due.length === 1 ? 'Сработало напоминание.' : `Сработало напоминаний: ${due.length}.`);
+  };
+
+  const requestReminderNotificationPermission = async () => {
+    if (!('Notification' in window) || Notification.permission !== 'default') return;
+    try { await Notification.requestPermission(); }
+    catch (error) { console.warn('Запрос разрешения на уведомления не выполнен:', error); }
+  };
+
   const loadReminders = async () => {
     const { data, error } = await sb
       .from('admin_personal_reminders')
@@ -542,6 +707,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (error) throw error;
     reminders = data || [];
     renderReminders();
+    processDueReminders();
   };
 
   const renderReminders = () => {
@@ -586,6 +752,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return toast('Укажите текст и корректные дату и время напоминания.', true);
     }
     $('saveReminderBtn').disabled = true;
+    await requestReminderNotificationPermission();
     try {
       const { error } = await sb.from('admin_personal_reminders').insert({
         admin_id: currentUser.id,
@@ -658,12 +825,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       setExportSelectionMode(false);
       activeListKind = null;
       $('listPanel').hidden = true;
+      document.querySelectorAll('.overview-metric[data-kind]').forEach((metric) => metric.setAttribute('aria-expanded', 'false'));
       loadOverviewDate($('dateFilter').value);
     });
     $('dateFilter').addEventListener('change', () => {
       setExportSelectionMode(false);
       activeListKind = null;
       $('listPanel').hidden = true;
+      document.querySelectorAll('.overview-metric[data-kind]').forEach((metric) => metric.setAttribute('aria-expanded', 'false'));
       loadOverviewDate($('dateFilter').value);
     });
     ['supplierFilter', 'docFilter', 'supplyFilter', 'orderFilter'].forEach((id) => {
@@ -679,6 +848,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       $('orderFilter').value = '';
       activeListKind = null;
       $('listPanel').hidden = true;
+      document.querySelectorAll('.overview-metric[data-kind]').forEach((metric) => metric.setAttribute('aria-expanded', 'false'));
       try {
         const defaultDate = await chooseDefaultDate();
         $('dateFilter').value = defaultDate;
@@ -699,13 +869,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('closeList').addEventListener('click', () => {
       $('listPanel').hidden = true;
       activeListKind = null;
+      document.querySelectorAll('.overview-metric[data-kind]').forEach((metric) => metric.setAttribute('aria-expanded', 'false'));
     });
     document.querySelectorAll('.overview-metric[data-kind]').forEach((metric) => {
       metric.addEventListener('click', () => openList(metric.dataset.kind));
     });
     $('bookingList').addEventListener('click', (event) => {
-      const button = event.target.closest('[data-verify-booking]');
-      if (button) updateVerification(button);
+      const verifyButton = event.target.closest('[data-verify-booking]');
+      if (verifyButton) {
+        event.stopPropagation();
+        updateVerification(verifyButton);
+        return;
+      }
+      const downloadButton = event.target.closest('[data-download-registry]');
+      if (downloadButton) {
+        event.stopPropagation();
+        if (!downloadButton.disabled) downloadRegistry(downloadButton.dataset.downloadRegistry, downloadButton);
+        return;
+      }
+      const row = event.target.closest('[data-open-booking]');
+      if (row) openBookingDetails(row.dataset.openBooking);
+    });
+    $('bookingList').addEventListener('keydown', (event) => {
+      if (!['Enter', ' '].includes(event.key) || event.target.closest('button')) return;
+      const row = event.target.closest('[data-open-booking]');
+      if (!row) return;
+      event.preventDefault();
+      openBookingDetails(row.dataset.openBooking);
+    });
+    $('detailRegistryDownload').addEventListener('click', (event) => {
+      const button = event.currentTarget;
+      if (!button.disabled) downloadRegistry(button.dataset.downloadRegistry, button);
     });
 
     $('addNoteBtn').addEventListener('click', () => { resetNoteForm(); openDialog('noteModal'); });
@@ -722,7 +916,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     $('noteModal').addEventListener('close', resetNoteForm);
     $('reminderModal').addEventListener('close', () => $('reminderForm').reset());
-    ['noteModal', 'reminderModal'].forEach((dialogId) => {
+    ['noteModal', 'reminderModal', 'bookingDetailsModal', 'dueReminderModal'].forEach((dialogId) => {
       $(dialogId).addEventListener('click', (event) => { if (event.target === $(dialogId)) closeDialog(dialogId); });
     });
     $('notesList').addEventListener('click', (event) => {
@@ -760,7 +954,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await loadOverviewDate(defaultDate);
     } catch (error) {
       console.error('Не удалось определить стартовую дату обзора:', error);
-      showState(`Не удалось определить ближайшую дату заявок: ${error.message || 'ошибка'}`, true);
+      showState(`Не удалось определить ближайшую дату записей: ${error.message || 'ошибка'}`, true);
       bookings = [];
       verifiedIds = new Set();
       renderOverview({ keepState: true });
@@ -777,6 +971,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       })
     ];
     await Promise.all(independentLoads);
+    processDueReminders();
+    if (reminderCheckInterval) window.clearInterval(reminderCheckInterval);
+    reminderCheckInterval = window.setInterval(processDueReminders, 15000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) processDueReminders(); });
   };
 
   initialize().catch((error) => {

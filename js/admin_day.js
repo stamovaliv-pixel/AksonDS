@@ -49,6 +49,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isAdmin = profile.role === 'admin';
   const isOperator = profile.role === 'operator';
   const isViewer = profile.role === 'viewer';
+
+  // На странице admin_day кнопка выхода ранее не имела обработчика.
+  // Ставим явный обработчик после проверки авторизации и до инициализации страницы.
+  const logoutButton = document.getElementById('logoutBtn');
+  if (logoutButton && !logoutButton.dataset.logoutBound) {
+    logoutButton.dataset.logoutBound = 'true';
+    logoutButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      if (logoutButton.dataset.loggingOut === 'true') return;
+      logoutButton.dataset.loggingOut = 'true';
+      logoutButton.setAttribute('aria-busy', 'true');
+      try {
+        const { error } = await sb.auth.signOut();
+        if (error) throw error;
+        window.location.replace('../index.html');
+      } catch (error) {
+        console.error('Не удалось выполнить выход:', error);
+        logoutButton.dataset.loggingOut = 'false';
+        logoutButton.removeAttribute('aria-busy');
+        alert(`Не удалось выйти из системы: ${error.message || 'ошибка авторизации'}`);
+      }
+    });
+  }
   if (isViewer) document.body.classList.add('role-viewer');
   // ОПТИМИЗАЦИЯ: Кэширование настроек
   async function getSettings() {
