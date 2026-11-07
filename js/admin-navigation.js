@@ -18,17 +18,48 @@ document.addEventListener('DOMContentLoaded', () => {
     users: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
     analytics: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3v18h18M3 17l6-6 4 4 8-8"></path></svg>',
     settings: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"></circle><path d="m19.4 15 .06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33 1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1 1.65 1.65 0 0 0 0 1.74Z"></path></svg>',
-    file: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M8 13h8M8 17h6"></path></svg>',
     help: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M9.6 9a2.5 2.5 0 1 1 4.4 1.6c-.9 1-2 1.2-2 2.9M12 17.2v.1"></path></svg>',
+    sun: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>',
+    moon: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.463.402.807a6.5 6.5 0 0 0 8.268 8.268c.344-.215.829-.003.803.397Z"></path></svg>',
     logout: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5M21 12H9"></path></svg>'
   };
 
   // Move all existing controls into a stable shell immediately. Do not wait for Supabase
   // before removing the legacy row of scattered links — that delay caused the nav flash.
   const existingTheme = nav.querySelector('[data-theme-toggle]') || appHeader?.querySelector('[data-theme-toggle]');
+  const themeButton = existingTheme || create('button', 'theme-toggle', '');
+  themeButton.type = 'button';
+  themeButton.dataset.themeToggle = '';
+  themeButton.classList.add('dockslot-theme-anchor');
+  const syncStandaloneThemeIcon = () => {
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    themeButton.innerHTML = dark
+      ? icons.sun
+      : icons.moon;
+    const label = dark ? 'Светлый режим' : 'Темный режим';
+    themeButton.title = label;
+    themeButton.setAttribute('aria-label', label);
+  };
+  syncStandaloneThemeIcon();
+  if (!themeButton.dataset.themeBound) {
+    themeButton.dataset.themeBound = 'true';
+    themeButton.addEventListener('click', () => {
+      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const next = dark ? 'light' : 'dark';
+      if (next === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      else document.documentElement.removeAttribute('data-theme');
+      try { localStorage.setItem('akson-dockslot-theme', next); } catch (_) { /* storage may be unavailable */ }
+      syncStandaloneThemeIcon();
+    });
+  }
+  // Admins get the theme switch inside the tools submenu. Other roles keep the
+  // existing standalone control so their theme functionality is unchanged.
+  themeButton.remove();
   const existingLogout = nav.querySelector('#logoutBtn') || appHeader?.querySelector('#logoutBtn');
   const right = create('div', 'header-nav-right');
   nav.replaceChildren(right);
+  if (appHeader) appHeader.append(themeButton);
+  else nav.append(themeButton);
 
   const makeLink = (href, label, icon, activeKey) => {
     const link = create('a', 'nav-icon', icons[icon]);
@@ -60,35 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
       window.location.replace('../index.html');
     });
   }
-
-  // The theme control is a separate header control, never part of the tools submenu.
-  const themeButton = existingTheme || create('button', 'theme-toggle', '');
-  themeButton.type = 'button';
-  themeButton.dataset.themeToggle = '';
-  themeButton.classList.add('dockslot-theme-anchor');
-  const setThemeIcon = () => {
-    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-    themeButton.innerHTML = dark
-      ? '<svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>'
-      : '<svg class="theme-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.463.402.807a6.5 6.5 0 0 0 8.268 8.268c.344-.215.829-.003.803.397Z"></path></svg>';
-    const hint = dark ? 'Светлый режим' : 'Темный режим';
-    themeButton.title = hint;
-    themeButton.setAttribute('aria-label', hint);
-  };
-  setThemeIcon();
-  if (!themeButton.dataset.themeBound) {
-    themeButton.dataset.themeBound = 'true';
-    themeButton.addEventListener('click', () => {
-      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-      const next = dark ? 'light' : 'dark';
-      if (next === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
-      else document.documentElement.removeAttribute('data-theme');
-      try { localStorage.setItem('akson-dockslot-theme', next); } catch (_) { /* storage may be unavailable */ }
-      setThemeIcon();
-    });
-  }
-  if (appHeader) appHeader.appendChild(themeButton);
-  else nav.appendChild(themeButton);
 
   // A compact, stable fallback row is present while the profile role is confirmed.
   right.append(makeLink('admin_calendar.html', 'Календарь', 'calendar', 'admin_calendar.html'), logout);
@@ -130,16 +132,43 @@ document.addEventListener('DOMContentLoaded', () => {
       { href: 'suppliers.html', label: 'Пользователи', detail: 'Учётные записи и поставщики', icon: 'users' },
       { href: 'analytics.html', label: 'Аналитика', detail: 'Показатели и качество поставок', icon: 'analytics' },
       { href: 'settings.html', label: 'Настройки', detail: 'Слоты, расписание и параметры', icon: 'settings' },
-      { href: 'settings.html#registry-template-section', label: 'Шаблон реестра', detail: 'Файл для оформления записей', icon: 'file' },
+      { type: 'theme', label: 'Темный режим', detail: 'Переключить оформление приложения' },
       { href: 'help.html', label: 'Помощь', detail: 'Инструкции по работе с ДокСлотом', icon: 'help' }
     ];
     items.forEach((item, index) => {
-      const link = create('a', 'admin-tools-item');
-      link.href = item.href;
+      const isThemeItem = item.type === 'theme';
+      const link = create(isThemeItem ? 'button' : 'a', `admin-tools-item${isThemeItem ? ' admin-tools-theme-item' : ''}`);
+      if (isThemeItem) {
+        link.type = 'button';
+        link.setAttribute('aria-pressed', String(document.documentElement.getAttribute('data-theme') === 'dark'));
+      } else {
+        link.href = item.href;
+      }
       link.setAttribute('role', 'menuitem');
       link.style.setProperty('--item-index', String(index));
-      link.innerHTML = `<span class="admin-tools-item-icon">${icons[item.icon]}</span><span class="admin-tools-item-copy"><strong>${item.label}</strong><small>${item.detail}</small></span><span class="admin-tools-item-dot" aria-hidden="true"></span>`;
+      link.innerHTML = `<span class="admin-tools-item-icon">${isThemeItem ? '' : icons[item.icon]}</span><span class="admin-tools-item-copy"><strong>${item.label}</strong><small>${item.detail}</small></span><span class="admin-tools-item-dot" aria-hidden="true"></span>`;
       popover.appendChild(link);
+
+      if (isThemeItem) {
+        const syncThemeItem = () => {
+          const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+          link.querySelector('.admin-tools-item-icon').innerHTML = dark ? icons.sun : icons.moon;
+          link.querySelector('.admin-tools-item-copy strong').textContent = dark ? 'Светлый режим' : 'Темный режим';
+          link.querySelector('.admin-tools-item-copy small').textContent = 'Переключить оформление приложения';
+          link.setAttribute('aria-pressed', String(dark));
+          link.title = dark ? 'Переключить на светлый режим' : 'Переключить на темный режим';
+          link.setAttribute('aria-label', link.title);
+        };
+        syncThemeItem();
+        link.addEventListener('click', () => {
+          const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+          const next = dark ? 'light' : 'dark';
+          if (next === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+          else document.documentElement.removeAttribute('data-theme');
+          try { localStorage.setItem('akson-dockslot-theme', next); } catch (_) { /* storage may be unavailable */ }
+          syncThemeItem();
+        });
+      }
     });
     wrapper.append(trigger, popover);
 
@@ -180,6 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const normalized = String(role || '').toLowerCase();
     right.replaceChildren();
     if (normalized === 'admin') {
+      themeButton.remove();
       const menu = mountToolsPopover();
       right.append(
         makeLink('admin_overview.html', 'Рабочий стол', 'desk', 'admin_overview.html'),
@@ -189,6 +219,8 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       decorateActive(menu.trigger);
     } else if (['operator', 'viewer'].includes(normalized)) {
+      if (appHeader) appHeader.append(themeButton);
+      else nav.append(themeButton);
       right.append(
         makeLink('admin_calendar.html', 'Календарь', 'calendar', 'admin_calendar.html'),
         makeLink('help.html', 'Помощь', 'help', 'help.html'),
@@ -196,6 +228,8 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       decorateActive();
     } else {
+      if (appHeader) appHeader.append(themeButton);
+      else nav.append(themeButton);
       right.append(makeLink('admin_calendar.html', 'Календарь', 'calendar', 'admin_calendar.html'), logout);
       decorateActive();
     }
