@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="../css/dark-mode.css?v=5-role-calendar-colors">
   <link rel="stylesheet" href="../css/mobile-refinements.css?v=2" media="(max-width: 767px)">
   <link rel="stylesheet" href="../css/notifications.css?v=8-dynamic-load">
-  <link rel="stylesheet" href="../css/load-management.css?v=super-admin-v2">
+  <link rel="stylesheet" href="../css/load-management.css?v=super-admin-v3">
   <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
 </head>
 <body class="app-body load-management-page">
@@ -44,8 +44,8 @@
 
     <section class="load-summary-grid" aria-label="Параметры расчёта">
       <article class="load-summary-card"><span>Период прогноза</span><strong>14 дней</strong><small>Только рабочие даты РЦ</small></article>
-      <article class="load-summary-card"><span>Историческая база</span><strong>8 недель</strong><small>Сравнение одинаковых дней недели</small></article>
-      <article class="load-summary-card"><span>Метод расчёта</span><strong>75-й процентиль</strong><small>С запасом 15%, в пределах мощности</small></article>
+      <article class="load-summary-card"><span>Историческая база</span><strong>8 недель</strong><small>Сравнение одинаковых дней недели; малый спрос не закрывает окна</small></article>
+      <article class="load-summary-card"><span>Метод расчёта</span><strong>75-й процентиль</strong><small>Ограничение только при устойчивой загрузке от 75%</small></article>
     </section>
 
     <section class="load-plan-panel">
@@ -78,6 +78,6 @@
   <script src="../js/push-config.js?v=2-windows-push"></script>
   <script src="../js/notifications.js?v=super-admin-v2"></script>
   <script src="../js/admin-navigation.js?v=super-admin-v2"></script>
-  <script src="../js/load-management.js?v=super-admin-v2"></script>
+  <script src="../js/load-management.js?v=super-admin-v3"></script>
 </body>
 </html>
