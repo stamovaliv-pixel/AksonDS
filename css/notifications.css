@@ -270,3 +270,42 @@ body.overview-page .app-header {
   }
   .ak-notifications-badge { top: 2px; right: 4px; }
 }
+
+/* v4 toolbar alignment: bell matches the shared navigation icons. */
+.header-nav .ak-notifications-bell {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  flex: 0 0 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-muted, #64748b);
+}
+.header-nav .ak-notifications-bell:hover,
+.header-nav .ak-notifications-bell:focus-visible {
+  background: rgba(100, 116, 139, .09);
+  color: var(--color-text-main, #475569);
+}
+.header-nav .ak-notifications-bell svg { width: 22px; height: 22px; stroke-width: 1.8; }
+.ak-notifications-badge {
+  top: 1px;
+  right: 1px;
+  min-width: 15px;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border-width: 2px;
+  font-size: 8px;
+  line-height: 1;
+  transform: translate(24%, -24%);
+}
+@media (max-width: 767px) {
+  .header-nav .ak-notifications-bell { width: 36px; min-width: 36px; height: 36px; min-height: 36px; flex-basis: 36px; }
+  .header-nav .ak-notifications-bell svg { width: 21px; height: 21px; }
+}
+@media (max-width: 370px) {
+  .header-nav .ak-notifications-bell { width: 32px; min-width: 32px; height: 32px; min-height: 32px; flex-basis: 32px; }
+}
