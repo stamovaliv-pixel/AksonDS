@@ -21,8 +21,7 @@
   justify-content: flex-end;
   gap: 10px;
 }
-.header-nav .nav-icon,
-.app-header > .dockslot-theme-anchor {
+.header-nav .nav-icon {
   position: relative;
   display: inline-flex;
   flex: 0 0 38px;
@@ -42,8 +41,7 @@
   cursor: pointer;
   transition: color .16s ease, background-color .16s ease, transform .16s ease;
 }
-.header-nav .nav-icon svg,
-.app-header > .dockslot-theme-anchor svg {
+.header-nav .nav-icon svg {
   display: block;
   width: 22px;
   height: 22px;
@@ -54,9 +52,7 @@
   stroke-linejoin: round;
 }
 .header-nav .nav-icon:hover,
-.header-nav .nav-icon:focus-visible,
-.app-header > .dockslot-theme-anchor:hover,
-.app-header > .dockslot-theme-anchor:focus-visible {
+.header-nav .nav-icon:focus-visible {
   color: var(--color-text-main, #475569) !important;
   background: rgba(100, 116, 139, .09) !important;
   transform: translateY(-1px);
@@ -70,12 +66,29 @@
 .header-nav .nav-icon#logoutBtn { color: var(--color-text-muted, #64748b) !important; }
 .header-nav .nav-icon#logoutBtn:hover { color: var(--color-text-main, #475569) !important; }
 .app-header > .dockslot-theme-anchor {
+  position: relative;
+  display: inline-flex;
   flex: 0 0 38px;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   margin-left: 6px;
+  padding: 0;
+  border: 0 !important;
+  border-radius: 10px;
+  background: transparent !important;
+  color: var(--color-text-muted, #64748b) !important;
   box-shadow: none !important;
+  cursor: pointer;
+  transition: color .16s ease, background-color .16s ease, transform .16s ease;
 }
-.app-header > .dockslot-theme-anchor .theme-icon { width: 22px; height: 22px; }
-
+.app-header > .dockslot-theme-anchor svg { display:block; width:22px; height:22px; fill:none; stroke:currentColor !important; stroke-width:1.8 !important; stroke-linecap:round; stroke-linejoin:round; }
+.app-header > .dockslot-theme-anchor:hover,
+.app-header > .dockslot-theme-anchor:focus-visible { color:var(--color-text-main,#475569) !important; background:rgba(100,116,139,.09) !important; transform:translateY(-1px); outline:none; }
 /* Five-dot trigger and its compact hover/focus popover. */
 .admin-tools-menu {
   position: relative;
@@ -131,7 +144,7 @@
   pointer-events: none;
   transform: translateY(-7px) scale(.975);
   transform-origin: top right;
-  transition: opacity .18s ease, transform .22s cubic-bezier(.2,.8,.2,1), visibility .18s;
+  transition: opacity .189s ease, transform .231s cubic-bezier(.2,.8,.2,1), visibility .189s;
 }
 .admin-tools-menu:hover .admin-tools-popover,
 .admin-tools-menu:focus-within .admin-tools-popover,
@@ -141,6 +154,9 @@
   pointer-events: auto;
   transform: translateY(0) scale(1);
 }
+.admin-tools-menu:hover .admin-tools-popover,
+.admin-tools-menu:focus-within .admin-tools-popover,
+.admin-tools-menu.is-open .admin-tools-popover { transition: opacity .18s ease, transform .22s cubic-bezier(.2,.8,.2,1), visibility .18s; }
 .admin-tools-item {
   display: flex;
   min-width: 0;
@@ -152,7 +168,7 @@
   text-decoration: none;
   opacity: 0;
   transform: translateY(-7px) scale(.98);
-  transition: opacity .16s ease, transform .2s cubic-bezier(.2,.8,.2,1), background-color .16s ease;
+  transition: opacity .168s ease, transform .21s cubic-bezier(.2,.8,.2,1), background-color .168s ease;
   transition-delay: calc(var(--item-index, 0) * 22ms);
 }
 .admin-tools-menu:hover .admin-tools-item,
@@ -161,8 +177,22 @@
   opacity: 1;
   transform: translateY(0) scale(1);
 }
+.admin-tools-menu:hover .admin-tools-item,
+.admin-tools-menu:focus-within .admin-tools-item,
+.admin-tools-menu.is-open .admin-tools-item { transition: opacity .16s ease, transform .2s cubic-bezier(.2,.8,.2,1), background-color .16s ease; }
 .admin-tools-item:hover,
 .admin-tools-item:focus-visible { background: rgba(100, 116, 139, .09); outline: none; }
+.admin-tools-theme-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.admin-tools-theme-item:hover,
+.admin-tools-theme-item:focus-visible { background: rgba(100, 116, 139, .09); }
 .admin-tools-item-icon {
   display: inline-flex;
   width: 34px;
@@ -185,6 +215,7 @@ html[data-theme="dark"] .admin-tools-popover { background: #18212b; border-color
 html[data-theme="dark"] .admin-tools-item { color: #e6edf5; }
 html[data-theme="dark"] .admin-tools-item:hover,
 html[data-theme="dark"] .admin-tools-item:focus-visible { background: #202b37; }
+html[data-theme="dark"] .admin-tools-theme-item { color: #e6edf5; }
 html[data-theme="dark"] .admin-tools-item-icon { background: #202b37; color: #a5b2c2; }
 html[data-theme="dark"] .admin-tools-item-copy small { color: #a5b2c2; }
 
@@ -192,10 +223,10 @@ html[data-theme="dark"] .admin-tools-item-copy small { color: #a5b2c2; }
   .app-header > .header-nav { gap: 6px !important; }
   .header-nav-right { gap: 5px; }
   .header-nav .nav-icon,
-  .app-header > .dockslot-theme-anchor,
   .admin-tools-menu { flex-basis: 35px; width: 35px; min-width: 35px; height: 35px; min-height: 35px; }
-  .header-nav .nav-icon svg,
-  .app-header > .dockslot-theme-anchor svg { width: 21px; height: 21px; }
+  .header-nav .nav-icon svg { width: 21px; height: 21px; }
+  .app-header > .dockslot-theme-anchor { flex-basis:35px; width:35px; min-width:35px; height:35px; min-height:35px; }
+  .app-header > .dockslot-theme-anchor svg { width:21px; height:21px; }
   .admin-tools-popover { right: -45px; }
 }
 @media (max-width: 440px) {
@@ -203,10 +234,10 @@ html[data-theme="dark"] .admin-tools-item-copy small { color: #a5b2c2; }
   .app-header > .header-nav { gap: 3px !important; }
   .header-nav-right { gap: 2px; }
   .header-nav .nav-icon,
-  .app-header > .dockslot-theme-anchor,
   .admin-tools-menu { flex-basis: 31px; width: 31px; min-width: 31px; height: 31px; min-height: 31px; }
-  .header-nav .nav-icon svg,
-  .app-header > .dockslot-theme-anchor svg { width: 19px; height: 19px; }
+  .header-nav .nav-icon svg { width: 19px; height: 19px; }
+  .app-header > .dockslot-theme-anchor { flex-basis:31px; width:31px; min-width:31px; height:31px; min-height:31px; }
+  .app-header > .dockslot-theme-anchor svg { width:19px; height:19px; }
   .admin-tools-popover { right: -40px; }
 }
 @media (prefers-reduced-motion: reduce) {
