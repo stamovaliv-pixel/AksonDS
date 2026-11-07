@@ -556,7 +556,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!validVerificationIds.length) return;
 
     const handleVerificationChange = (payload) => {
-      const row = payload.new || payload.old;
+      // DELETE payloads carry the previous row in `old`; `new` may be an empty object.
+      const row = payload.eventType === 'DELETE' ? payload.old : payload.new;
       const bookingId = row?.booking_id == null ? '' : String(row.booking_id);
       if (!bookingId || !bookings.some((booking) => String(booking.id) === bookingId)) return;
       const verified = payload.eventType !== 'DELETE' && payload.new?.verified === true;

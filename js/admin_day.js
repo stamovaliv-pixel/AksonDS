@@ -409,7 +409,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const validVerificationIds = verificationIds.filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
     const verificationChannels = [];
     const handleVerificationChange = (payload) => {
-      const row = payload.new || payload.old;
+      // DELETE payloads carry the previous row in `old`; `new` may be an empty object.
+      const row = payload.eventType === 'DELETE' ? payload.old : payload.new;
       const bookingId = row?.booking_id == null ? '' : String(row.booking_id);
       if (!bookingId || !(bookings || []).some((booking) => String(booking.id) === bookingId)) return;
       const verified = payload.eventType !== 'DELETE' && payload.new?.verified === true;
