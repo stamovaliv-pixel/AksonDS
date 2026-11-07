@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const profile = authProfile?.profile;
   if (!user) return window.location.href = '../index.html';
 
-  if (authProfile?.error || !profile || profile.is_blocked || profile.role !== 'admin') {
+  if (authProfile?.error || !profile || profile.is_blocked || !['admin', 'super_admin'].includes(profile.role)) {
     alert('Доступ запрещен. Страница доступна только Администратору.');
     return window.location.href = 'admin_calendar.html';
   }

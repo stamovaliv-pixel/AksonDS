@@ -6,11 +6,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const profile = authProfile?.profile;
   if (!user) return window.location.href = '../index.html';
 
-  if (authProfile?.error || !profile || profile.is_blocked || !['operator', 'admin'].includes(profile.role)) {
+  if (authProfile?.error || !profile || profile.is_blocked || !['operator', 'admin', 'super_admin'].includes(profile.role)) {
     return window.location.href = 'calendar.html';
   }
 
-  const isAdmin = profile.role === 'admin';
+  const isAdmin = ['admin', 'super_admin'].includes(profile.role);
   document.getElementById('logoutBtn').onclick = async (e) => {
     e.preventDefault();
     await sb.auth.signOut();
@@ -89,7 +89,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    allUsers = (data || []).filter(u => !['admin', 'operator'].includes(u.role));
+    allUsers = (data || []).filter(u => !['admin', 'super_admin', 'operator'].includes(u.role));
     allUsers.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     renderUsers(document.getElementById('searchInput').value);
   };

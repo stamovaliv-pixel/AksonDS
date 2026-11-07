@@ -7,11 +7,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const profile = authProfile?.profile;
   if (!user) return window.location.href = '../index.html';
 
-  if (authProfile?.error || !profile || profile.is_blocked || !['admin', 'operator', 'viewer'].includes(profile.role)) {
+  if (authProfile?.error || !profile || profile.is_blocked || !['admin', 'super_admin', 'operator', 'viewer'].includes(profile.role)) {
     return window.location.href = 'calendar.html';
   }
 
-  const isAdmin = profile.role === 'admin';
+  const isAdmin = ['admin', 'super_admin'].includes(profile.role);
   const isOperator = profile.role === 'operator';
   const isViewer = profile.role === 'viewer';
   const canViewPastBookings = isAdmin || isOperator || isViewer;

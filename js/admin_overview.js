@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       window.location.href = '../index.html';
       return null;
     }
-    if (profile.role !== 'admin') {
+    if (!['admin', 'super_admin'].includes(profile.role)) {
       window.location.href = ['operator', 'viewer'].includes(profile.role) ? 'admin_calendar.html' : 'calendar.html';
       return null;
     }

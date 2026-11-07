@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const defaultPreferences = () => {
     const result = {};
-    [...COMMON_EVENTS, ...(userRole === 'admin' ? ADMIN_EVENTS : [])].forEach((event) => {
+    [...COMMON_EVENTS, ...(['admin', 'super_admin'].includes(userRole) ? ADMIN_EVENTS : [])].forEach((event) => {
       result[event.key] = { enabled: false, ...(COMMON_EVENTS.some((item) => item.key === event.key) ? { scope: 'all' } : {}) };
     });
     return result;
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
       user = authProfile.user;
       userRole = String(authProfile.profile.role || '').toLowerCase();
       // Suppliers and view-only users have no notification preferences in this specification.
-      if (!['admin', 'operator'].includes(userRole)) return;
+      if (!['admin', 'super_admin', 'operator'].includes(userRole)) return;
 
       mountBellAndModal();
       await Promise.all([loadPreferences(), loadInbox()]);
@@ -266,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
     body.replaceChildren();
     footer.replaceChildren();
     $('akNotificationsTitle').textContent = 'Настройки уведомлений';
-    $('akNotificationsSubtitle').textContent = userRole === 'admin' ? 'Администратор · личные настройки' : 'Оператор · личные настройки';
+    $('akNotificationsSubtitle').textContent = ['admin', 'super_admin'].includes(userRole) ? 'Администратор · личные настройки' : 'Оператор · личные настройки';
     $('akNotificationsSettings').title = 'Вернуться к уведомлениям';
     $('akNotificationsSettings').setAttribute('aria-label', 'Вернуться к уведомлениям');
     $('akNotificationsSettings').innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m7 7-7-7 7-7"></path></svg>';    setStatus('Настройки действуют только для вашей учетной записи.', false);
@@ -280,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
     COMMON_EVENTS.forEach((event) => section.appendChild(buildPreferenceRow(event, true)));
     body.appendChild(section);
 
-    if (userRole === 'admin') {
+    if (['admin', 'super_admin'].includes(userRole)) {
       const adminSection = create('section', 'ak-notifications-settings-section');
       adminSection.appendChild(create('h3', '', 'Дополнительные события администратора'));
       ADMIN_EVENTS.forEach((event) => adminSection.appendChild(buildPreferenceRow(event, false)));
@@ -419,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const button = $('akNotificationsFooter')?.querySelector('[data-action="save-settings"]');
     if (button) { button.disabled = true; button.textContent = 'Сохранение…'; }
     const payload = {};
-    [...COMMON_EVENTS, ...(userRole === 'admin' ? ADMIN_EVENTS : [])].forEach((event) => {
+    [...COMMON_EVENTS, ...(['admin', 'super_admin'].includes(userRole) ? ADMIN_EVENTS : [])].forEach((event) => {
       const source = draftPreferences[event.key] || {};
       payload[event.key] = { enabled: Boolean(source.enabled) };
       if (COMMON_EVENTS.some((item) => item.key === event.key)) payload[event.key].scope = source.scope === 'tomorrow' ? 'tomorrow' : 'all';
