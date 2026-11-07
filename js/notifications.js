@@ -49,9 +49,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const init = async () => {
     try {
-      const { data: authData, error: authError } = await sb.auth.getUser();
-      if (authError || !authData?.user) return;
-      user = authData.user;
+      // Read the already stored session locally instead of making an extra Auth
+      // network round-trip. The role is still confirmed from profiles below;
+      // RLS remains the actual authorization boundary for notification data.
+      const { data: sessionData, error: sessionError } = await sb.auth.getSession();
+      if (sessionError || !sessionData?.session?.user) return;
+      user = sessionData.session.user;
 
       const { data: profile, error: profileError } = await sb
         .from('profiles')
