@@ -16,6 +16,9 @@ document.addEventListener('DOMContentLoaded', () => {
     { key: 'reminders', label: 'Напоминания' }
   ];
 
+  const PUSH_SW_PATH = '/sw.js';
+  const PUSH_PUBLIC_KEY = String(window.AKSON_DOCKSLOT_PUSH?.publicKey || '').trim();
+
   let user = null;
   let userRole = '';
   let preferences = {};
@@ -64,6 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
       mountBellAndModal();
       await Promise.all([loadPreferences(), loadInbox()]);
       setupRealtime();
+      await refreshPushSettingsUI();
 
       if (userRole === 'admin') {
         processDueReminders();
@@ -297,6 +301,27 @@ document.addEventListener('DOMContentLoaded', () => {
       body.appendChild(adminSection);
     }
 
+    const pushSection = create('section', 'ak-notifications-settings-section ak-push-section');
+    pushSection.appendChild(create('h3', '', 'Системные уведомления Windows / браузера'));
+    pushSection.appendChild(create('p', 'ak-push-settings-description', 'Разрешите уведомления на этом устройстве, чтобы получать выбранные события, даже когда ДокСлот открыт в другой вкладке или вы работаете на другом сайте.'));
+    const pushStatus = create('div', 'ak-push-settings-status', 'Проверяем поддержку Push…');
+    pushStatus.id = 'akPushSettingsStatus';
+    pushSection.appendChild(pushStatus);
+    const pushActions = create('div', 'ak-push-settings-actions');
+    const enablePush = create('button', 'ak-notifications-primary-btn', 'Включить уведомления на этом устройстве');
+    enablePush.type = 'button';
+    enablePush.id = 'akPushEnableButton';
+    enablePush.dataset.action = 'push-enable';
+    pushActions.appendChild(enablePush);
+    const disablePush = create('button', 'ak-notifications-secondary-btn', 'Отключить на этом устройстве');
+    disablePush.type = 'button';
+    disablePush.id = 'akPushDisableButton';
+    disablePush.dataset.action = 'push-disable';
+    disablePush.hidden = true;
+    pushActions.appendChild(disablePush);
+    pushSection.appendChild(pushActions);
+    body.appendChild(pushSection);
+
     const save = create('button', 'ak-notifications-primary-btn', 'Сохранить настройки');
     save.type = 'button';
     save.dataset.action = 'save-settings';
@@ -305,6 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cancel.type = 'button';
     cancel.dataset.action = 'cancel-settings';
     footer.appendChild(cancel);
+    refreshPushSettingsUI();
   };
 
   const buildPreferenceRow = (event, hasScope) => {
@@ -349,6 +375,9 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const handleBodyClick = (event) => {
+    const action = event.target.closest('[data-action]')?.dataset.action;
+    if (action === 'push-enable') { enablePushNotifications(); return; }
+    if (action === 'push-disable') { disablePushNotifications(); return; }
     const item = event.target.closest('[data-notification-id]');
     if (item) markNotificationRead(item.dataset.notificationId);
   };
@@ -416,6 +445,166 @@ document.addEventListener('DOMContentLoaded', () => {
     preferences = payload;
     setView('inbox');
     showToast('Настройки уведомлений сохранены.');
+  };
+
+  const pushIsSupported = () => Boolean(
+    window.isSecureContext &&
+    'serviceWorker' in navigator &&
+    'PushManager' in window &&
+    'Notification' in window
+  );
+
+  const base64UrlToUint8Array = (value) => {
+    const normalized = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized + '='.repeat((4 - normalized.length % 4) % 4);
+    const raw = atob(padded);
+    const output = new Uint8Array(raw.length);
+    for (let index = 0; index < raw.length; index += 1) output[index] = raw.charCodeAt(index);
+    return output;
+  };
+
+  const refreshPushSettingsUI = async () => {
+    const status = $('akPushSettingsStatus');
+    const enable = $('akPushEnableButton');
+    const disable = $('akPushDisableButton');
+    if (!status || !enable || !disable) return;
+
+    enable.disabled = false;
+    disable.hidden = true;
+
+    if (!pushIsSupported()) {
+      status.textContent = 'Этот браузер или соединение не поддерживает системные Push-уведомления. Откройте ДокСлот по HTTPS в актуальном Chrome или Edge.';
+      enable.disabled = true;
+      return;
+    }
+    if (!PUSH_PUBLIC_KEY || PUSH_PUBLIC_KEY.includes('PASTE_')) {
+      status.textContent = 'Push ещё не настроен администратором сайта: необходимо указать публичный VAPID-ключ в js/push-config.js.';
+      enable.disabled = true;
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      status.textContent = 'Браузер заблокировал уведомления для ДокСлота. Разрешите их в настройках разрешений сайта, затем обновите страницу.';
+      enable.textContent = 'Ожидает разрешения браузера';
+      enable.disabled = true;
+      return;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.getRegistration('/');
+      const subscription = registration ? await registration.pushManager.getSubscription() : null;
+      if (subscription) {
+        const { data, error } = await sb
+          .from('push_subscriptions')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('endpoint', subscription.endpoint)
+          .maybeSingle();
+        if (error) throw error;
+        if (data) {
+          status.textContent = 'Системные уведомления включены на этом устройстве. Уведомления будут приходить по выбранным событиям.';
+          enable.textContent = 'Обновить подключение';
+          disable.hidden = false;
+          return;
+        }
+        status.textContent = 'В браузере есть Push-подписка, но она ещё не привязана к вашей учётной записи. Нажмите «Обновить подключение».';
+        enable.textContent = 'Обновить подключение';
+        return;
+      }
+      status.textContent = Notification.permission === 'granted'
+        ? 'Разрешение браузера уже выдано. Нажмите кнопку, чтобы подключить это устройство.'
+        : 'На этом устройстве системные уведомления пока не включены.';
+      enable.textContent = 'Включить уведомления на этом устройстве';
+    } catch (error) {
+      console.warn('[DockSlot Push] Cannot read subscription state:', error);
+      status.textContent = 'Не удалось проверить Push-подписку. Проверьте SQL-миграцию v2 и обновите страницу.';
+    }
+  };
+
+  const enablePushNotifications = async () => {
+    const button = $('akPushEnableButton');
+    if (button) { button.disabled = true; button.textContent = 'Подключение…'; }
+    try {
+      if (!pushIsSupported()) throw new Error('Для системных уведомлений нужен актуальный Chrome или Edge и HTTPS.');
+      if (!PUSH_PUBLIC_KEY || PUSH_PUBLIC_KEY.includes('PASTE_')) throw new Error('Не указан публичный VAPID-ключ. Настройте js/push-config.js.');
+
+      let permission = Notification.permission;
+      if (permission === 'default') permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        throw new Error(permission === 'denied'
+          ? 'Уведомления заблокированы в браузере. Разрешите их в настройках сайта и повторите попытку.'
+          : 'Разрешение на уведомления не выдано.');
+      }
+
+      const registration = await navigator.serviceWorker.register(PUSH_SW_PATH, { scope: '/' });
+      await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        const { data: existingSubscription, error: lookupError } = await sb
+          .from('push_subscriptions')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('endpoint', subscription.endpoint)
+          .maybeSingle();
+        if (lookupError) throw lookupError;
+        // The server may have removed an expired endpoint after a 404/410 response.
+        // Recreate the browser subscription instead of saving the same stale endpoint again.
+        if (!existingSubscription) {
+          await subscription.unsubscribe();
+          subscription = null;
+        }
+      }
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: base64UrlToUint8Array(PUSH_PUBLIC_KEY)
+        });
+      }
+      const serialized = subscription.toJSON();
+      if (!serialized.keys?.p256dh || !serialized.keys?.auth) {
+        throw new Error('Браузер не вернул ключи Push-подписки. Попробуйте обновить браузер.');
+      }
+
+      const { error } = await sb.from('push_subscriptions').upsert({
+        user_id: user.id,
+        endpoint: subscription.endpoint,
+        p256dh: serialized.keys.p256dh,
+        auth: serialized.keys.auth,
+        user_agent: navigator.userAgent.slice(0, 500),
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,endpoint' });
+      if (error) throw error;
+
+      await refreshPushSettingsUI();
+      showToast('Системные уведомления включены на этом устройстве.');
+    } catch (error) {
+      console.error('[DockSlot Push] Enable failed:', error);
+      setStatus(error?.message || 'Не удалось включить системные уведомления.', true);
+      if (button) { button.disabled = false; button.textContent = 'Повторить подключение'; }
+      await refreshPushSettingsUI();
+    }
+  };
+
+  const disablePushNotifications = async () => {
+    const button = $('akPushDisableButton');
+    if (button) { button.disabled = true; button.textContent = 'Отключение…'; }
+    try {
+      const registration = await navigator.serviceWorker.getRegistration('/');
+      const subscription = registration ? await registration.pushManager.getSubscription() : null;
+      if (subscription) {
+        const { error } = await sb.from('push_subscriptions')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('endpoint', subscription.endpoint);
+        if (error) throw error;
+        await subscription.unsubscribe();
+      }
+      await refreshPushSettingsUI();
+      showToast('Системные уведомления отключены на этом устройстве.');
+    } catch (error) {
+      console.error('[DockSlot Push] Disable failed:', error);
+      setStatus(error?.message || 'Не удалось отключить системные уведомления.', true);
+      if (button) { button.disabled = false; button.textContent = 'Отключить на этом устройстве'; }
+    }
   };
 
   const showToast = (message) => {
