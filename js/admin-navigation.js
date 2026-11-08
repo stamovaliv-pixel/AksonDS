@@ -233,6 +233,18 @@ document.addEventListener('DOMContentLoaded', () => {
         logout
       );
       decorateActive();
+    } else if (normalized === 'supplier') {
+      // Suppliers retain their existing destinations, now using the same SVG icon
+      // system and active-state behavior as the other application roles.
+      if (appHeader) appHeader.append(themeButton);
+      else nav.append(themeButton);
+      right.append(
+        makeLink('calendar.html', 'Календарь', 'calendar', 'calendar.html'),
+        makeLink('dashboard.html', 'Личный кабинет', 'users', 'dashboard.html'),
+        makeLink('help.html', 'Помощь', 'help', 'help.html'),
+        logout
+      );
+      decorateActive();
     } else {
       if (appHeader) appHeader.append(themeButton);
       else nav.append(themeButton);
@@ -250,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const roleCacheKey = `akson-dockslot-nav-role:${authProfile.user.id}`;
       let cachedRole = null;
       try { cachedRole = sessionStorage.getItem(roleCacheKey); } catch (_) { /* storage unavailable */ }
-      if (['admin', 'super_admin', 'operator', 'viewer'].includes(cachedRole)) renderRole(cachedRole);
+      if (['admin', 'super_admin', 'operator', 'viewer', 'supplier'].includes(cachedRole)) renderRole(cachedRole);
 
       // The shared helper confirms the current JWT and reads the profile once per page.
       // Cached role affects presentation only; page guards and RLS remain authoritative.
