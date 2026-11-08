@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const makeLink = (href, label, icon, activeKey) => {
     const link = create('a', 'nav-icon', icons[icon]);
+    link.dataset.navIcon = icon;
     link.href = href;
     link.title = label;
     link.setAttribute('aria-label', label);
@@ -210,6 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const renderRole = (role) => {
     const normalized = String(role || '').toLowerCase();
+    nav.dataset.role = normalized;
     right.replaceChildren();
     if (['admin', 'super_admin'].includes(normalized)) {
       themeButton.remove();
