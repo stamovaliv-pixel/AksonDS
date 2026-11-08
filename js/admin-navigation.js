@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     calendar: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>',
     tools: '<svg class="tools-five-dots" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="3.9" r="1.75"></circle><circle cx="19.1" cy="9.2" r="1.75"></circle><circle cx="16.4" cy="17.4" r="1.75"></circle><circle cx="7.6" cy="17.4" r="1.75"></circle><circle cx="4.9" cy="9.2" r="1.75"></circle></svg>',
     users: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
+    profile: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="7" r="4"></circle><path d="M20 21v-2a8 8 0 0 0-16 0v2"></path></svg>',
     analytics: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3v18h18M3 17l6-6 4 4 8-8"></path></svg>',
     load: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3v18h18"></path><path d="M7 14l4-4 3 3 6-7"></path><path d="M16 6h4v4"></path></svg>',
     settings: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"></circle><path d="m19.4 15 .06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33 1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1 1.65 1.65 0 0 0 0 1.74Z"></path></svg>',
@@ -155,9 +156,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (isThemeItem) {
         const syncThemeItem = () => {
           const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-          link.querySelector('.admin-tools-item-icon').innerHTML = dark ? icons.sun : icons.moon;
-          link.querySelector('.admin-tools-item-copy strong').textContent = dark ? 'Светлый режим' : 'Темный режим';
-          link.querySelector('.admin-tools-item-copy small').textContent = 'Переключить оформление приложения';
+          const iconNode = link.querySelector('.admin-tools-item-icon');
+          const labelNode = link.querySelector('.admin-tools-item-copy strong');
+          const detailNode = link.querySelector('.admin-tools-item-copy small');
+          if (iconNode) iconNode.innerHTML = dark ? icons.sun : icons.moon;
+          if (labelNode) labelNode.textContent = dark ? 'Светлый режим' : 'Темный режим';
+          if (detailNode) detailNode.textContent = 'Переключить оформление приложения';
           link.setAttribute('aria-pressed', String(dark));
           link.title = dark ? 'Переключить на светлый режим' : 'Переключить на темный режим';
           link.setAttribute('aria-label', link.title);
@@ -228,6 +232,16 @@ document.addEventListener('DOMContentLoaded', () => {
         makeLink('admin_calendar.html', 'Календарь', 'calendar', 'admin_calendar.html'),
         ...(['operator'].includes(normalized) ? [makeLink('load_management.html', 'Управление нагрузкой', 'load', 'load_management.html')] : []),
         makeLink('help.html', 'Помощь', 'help', 'help.html'),
+        logout
+      );
+      decorateActive();
+    } else if (normalized === 'supplier') {
+      // Keep the supplier navigation exactly within its existing two pages.
+      if (appHeader) appHeader.append(themeButton);
+      else nav.append(themeButton);
+      right.append(
+        makeLink('calendar.html', 'Календарь', 'calendar', 'calendar.html'),
+        makeLink('dashboard.html', 'Личный кабинет', 'profile', 'dashboard.html'),
         logout
       );
       decorateActive();
