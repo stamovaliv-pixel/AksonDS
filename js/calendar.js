@@ -64,10 +64,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.target === modal) modal.style.display = 'none';
   };
 
-  const today = new Date();
+  // Серверная проверка диапазона использует бизнес-дату РЦ (Asia/Almaty).
+  // Дата на устройстве пользователя может отставать от даты РЦ на один день
+  // (например, поздним вечером в Европе), что приводило к SQLSTATE 22023.
+  const BUSINESS_TIME_ZONE = 'Asia/Almaty';
+  const businessDateParts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(new Date());
+  const getBusinessDatePart = (type) => businessDateParts.find((part) => part.type === type)?.value;
+  const businessYear = Number(getBusinessDatePart('year'));
+  const businessMonth = Number(getBusinessDatePart('month'));
+  const businessDay = Number(getBusinessDatePart('day'));
+
+  if (![businessYear, businessMonth, businessDay].every(Number.isFinite)) {
+    console.error('Не удалось определить текущую дату РЦ для календаря.');
+    alert('Не удалось определить дату календаря. Обновите страницу.');
+    return;
+  }
+
+  // Формируем локальный Date из компонентов даты РЦ, чтобы дальнейшая
+  // календарная отрисовка и прибавление дней не зависели от часового пояса устройства.
+  const today = new Date(businessYear, businessMonth - 1, businessDay);
   today.setHours(0, 0, 0, 0);
 
-  const isoToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const isoToday = `${businessYear}-${String(businessMonth).padStart(2, '0')}-${String(businessDay).padStart(2, '0')}`;
 
   const countTo = new Date(today);
   countTo.setDate(countTo.getDate() + 35);
