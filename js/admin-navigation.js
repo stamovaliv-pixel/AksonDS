@@ -158,9 +158,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (isThemeItem) {
         const syncThemeItem = () => {
           const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-          link.querySelector('.admin-tools-item-icon').innerHTML = dark ? icons.sun : icons.moon;
-          link.querySelector('.admin-tools-item-copy strong').textContent = dark ? 'Светлый режим' : 'Темный режим';
-          link.querySelector('.admin-tools-item-copy small').textContent = 'Переключить оформление приложения';
+          const iconNode = link.querySelector('.admin-tools-item-icon');
+          const labelNode = link.querySelector('.admin-tools-item-copy strong');
+          if (iconNode) iconNode.innerHTML = dark ? icons.sun : icons.moon;
+          if (labelNode) labelNode.textContent = dark ? 'Светлый режим' : 'Темный режим';
+          // The unified submenu row intentionally has no secondary text element.
+          // Keep the theme item in the same single-line style as every other entry.
           link.setAttribute('aria-pressed', String(dark));
           link.title = dark ? 'Переключить на светлый режим' : 'Переключить на темный режим';
           link.setAttribute('aria-label', link.title);

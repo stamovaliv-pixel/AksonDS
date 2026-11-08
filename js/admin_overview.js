@@ -889,11 +889,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   const initialize = async () => {
     const profile = await getProfile();
     if (!profile) return;
-    $('logoutBtn').addEventListener('click', async (event) => {
-      event.preventDefault();
-      await sb.auth.signOut();
-      window.location.href = '../index.html';
-    });
+    // Navigation is rebuilt asynchronously by admin-navigation.js. Use event
+    // delegation so the handler works even if #logoutBtn is inserted after this
+    // page initialization starts.
+    if (!document.documentElement.dataset.overviewLogoutBound) {
+      document.documentElement.dataset.overviewLogoutBound = 'true';
+      document.addEventListener('click', async (event) => {
+        const logoutButton = event.target.closest?.('#logoutBtn');
+        if (!logoutButton) return;
+        event.preventDefault();
+        logoutButton.setAttribute('aria-busy', 'true');
+        try {
+          const { error } = await sb.auth.signOut();
+          if (error) throw error;
+          window.location.replace('../index.html');
+        } catch (error) {
+          logoutButton.removeAttribute('aria-busy');
+          console.error('Не удалось выполнить выход:', error);
+          showState(`Не удалось выполнить выход: ${error.message || 'ошибка авторизации'}`, true);
+        }
+      });
+    }
 
     try {
       await loadSettings();
