@@ -150,7 +150,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       link.setAttribute('role', 'menuitem');
       link.style.setProperty('--item-index', String(index));
-      link.innerHTML = `<span class="admin-tools-item-icon">${isThemeItem ? '' : icons[item.icon]}</span><span class="admin-tools-item-copy"><strong>${item.label}</strong><small>${item.detail}</small></span><span class="admin-tools-item-dot" aria-hidden="true"></span>`;
+      // Every submenu entry uses one identical row: same icon box, label typography and color.
+      // Keep the theme switch as a button, but visually identical to the links.
+      link.innerHTML = `<span class="admin-tools-item-icon">${isThemeItem ? '' : icons[item.icon]}</span><span class="admin-tools-item-copy"><strong>${item.label}</strong></span><span class="admin-tools-item-dot" aria-hidden="true"></span>`;
       popover.appendChild(link);
 
       if (isThemeItem) {
