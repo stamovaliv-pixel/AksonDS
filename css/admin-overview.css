@@ -346,7 +346,7 @@ html[data-theme="dark"] .overview-sticker--reminder { background: #765263; }
   bottom: 9px;
   left: 0;
   width: 4px;
-  border-radius: 0 5px 5px 0;
+  border-radius: 5px 0 0 5px;
   cursor: help;
   transition: box-shadow .18s ease, filter .18s ease;
 }
