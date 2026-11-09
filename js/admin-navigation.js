@@ -214,6 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const renderRole = (role) => {
     const normalized = String(role || '').toLowerCase();
+    nav.classList.add('supplier-nav-ready');
     right.replaceChildren();
     if (['admin', 'super_admin'].includes(normalized)) {
       themeButton.remove();
@@ -236,9 +237,8 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       decorateActive();
     } else if (normalized === 'supplier') {
-      // Поставщику доступны календарь, личный кабинет и справочная страница.
-      if (appHeader) appHeader.append(themeButton);
-      else nav.append(themeButton);
+      // Порядок навигации поставщика: тема, календарь, кабинет, помощь, выход.
+      nav.insertBefore(themeButton, right);
       right.append(
         makeLink('calendar.html', 'Календарь', 'calendar', 'calendar.html'),
         makeLink('dashboard.html', 'Личный кабинет', 'profile', 'dashboard.html'),
@@ -263,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const roleCacheKey = `akson-dockslot-nav-role:${authProfile.user.id}`;
       let cachedRole = null;
       try { cachedRole = sessionStorage.getItem(roleCacheKey); } catch (_) { /* storage unavailable */ }
-      if (['admin', 'super_admin', 'operator', 'viewer'].includes(cachedRole)) renderRole(cachedRole);
+      if (['admin', 'super_admin', 'operator', 'viewer', 'supplier'].includes(cachedRole)) renderRole(cachedRole);
 
       // The shared helper confirms the current JWT and reads the profile once per page.
       // Cached role affects presentation only; page guards and RLS remain authoritative.
