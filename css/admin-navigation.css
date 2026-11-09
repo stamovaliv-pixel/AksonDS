@@ -1,4 +1,6 @@
 /* Stable header layout: one row, no delayed rearrangement of navigation icons. */
+.supplier-calendar-page .app-header > .header-nav:not(.supplier-nav-ready),
+.supplier-day-page .app-header > .header-nav:not(.supplier-nav-ready) { visibility: hidden !important; }
 .app-header > .header-nav {
   display: flex !important;
   flex: 1 1 auto;
@@ -65,7 +67,8 @@
 }
 .header-nav .nav-icon#logoutBtn { color: var(--color-text-muted, #64748b) !important; }
 .header-nav .nav-icon#logoutBtn:hover { color: var(--color-text-main, #475569) !important; }
-.app-header > .dockslot-theme-anchor {
+.app-header > .dockslot-theme-anchor,
+.header-nav > .dockslot-theme-anchor {
   position: relative;
   display: inline-flex;
   flex: 0 0 38px;
@@ -86,9 +89,12 @@
   cursor: pointer;
   transition: color .16s ease, background-color .16s ease, transform .16s ease;
 }
-.app-header > .dockslot-theme-anchor svg { display:block; width:22px; height:22px; fill:none; stroke:currentColor !important; stroke-width:1.8 !important; stroke-linecap:round; stroke-linejoin:round; }
+.app-header > .dockslot-theme-anchor svg,
+.header-nav > .dockslot-theme-anchor svg { display:block; width:22px; height:22px; fill:none; stroke:currentColor !important; stroke-width:1.8 !important; stroke-linecap:round; stroke-linejoin:round; }
 .app-header > .dockslot-theme-anchor:hover,
-.app-header > .dockslot-theme-anchor:focus-visible { color:var(--color-text-main,#475569) !important; background:rgba(100,116,139,.09) !important; transform:translateY(-1px); outline:none; }
+.app-header > .dockslot-theme-anchor:focus-visible,
+.header-nav > .dockslot-theme-anchor:hover,
+.header-nav > .dockslot-theme-anchor:focus-visible { color:var(--color-text-main,#475569) !important; background:rgba(100,116,139,.09) !important; transform:translateY(-1px); outline:none; }
 /* Five-dot trigger and its compact hover/focus popover. */
 .admin-tools-menu {
   position: relative;
@@ -249,8 +255,10 @@ html[data-theme="dark"] .admin-tools-item-icon { background: #202b37; color: #a5
   .header-nav .nav-icon,
   .admin-tools-menu { flex-basis: 35px; width: 35px; min-width: 35px; height: 35px; min-height: 35px; }
   .header-nav .nav-icon svg { width: 21px; height: 21px; }
-  .app-header > .dockslot-theme-anchor { flex-basis:35px; width:35px; min-width:35px; height:35px; min-height:35px; }
-  .app-header > .dockslot-theme-anchor svg { width:21px; height:21px; }
+  .app-header > .dockslot-theme-anchor,
+  .header-nav > .dockslot-theme-anchor { flex-basis:35px; width:35px; min-width:35px; height:35px; min-height:35px; }
+  .app-header > .dockslot-theme-anchor svg,
+  .header-nav > .dockslot-theme-anchor svg { width:21px; height:21px; }
   .admin-tools-popover { right: -45px; }
 }
 @media (max-width: 440px) {
@@ -260,13 +268,16 @@ html[data-theme="dark"] .admin-tools-item-icon { background: #202b37; color: #a5
   .header-nav .nav-icon,
   .admin-tools-menu { flex-basis: 31px; width: 31px; min-width: 31px; height: 31px; min-height: 31px; }
   .header-nav .nav-icon svg { width: 19px; height: 19px; }
-  .app-header > .dockslot-theme-anchor { flex-basis:31px; width:31px; min-width:31px; height:31px; min-height:31px; }
-  .app-header > .dockslot-theme-anchor svg { width:19px; height:19px; }
+  .app-header > .dockslot-theme-anchor,
+  .header-nav > .dockslot-theme-anchor { flex-basis:31px; width:31px; min-width:31px; height:31px; min-height:31px; }
+  .app-header > .dockslot-theme-anchor svg,
+  .header-nav > .dockslot-theme-anchor svg { width:19px; height:19px; }
   .admin-tools-popover { right: -40px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .header-nav .nav-icon,
   .app-header > .dockslot-theme-anchor,
+  .header-nav > .dockslot-theme-anchor,
   .admin-tools-trigger .tools-five-dots circle,
   .admin-tools-popover,
   .admin-tools-item,
