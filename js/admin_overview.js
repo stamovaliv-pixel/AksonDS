@@ -125,6 +125,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     return data?.[0]?.slot_date || '';
   };
 
+  // Последняя выбранная дата рабочего стола хранится локально отдельно
+  // для каждого пользователя и действует только в пределах текущего
+  // московского календарного дня. Это не создаёт запросов к Supabase.
+  const overviewDateStorageKey = () => `akson-dockslot-overview-date-${currentUser?.id || 'unknown'}`;
+
+  const readOverviewDatePreference = (today) => {
+    try {
+      const raw = window.localStorage.getItem(overviewDateStorageKey());
+      if (!raw) return null;
+      const saved = JSON.parse(raw);
+      if (saved?.businessDate !== today || typeof saved.selectedDate !== 'string') return null;
+      if (saved.selectedDate && !/^\d{4}-\d{2}-\d{2}$/.test(saved.selectedDate)) return null;
+      return saved.selectedDate;
+    } catch (error) {
+      console.warn('Не удалось прочитать сохранённую дату рабочего стола:', error);
+      return null;
+    }
+  };
+
+  const saveOverviewDatePreference = (selectedDate) => {
+    try {
+      window.localStorage.setItem(overviewDateStorageKey(), JSON.stringify({
+        businessDate: businessDate(),
+        selectedDate: selectedDate || ''
+      }));
+    } catch (error) {
+      // Недоступность localStorage не должна мешать работе рабочего стола.
+      console.warn('Не удалось сохранить дату рабочего стола:', error);
+    }
+  };
+
+  const getInitialOverviewDate = async () => {
+    const today = businessDate();
+    const savedDate = readOverviewDatePreference(today);
+    if (savedDate !== null) return savedDate;
+    const defaultDate = await chooseDefaultDate();
+    saveOverviewDatePreference(defaultDate);
+    return defaultDate;
+  };
+
   const fetchBookingsForDate = async (date) => {
     if (!date) {
       bookings = [];
@@ -915,6 +955,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       loadOverviewDate($('dateFilter').value);
     });
     $('dateFilter').addEventListener('change', () => {
+      saveOverviewDatePreference($('dateFilter').value);
       setExportSelectionMode(false);
       activeListKind = null;
       $('listPanel').hidden = true;
@@ -938,6 +979,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         const defaultDate = await chooseDefaultDate();
         $('dateFilter').value = defaultDate;
+        saveOverviewDatePreference(defaultDate);
         await loadOverviewDate(defaultDate);
       } catch (error) {
         showState(`Не удалось определить ближайшую дату: ${error.message || 'ошибка'}`, true);
@@ -1035,7 +1077,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     try {
-      const defaultDate = await chooseDefaultDate();
+      const defaultDate = await getInitialOverviewDate();
       $('dateFilter').value = defaultDate;
       await loadOverviewDate(defaultDate);
     } catch (error) {
