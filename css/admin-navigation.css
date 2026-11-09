@@ -189,11 +189,11 @@
 .admin-tools-popover .admin-tools-item:hover,
 .admin-tools-popover .admin-tools-item:focus-visible,
 .admin-tools-popover .admin-tools-item:active {
-  color: var(--color-text-main, #1e293b) !important;
+  color: #303943 !important;
   text-decoration: none !important;
 }
 .admin-tools-item-copy strong {
-  color: inherit !important;
+  color: #303943 !important;
   font-size: 12px;
   font-weight: 730;
   line-height: 1.3;
@@ -224,7 +224,7 @@
 .admin-tools-item-icon svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .admin-tools-item-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 2px; }
 .admin-tools-item-copy strong { font-size: 12px; font-weight: 730; line-height: 1.3; }
-.admin-tools-item-copy small { color: var(--color-text-muted, #64748b); font-size: 10px; line-height: 1.35; }
+.admin-tools-item-copy small { color: #303943 !important; font-size: 10px; line-height: 1.35; }
 .admin-tools-item-dot { width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: #94a3b8; opacity: .55; transition: opacity .16s ease, transform .16s ease; }
 .admin-tools-item:hover .admin-tools-item-dot,
 .admin-tools-item:focus-visible .admin-tools-item-dot { opacity: 1; transform: scale(1.3); }
@@ -235,12 +235,13 @@ html[data-theme="dark"] .admin-tools-popover .admin-tools-item:visited,
 html[data-theme="dark"] .admin-tools-popover .admin-tools-item:hover,
 html[data-theme="dark"] .admin-tools-popover .admin-tools-item:focus-visible,
 html[data-theme="dark"] .admin-tools-popover .admin-tools-item:active { color: #e6edf5 !important; }
-html[data-theme="dark"] .admin-tools-item-copy strong { color: inherit !important; }
+html[data-theme="dark"] .admin-tools-item-copy strong,
+html[data-theme="dark"] .admin-tools-item-copy small { color: #e6edf5 !important; }
 html[data-theme="dark"] .admin-tools-item:hover,
 html[data-theme="dark"] .admin-tools-item:focus-visible { background: #202b37; }
 html[data-theme="dark"] .admin-tools-theme-item { color: #e6edf5; }
 html[data-theme="dark"] .admin-tools-item-icon { background: #202b37; color: #a5b2c2; }
-html[data-theme="dark"] .admin-tools-item-copy small { color: #a5b2c2; }
+
 
 @media (max-width: 767px) {
   .app-header > .header-nav { gap: 6px !important; }
