@@ -61,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await Promise.all([loadPreferences(), loadInbox()]);
       setupRealtime();
       await refreshPushSettingsUI();
+      openFromNotificationUrl();
 
       // Due reminder notifications are processed by the verified active pg_cron job
       // (akson-dockslot-due-reminders). Do not poll the same RPC from every admin tab.
@@ -149,6 +150,43 @@ document.addEventListener('DOMContentLoaded', () => {
     window.setTimeout(() => { overlay.hidden = true; }, 180);
     document.body.classList.remove('ak-notifications-lock');
     $('akNotificationsBell')?.setAttribute('aria-expanded', 'false');
+  };
+
+  const openNotificationFromSystem = async (notificationId) => {
+    openModal();
+    await loadInbox();
+    setView('inbox');
+    if (!notificationId) return;
+    // Wait for the modal and its list to paint before locating the selected row.
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      const row = $('akNotificationsBody')?.querySelector(`[data-notification-id="${CSS.escape(String(notificationId))}"]`);
+      if (!row) return;
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.classList.remove('is-system-highlight');
+      // Restart the short highlight if the same notification is opened again.
+      void row.offsetWidth;
+      row.classList.add('is-system-highlight');
+      window.setTimeout(() => row.classList.remove('is-system-highlight'), 2800);
+    }));
+  };
+
+  // The service worker uses this bridge instead of navigating to the dashboard.
+  navigator.serviceWorker?.addEventListener('message', (event) => {
+    if (event.data?.type !== 'AKSON_OPEN_NOTIFICATION') return;
+    window.focus();
+    openNotificationFromSystem(event.data.notificationId || '');
+  });
+
+  // Fallback for browsers that create a page Notification instead of a SW notification.
+  const openFromNotificationUrl = () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('openNotifications') !== '1') return;
+    const notificationId = params.get('notificationId') || '';
+    params.delete('openNotifications');
+    params.delete('notificationId');
+    const cleanUrl = `${window.location.pathname}${params.toString() ? `?${params}` : ''}${window.location.hash}`;
+    window.history.replaceState({}, '', cleanUrl);
+    openNotificationFromSystem(notificationId);
   };
 
   const setStatus = (message, isError = false) => {
@@ -684,7 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await registration.showNotification(title, notificationOptions);
       } else {
         const fallback = new Notification(title, notificationOptions);
-        fallback.onclick = () => { window.focus(); fallback.close(); };
+        fallback.onclick = () => { window.focus(); fallback.close(); openNotificationFromSystem(id); };
       }
     } catch (error) {
       console.warn('[DockSlot Push] Realtime desktop notification fallback failed:', error);
