@@ -227,8 +227,9 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       decorateActive(menu.trigger, normalized);
     } else if (['operator', 'viewer'].includes(normalized)) {
-      if (appHeader) appHeader.append(themeButton);
-      else nav.append(themeButton);
+      // Для оператора и наблюдателя тема стоит первой, затем только их штатные пункты.
+      // Порядок остальных ролей не затрагивается.
+      nav.insertBefore(themeButton, right);
       right.append(
         makeLink('admin_calendar.html', 'Календарь', 'calendar', 'admin_calendar.html'),
         ...(['operator'].includes(normalized) ? [makeLink('load_management.html', 'Управление нагрузкой', 'load', 'load_management.html')] : []),
