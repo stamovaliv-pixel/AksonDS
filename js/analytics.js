@@ -1,13 +1,21 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
   
-  // Устанавливаем период по умолчанию (-30 дней и сегодня)
-  const todayDate = new Date();
-  const dFrom = new Date(); dFrom.setDate(todayDate.getDate() - 30);
-  const dTo = new Date(); 
-  
-  document.getElementById('dateFrom').value = dFrom.toISOString().split('T')[0];
-  document.getElementById('dateTo').value = dTo.toISOString().split('T')[0];
+  // Период по умолчанию рассчитывается по московскому календарю.
+  const MOSCOW_TIME_ZONE = 'Europe/Moscow';
+  const moscowTodayISO = () => {
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: MOSCOW_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  };
+  const addISODateDays = (isoDate, amount) => {
+    const date = new Date(`${isoDate}T12:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + amount);
+    return date.toISOString().slice(0, 10);
+  };
+  const todayISO = moscowTodayISO();
+  document.getElementById('dateFrom').value = addISODateDays(todayISO, -30);
+  document.getElementById('dateTo').value = todayISO;
 
   document.getElementById('logoutBtn').onclick = async (e) => { e.preventDefault(); await sb.auth.signOut(); window.location.href = '../index.html'; };
 
@@ -87,9 +95,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     const stats = {};
-    const now = new Date();
-    const todayMidnight = new Date();
-    todayMidnight.setHours(0, 0, 0, 0);
+    const todayISO = moscowTodayISO();
+    const currentMoscowHour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: MOSCOW_TIME_ZONE, hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
 
     // Агрегация данных
     filteredBookings.forEach(b => {
@@ -99,10 +106,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       // Рассматриваем только наступившие заявки
-      const slotD = new Date(b.slot_date);
-      slotD.setHours(0,0,0,0);
-      
-      const isPast = slotD < todayMidnight || (slotD.getTime() === todayMidnight.getTime() && now.getHours() > b.slot_hour);
+      const isPast = String(b.slot_date || '') < todayISO || (String(b.slot_date || '') === todayISO && currentMoscowHour > Number(b.slot_hour));
       if (!isPast) return; // Будущие слоты пропускаем
       
       stats[comp].total++;
@@ -244,7 +248,7 @@ window.downloadChartImage = function(canvasId, filename) {
   if (!chart) return;
   const a = document.createElement('a');
   a.href = chart.toBase64Image();
-  a.download = `${filename}_${new Date().toISOString().split('T')[0]}.png`;
+  a.download = `${filename}_${moscowTodayISO()}.png`;
   a.click();
 };
 
@@ -269,7 +273,7 @@ window.downloadCSV = function(type) {
   const formatDateTime = (isoString) => {
     if (!isoString) return '';
     const d = new Date(isoString);
-    return `${d.toLocaleDateString('ru-RU')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    return new Intl.DateTimeFormat('ru-RU', { timeZone: MOSCOW_TIME_ZONE, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d);
   };
 
   if (type === 'rating') {
@@ -281,7 +285,8 @@ window.downloadCSV = function(type) {
     cache.forEach(row => {
       (row.meta?.lateRecords || []).forEach(b => {
         const created = formatDateTime(b.created_at);
-        const slotDate = new Date(b.slot_date).toLocaleDateString('ru-RU');
+        const [slotYear, slotMonth, slotDay] = String(b.slot_date).split('-');
+        const slotDate = `${slotDay}.${slotMonth}.${slotYear}`;
         const slotTime = `${b.slot_hour}:00-${b.slot_hour + 1}:00`;
         const arrTime = b.arrival_time ? b.arrival_time.substring(0, 5) : '';
         const depTime = b.departure_time ? b.departure_time.substring(0, 5) : '';
@@ -294,7 +299,8 @@ window.downloadCSV = function(type) {
     cache.forEach(row => {
       (row.meta?.noshowRecords || []).forEach(b => {
         const created = formatDateTime(b.created_at);
-        const slotDate = new Date(b.slot_date).toLocaleDateString('ru-RU');
+        const [slotYear, slotMonth, slotDay] = String(b.slot_date).split('-');
+        const slotDate = `${slotDay}.${slotMonth}.${slotYear}`;
         const slotTime = `${b.slot_hour}:00-${b.slot_hour + 1}:00`;
         rows.push(csvRow([created, row.comp, b.id, slotDate, slotTime]).trimEnd());
       });
@@ -308,7 +314,7 @@ window.downloadCSV = function(type) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `report_${type}_${new Date().toISOString().split('T')[0]}.csv`;
+  link.download = `report_${type}_${moscowTodayISO()}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);

@@ -131,10 +131,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 4. Логика расчета рейтинга и гистограммы за последние 30 дней
   const calculateRating = async () => {
     try {
-      const today = new Date();
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(today.getDate() - 30);
-      const dateStr = thirtyDaysAgo.toISOString().split('T')[0];
+      const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+      const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+      const todayISO = `${values.year}-${values.month}-${values.day}`;
+      const thirtyDaysAgo = new Date(`${todayISO}T12:00:00Z`);
+      thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
+      const dateStr = thirtyDaysAgo.toISOString().slice(0, 10);
 
       const { data: bookings, error } = await sb
         .from('bookings')

@@ -42,13 +42,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // independently enforced by the PostgreSQL booking trigger.
   let currentExcludedDates = [];
   let draftExcludedDates = [];
-  let exceptionsMonth = new Date();
-  exceptionsMonth.setDate(1);
-  exceptionsMonth.setHours(12, 0, 0, 0);
+  let exceptionsMonth = null;
 
   const businessTodayISO = () => {
     const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Almaty', year: 'numeric', month: '2-digit', day: '2-digit'
+      timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit'
     }).formatToParts(new Date());
     const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
     return `${values.year}-${values.month}-${values.day}`;
@@ -62,6 +60,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const toISODateLocal = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const initialBusinessDate = parseISODateLocal(businessTodayISO()) || new Date();
+  exceptionsMonth = new Date(initialBusinessDate.getFullYear(), initialBusinessDate.getMonth(), 1, 12, 0, 0, 0);
   const formatExceptionDate = (iso) => {
     const date = parseISODateLocal(iso);
     return date ? date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' }) : String(iso);

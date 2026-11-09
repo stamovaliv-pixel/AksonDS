@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const selectedDate = urlParams.get('date');
   if (!selectedDate) return window.location.href = 'admin_calendar.html';
   const getBusinessTodayISODate = () => {
-    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Almaty', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
     const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
     return `${values.year}-${values.month}-${values.day}`;
   };

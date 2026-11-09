@@ -64,10 +64,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.target === modal) modal.style.display = 'none';
   };
 
-  // Серверная проверка диапазона использует бизнес-дату РЦ (Asia/Almaty).
-  // Дата на устройстве пользователя может отставать от даты РЦ на один день
+  // Серверная проверка диапазона и все дедлайны используют московское время (Europe/Moscow).
+  // Дата на устройстве пользователя может отличаться от московской даты на один день
   // (например, поздним вечером в Европе), что приводило к SQLSTATE 22023.
-  const BUSINESS_TIME_ZONE = 'Asia/Almaty';
+  const BUSINESS_TIME_ZONE = 'Europe/Moscow';
   const businessDateParts = new Intl.DateTimeFormat('en-CA', {
     timeZone: BUSINESS_TIME_ZONE,
     year: 'numeric',
@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const businessDay = Number(getBusinessDatePart('day'));
 
   if (![businessYear, businessMonth, businessDay].every(Number.isFinite)) {
-    console.error('Не удалось определить текущую дату РЦ для календаря.');
+    console.error('Не удалось определить текущую московскую дату для календаря.');
     alert('Не удалось определить дату календаря. Обновите страницу.');
     return;
   }
@@ -230,13 +230,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const nextSeven = userBookings.slice(0, 7);
 
       nextSeven.forEach(booking => {
-        const bDate = new Date(booking.slot_date);
-
-        const dateStr = bDate.toLocaleDateString('ru-RU', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric'
-        });
+        const [bookingYear, bookingMonth, bookingDay] = String(booking.slot_date).split('-');
+        const dateStr = `${bookingDay}.${bookingMonth}.${bookingYear}`;
 
         const timeStr = `${booking.slot_hour}:00 - ${booking.slot_hour + 1}:00`;
 
@@ -287,7 +282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           if (editBtn) {
             const todayLocal = new Intl.DateTimeFormat('en-CA', {
-              timeZone: 'Asia/Almaty',
+              timeZone: 'Europe/Moscow',
               year: 'numeric',
               month: '2-digit',
               day: '2-digit'
@@ -324,7 +319,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const endActiveDate = new Date(today);
     endActiveDate.setDate(today.getDate() + 29);
 
-    const currentRealHour = new Date().getHours();
+    const currentRealHour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: BUSINESS_TIME_ZONE, hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
 
     const startHour = settings.slot_start_hour ?? 9;
     const endHour = settings.slot_end_hour ?? 17;

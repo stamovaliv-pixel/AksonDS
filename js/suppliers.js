@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       info.className = 'sup-info';
       const company = makeText('div', 'sup-name', `${s.company_name || 'Без названия'} (ИНН: ${s.inn || 'Не указан'})`);
       const profileId = makeText('div', 'sup-details', `ID профиля: ${String(s.id).substring(0, 8)}...`);
-      const createdAt = s.created_at ? new Date(s.created_at).toLocaleDateString('ru-RU') : 'Нет данных';
+      const createdAt = s.created_at ? new Date(s.created_at).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' }) : 'Нет данных';
       const registered = makeText('div', 'sup-details', `Дата регистрации: ${createdAt}`);
       info.append(company, profileId, registered);
 

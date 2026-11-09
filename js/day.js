@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Все календарные сравнения и дедлайны используют бизнес-часовой пояс РЦ.
   const getBusinessDateParts = () => new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Almaty', year: 'numeric', month: '2-digit', day: '2-digit'
+    timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit'
   }).formatToParts(new Date());
   const getBusinessTodayISODate = () => {
     const values = Object.fromEntries(getBusinessDateParts().map(part => [part.type, part.value]));
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
   const getBusinessHour = () => {
     const parts = new Intl.DateTimeFormat('en-GB', {
-      timeZone: 'Asia/Almaty', hour: '2-digit', hourCycle: 'h23'
+      timeZone: 'Europe/Moscow', hour: '2-digit', hourCycle: 'h23'
     }).formatToParts(new Date());
     return Number(parts.find(part => part.type === 'hour')?.value ?? 0);
   };

@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const businessDate = (date = new Date()) => {
     const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Asia/Almaty', year: 'numeric', month: '2-digit', day: '2-digit'
+      timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit'
     }).formatToParts(date);
     const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
     return `${values.year}-${values.month}-${values.day}`;
@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // Рабочий стол по умолчанию показывает ближайший день с активными
-  // записями, начиная с завтрашнего дня по бизнес-календарю РЦ (Asia/Almaty).
+  // записями, начиная с завтрашнего дня по бизнес-календарю РЦ (Europe/Moscow).
   // Считаем календарные дни через UTC, чтобы часовой пояс устройства
   // не сдвигал дату накануне/послезавтра.
   const addBusinessDays = (isoDate, amount) => {
@@ -615,7 +615,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const item = createElement('article', 'overview-sticker overview-sticker--note');
       const head = createElement('div', 'overview-sticker-head');
       head.appendChild(createElement('strong', '', note.title || 'Заметка'));
-      head.appendChild(createElement('span', '', new Date(note.updated_at || note.created_at).toLocaleDateString('ru-RU')));
+      head.appendChild(createElement('span', '', new Date(note.updated_at || note.created_at).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' })));
       const expand = createElement('button', 'overview-sticker-expand', note.content || '');
       expand.type = 'button';
       expand.dataset.expandNote = String(note.id);
@@ -727,7 +727,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     content.replaceChildren();
     dueItems.forEach((reminder) => {
       const item = createElement('div', 'overview-due-item');
-      item.appendChild(createElement('strong', '', new Date(reminder.remind_at).toLocaleString('ru-RU')));
+      item.appendChild(createElement('strong', '', new Date(reminder.remind_at).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })));
       item.appendChild(createElement('div', '', reminder.reminder_text || 'Напоминание'));
       content.appendChild(item);
     });
@@ -812,7 +812,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const item = createElement('article', `overview-sticker overview-sticker--reminder ${statusClass}`);
       const head = createElement('div', 'overview-sticker-head');
       head.appendChild(createElement('strong', '', isCompleted ? 'Выполнено' : (isOverdue ? 'Просрочено' : 'Напоминание')));
-      head.appendChild(createElement('span', '', new Date(reminder.remind_at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })));
+      head.appendChild(createElement('span', '', new Date(reminder.remind_at).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })));
       const expand = createElement('button', 'overview-sticker-expand', reminder.reminder_text || '');
       expand.type = 'button';
       expand.dataset.expandReminder = String(reminder.id);
@@ -833,7 +833,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     event.preventDefault();
     const reminderText = $('reminderText').value.trim();
     const localValue = $('reminderAt').value;
-    const remindDate = localValue ? new Date(localValue) : null;
+    // datetime-local не содержит часовой зоны: трактуем введённое время как московское.
+    const remindDate = localValue ? new Date(`${localValue}:00+03:00`) : null;
     if (!reminderText || !remindDate || Number.isNaN(remindDate.getTime())) {
       return toast('Укажите текст и корректные дату и время напоминания.', true);
     }

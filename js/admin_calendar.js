@@ -138,14 +138,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  const today = new Date();
-  today.setHours(0,0,0,0);
   const getBusinessTodayISODate = () => {
-    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Almaty', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
     const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
     return `${values.year}-${values.month}-${values.day}`;
   };
-  const canEditRegistryForDate = (dateString) => String(dateString || '') >= getBusinessTodayISODate();
+  const businessTodayISO = getBusinessTodayISODate();
+  const [todayYear, todayMonth, todayDay] = businessTodayISO.split('-').map(Number);
+  const today = new Date(todayYear, todayMonth - 1, todayDay, 12, 0, 0, 0);
+  const canEditRegistryForDate = (dateString) => String(dateString || '') >= businessTodayISO;
   const resolveOrderTypeForUpdate = (selectId, currentOrderType) => {
     const allowed = ['order', 'upd', 'etrn'];
     const selected = document.getElementById(selectId)?.value;
@@ -475,7 +476,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return; 
     }
 
-    const upcoming = (bookings || []).filter(b => new Date(b.slot_date) >= today).sort((a, b) => new Date(a.slot_date) - new Date(b.slot_date) || a.slot_hour - b.slot_hour).slice(0, 14);
+    const upcoming = (bookings || []).filter(b => String(b.slot_date || '') >= businessTodayISO).sort((a, b) => String(a.slot_date).localeCompare(String(b.slot_date)) || a.slot_hour - b.slot_hour).slice(0, 14);
 
     if (upcoming.length === 0) {
       listContainer.innerHTML = `<div style="grid-column: 1 / -1; color: var(--color-text-muted); font-size: 14px; text-align: center; padding: 20px;">По вашему запросу ничего не найдено.</div>`;
@@ -503,7 +504,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }));
         
         const compName = b.profiles.company_name || 'Неизвестно';
-        const dateFormatted = new Date(b.slot_date).toLocaleDateString('ru-RU');
+        const [bookingYear, bookingMonth, bookingDay] = String(b.slot_date).split('-');
+        const dateFormatted = `${bookingDay}.${bookingMonth}.${bookingYear}`;
         const timeFormatted = `${b.slot_hour}:00 - ${b.slot_hour + 1}:00`;
         
         item.innerHTML = `

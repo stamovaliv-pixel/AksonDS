@@ -27,9 +27,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   }[ch]));
-  const dateLabel = (value) => new Date(`${value}T00:00:00`).toLocaleDateString('ru-RU', {
-    weekday: 'short', day: 'numeric', month: 'long'
-  });
+  const dateLabel = (value) => new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Europe/Moscow', weekday: 'short', day: 'numeric', month: 'long'
+  }).format(new Date(`${value}T12:00:00Z`));
   const showToast = (message, isError = false) => {
     const node = $('loadToast');
     node.textContent = message;
@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const label = document.createElement('strong');
       label.textContent = row.label;
       const time = document.createElement('time');
-      time.textContent = new Date(row.at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
+      time.textContent = new Date(row.at).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', dateStyle: 'short', timeStyle: 'short' });
       item.append(label, time);
       history.append(item);
     });
