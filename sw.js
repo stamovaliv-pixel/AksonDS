@@ -33,17 +33,26 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = new URL(event.notification.data?.url || '/app/dashboard.html', self.location.origin);
+  const notificationId = String(event.notification.data?.notificationId || '');
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    // Prefer an already-open DockSlot tab: tell its notification module to open
+    // the inbox modal and briefly highlight the exact notification.
     for (const client of windows) {
       if (new URL(client.url).origin !== self.location.origin) continue;
       try {
-        if (typeof client.navigate === 'function') await client.navigate(target.href);
+        client.postMessage({ type: 'AKSON_OPEN_NOTIFICATION', notificationId });
         await client.focus();
         return;
-      } catch (_) { /* Try another window or open a new one. */ }
+      } catch (_) { /* Try another same-origin tab. */ }
     }
-    if (self.clients.openWindow) await self.clients.openWindow(target.href);
+    // No open tab: launch the dashboard with a one-time instruction consumed
+    // by notifications.js after the page and the user's role are initialized.
+    if (self.clients.openWindow) {
+      const fallback = new URL('/app/dashboard.html', self.location.origin);
+      fallback.searchParams.set('openNotifications', '1');
+      if (notificationId) fallback.searchParams.set('notificationId', notificationId);
+      await self.clients.openWindow(fallback.href);
+    }
   })());
 });
