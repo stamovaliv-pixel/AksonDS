@@ -279,7 +279,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const hasDeparture = Boolean(booking.departure_time);
       const arrivalIndicator = createElement('span', 'overview-arrival-indicator');
       let arrivalState = 'not-arrived';
-      let arrivalHint = 'Не прибыл; отметки «Убыл» нет';
+      let arrivalHint = 'Не прибыл';
       if (hasArrival && hasDeparture) {
         arrivalState = 'completed';
         arrivalHint = 'Прибыл и убыл';
