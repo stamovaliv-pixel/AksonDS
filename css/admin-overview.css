@@ -315,7 +315,7 @@ html[data-theme="dark"] .overview-sticker--reminder { background: #765263; }
 .overview-booking-row {
   position: relative;
   isolation: isolate;
-  overflow: hidden;
+  overflow: visible;
 }
 .overview-booking-row::before {
   content: '';
@@ -342,9 +342,9 @@ html[data-theme="dark"] .overview-sticker--reminder { background: #765263; }
 .overview-arrival-indicator {
   position: absolute;
   z-index: 2;
-  top: 9px;
-  bottom: 9px;
-  left: 0;
+  top: 0;
+  bottom: 0;
+  left: -8px;
   width: 4px;
   border-radius: 5px 0 0 5px;
   cursor: help;
