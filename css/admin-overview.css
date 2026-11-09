@@ -309,3 +309,90 @@ html[data-theme="dark"] .overview-filter-actions .overview-export-btn.is-active 
 .overview-sticker--reminder { background: #fff2f6; }
 html[data-theme="dark"] .overview-sticker--note { background: #756a43; }
 html[data-theme="dark"] .overview-sticker--reminder { background: #765263; }
+
+
+/* Arrival/departure status: a subtle left-edge light trail, limited to the time cell. */
+.overview-booking-row {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.overview-booking-row::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 0;
+  width: 92px;
+  pointer-events: none;
+  opacity: .95;
+  transition: opacity .18s ease;
+}
+.overview-booking-row.has-arrival-state-completed::before {
+  background: linear-gradient(90deg, rgba(34,197,94,.17) 0%, rgba(34,197,94,.105) 34%, rgba(34,197,94,.035) 76%, transparent 100%);
+}
+.overview-booking-row.has-arrival-state-arrived::before {
+  background: linear-gradient(90deg, rgba(245,158,11,.18) 0%, rgba(245,158,11,.11) 34%, rgba(245,158,11,.035) 76%, transparent 100%);
+}
+.overview-booking-row.has-arrival-state-partial::before {
+  background: linear-gradient(90deg, rgba(245,158,11,.18) 0%, rgba(245,158,11,.11) 34%, rgba(245,158,11,.035) 76%, transparent 100%);
+}
+.overview-booking-row.has-arrival-state-not-arrived::before {
+  background: linear-gradient(90deg, rgba(239,68,68,.16) 0%, rgba(239,68,68,.095) 34%, rgba(239,68,68,.03) 76%, transparent 100%);
+}
+.overview-arrival-indicator {
+  position: absolute;
+  z-index: 2;
+  top: 9px;
+  bottom: 9px;
+  left: 0;
+  width: 4px;
+  border-radius: 0 5px 5px 0;
+  cursor: help;
+  transition: box-shadow .18s ease, filter .18s ease;
+}
+.has-arrival-state-completed .overview-arrival-indicator {
+  background: #22c55e;
+  box-shadow: 0 0 7px rgba(34,197,94,.28), 0 0 15px rgba(34,197,94,.14);
+}
+.has-arrival-state-arrived .overview-arrival-indicator {
+  background: #f59e0b;
+  box-shadow: 0 0 7px rgba(245,158,11,.3), 0 0 15px rgba(245,158,11,.15);
+}
+.has-arrival-state-partial .overview-arrival-indicator {
+  background: #f59e0b;
+  box-shadow: 0 0 7px rgba(245,158,11,.3), 0 0 15px rgba(245,158,11,.15);
+}
+.has-arrival-state-not-arrived .overview-arrival-indicator {
+  background: #ef4444;
+  box-shadow: 0 0 7px rgba(239,68,68,.28), 0 0 15px rgba(239,68,68,.14);
+}
+.overview-arrival-indicator:hover,
+.overview-arrival-indicator:focus-visible {
+  filter: saturate(1.15) brightness(1.04);
+}
+.overview-booking-row > :not(.overview-arrival-indicator) {
+  position: relative;
+  z-index: 1;
+}
+.overview-booking-row:hover::before { opacity: .72; }
+html[data-theme="dark"] .overview-booking-row.has-arrival-state-completed::before {
+  background: linear-gradient(90deg, rgba(34,197,94,.19) 0%, rgba(34,197,94,.11) 34%, rgba(34,197,94,.035) 76%, transparent 100%);
+}
+html[data-theme="dark"] .overview-booking-row.has-arrival-state-arrived::before {
+  background: linear-gradient(90deg, rgba(245,158,11,.2) 0%, rgba(245,158,11,.12) 34%, rgba(245,158,11,.04) 76%, transparent 100%);
+}
+html[data-theme="dark"] .overview-booking-row.has-arrival-state-partial::before {
+  background: linear-gradient(90deg, rgba(245,158,11,.18) 0%, rgba(245,158,11,.11) 34%, rgba(245,158,11,.035) 76%, transparent 100%);
+}
+.overview-booking-row.has-arrival-state-not-arrived::before {
+  background: linear-gradient(90deg, rgba(239,68,68,.18) 0%, rgba(239,68,68,.105) 34%, rgba(239,68,68,.035) 76%, transparent 100%);
+}
+@media (max-width: 820px) {
+  .overview-booking-row::before { width: 72px; }
+}
+@media (max-width: 640px) {
+  .overview-booking-row::before { width: 66px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .overview-booking-row::before, .overview-arrival-indicator { transition: none; }
+}
