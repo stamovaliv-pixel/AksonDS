@@ -135,6 +135,21 @@
   transition: border-color .16s ease, background .16s ease;
 }
 .ak-notification-item:hover { border-color: var(--color-border, #e2e8f0); background: rgba(148, 163, 184, .07); }
+.ak-notification-item.is-system-highlight {
+  border-color: rgba(59, 130, 246, .58);
+  background: rgba(59, 130, 246, .10);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .09);
+  animation: ak-notification-arrival-highlight 2.7s ease both;
+}
+@keyframes ak-notification-arrival-highlight {
+  0% { transform: translateY(5px); }
+  18% { transform: translateY(0); }
+  100% { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ak-notification-item.is-system-highlight { animation: none; }
+}
+
 .ak-notification-item.is-unread { border-color: rgba(59, 130, 246, .13); background: rgba(59, 130, 246, .055); }
 .ak-notification-dot { width: 8px; height: 8px; flex: 0 0 8px; margin-top: 6px; border-radius: 50%; background: transparent; }
 .ak-notification-item.is-unread .ak-notification-dot { background: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, .10); }
@@ -264,3 +279,5 @@ html[data-theme="dark"] .ak-push-settings-status { border-color: #344150; backgr
   }
   .ak-notifications-badge { top: 2px; right: 2px; }
 }
+
+html[data-theme="dark"] .ak-notification-item.is-system-highlight { border-color: rgba(96, 165, 250, .62); background: rgba(96, 165, 250, .14); box-shadow: 0 0 0 3px rgba(96, 165, 250, .10); }
