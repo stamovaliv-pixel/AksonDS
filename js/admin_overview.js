@@ -275,6 +275,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       const verified = verifiedIds.has(String(booking.id));
       const row = createElement('article', 'overview-booking-row');
       row.dataset.openBooking = String(booking.id);
+      const hasArrival = Boolean(booking.arrival_time);
+      const hasDeparture = Boolean(booking.departure_time);
+      const arrivalIndicator = createElement('span', 'overview-arrival-indicator');
+      let arrivalState = 'not-arrived';
+      let arrivalHint = 'Не прибыл; отметки «Убыл» нет';
+      if (hasArrival && hasDeparture) {
+        arrivalState = 'completed';
+        arrivalHint = 'Прибыл и убыл';
+      } else if (hasArrival) {
+        arrivalState = 'arrived';
+        arrivalHint = 'Прибыл; ожидает отметки «Убыл»';
+      } else if (hasDeparture) {
+        arrivalState = 'partial';
+        arrivalHint = 'Нет отметки «Прибыл»; отметка «Убыл» имеется';
+      }
+      row.classList.add(`has-arrival-state-${arrivalState}`);
+      arrivalIndicator.title = arrivalHint;
+      arrivalIndicator.setAttribute('aria-label', arrivalHint);
+      arrivalIndicator.setAttribute('role', 'img');
+      row.appendChild(arrivalIndicator);
       row.tabIndex = 0;
       row.setAttribute('role', 'button');
       row.setAttribute('aria-label', `Открыть запись: ${profile.company_name || 'поставщик'}, ${formatDate(booking.slot_date)}, ${formatTime(booking.slot_hour)}`);
