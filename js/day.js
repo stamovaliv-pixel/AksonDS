@@ -11,49 +11,68 @@ document.addEventListener('DOMContentLoaded', async () => {
   const selectedDate = urlParams.get('date');
   if (!selectedDate) return window.location.href = 'calendar.html';
 
-  const dateObj = new Date(selectedDate);
-  document.getElementById('currentDateDisplay').innerText = dateObj.toLocaleDateString('ru-RU');
-
-  document.getElementById('logoutBtn').onclick = async (e) => { 
-    e.preventDefault(); await sb.auth.signOut(); window.location.href = '../index.html'; 
+  const formatBusinessDate = (isoDate) => {
+    const match = String(isoDate || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return match ? `${match[3]}.${match[2]}.${match[1]}` : '—';
   };
+  document.getElementById('currentDateDisplay').innerText = formatBusinessDate(selectedDate);
 
-  function getLocalDateString(d) {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  }
+  // Все календарные сравнения и дедлайны используют бизнес-часовой пояс РЦ.
+  const getBusinessDateParts = () => new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Almaty', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
   const getBusinessTodayISODate = () => {
-    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Almaty', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
-    const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+    const values = Object.fromEntries(getBusinessDateParts().map(part => [part.type, part.value]));
     return `${values.year}-${values.month}-${values.day}`;
   };
-  const canEditRegistryForDate = (dateString) => String(dateString || '') >= getBusinessTodayISODate();
-
-  const now = new Date();
-  const todayMidnight = new Date(now);
-  todayMidnight.setHours(0, 0, 0, 0);
-  
-  const selectedMidnight = new Date(selectedDate);
-  selectedMidnight.setHours(0, 0, 0, 0);
-
-  const prevDate = new Date(selectedMidnight);
-  prevDate.setDate(selectedMidnight.getDate() - 1);
-  const nextDate = new Date(selectedMidnight);
-  nextDate.setDate(selectedMidnight.getDate() + 1);
-
-  const maxDate = new Date(todayMidnight);
-  maxDate.setDate(todayMidnight.getDate() + 29);
+  const getBusinessHour = () => {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Almaty', hour: '2-digit', hourCycle: 'h23'
+    }).formatToParts(new Date());
+    return Number(parts.find(part => part.type === 'hour')?.value ?? 0);
+  };
+  const addBusinessDays = (isoDate, amount) => {
+    const date = new Date(`${isoDate}T12:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + amount);
+    return date.toISOString().slice(0, 10);
+  };
+  const businessTodayISO = getBusinessTodayISODate();
+  const canEditRegistryForDate = (dateString) => String(dateString || '') >= businessTodayISO;
+  const isToday = selectedDate === businessTodayISO;
+  const isPastDay = selectedDate < businessTodayISO;
+  const currentHour = getBusinessHour();
+  const maxDateISO = addBusinessDays(businessTodayISO, 29);
 
   const prevBtn = document.getElementById('prevDayBtn');
   const nextBtn = document.getElementById('nextDayBtn');
+  const prevDateISO = addBusinessDays(selectedDate, -1);
+  const nextDateISO = addBusinessDays(selectedDate, 1);
+  if (prevDateISO < businessTodayISO) prevBtn.disabled = true;
+  else prevBtn.onclick = () => window.location.href = `day.html?date=${prevDateISO}`;
+  if (nextDateISO > maxDateISO) nextBtn.disabled = true;
+  else nextBtn.onclick = () => window.location.href = `day.html?date=${nextDateISO}`;
 
-  if (prevDate < todayMidnight) prevBtn.disabled = true;
-  else prevBtn.onclick = () => window.location.href = `day.html?date=${getLocalDateString(prevDate)}`;
-
-  if (nextDate > maxDate) nextBtn.disabled = true;
-  else nextBtn.onclick = () => window.location.href = `day.html?date=${getLocalDateString(nextDate)}`;
+  // Делегирование исключает гонку с role-aware навигацией, которая перемещает #logoutBtn.
+  if (!document.documentElement.dataset.supplierDayLogoutBound) {
+    document.documentElement.dataset.supplierDayLogoutBound = 'true';
+    document.addEventListener('click', async (event) => {
+      const button = event.target.closest?.('#logoutBtn');
+      if (!button) return;
+      event.preventDefault();
+      if (button.dataset.loggingOut === 'true') return;
+      button.dataset.loggingOut = 'true';
+      button.setAttribute('aria-busy', 'true');
+      const { error } = await sb.auth.signOut();
+      if (error) {
+        button.dataset.loggingOut = 'false';
+        button.removeAttribute('aria-busy');
+        console.error('Не удалось выполнить выход:', error);
+        alert(`Не удалось выйти из системы: ${error.message || 'ошибка авторизации'}`);
+        return;
+      }
+      window.location.replace('../index.html');
+    });
+  }
 
   // ОПТИМИЗАЦИЯ: Кэширование настроек
   async function getSettings() {
@@ -116,7 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (id === 'mix' || n.includes('микс')) return '🔀';
     if (n.includes('сток')) return '🏭';
     if (n.includes('кросс')) return '🚚';
-    return '🏷'; 
+    return '🏷️'; 
   };
 
   const typesContainer = document.getElementById('supplyTypesGroup');
@@ -202,10 +221,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     slotsContainer.appendChild(groupDiv);
   }
 
-  const currentHour = now.getHours();
-  const isToday = selectedMidnight.getTime() === todayMidnight.getTime();
-  const isPastDay = selectedMidnight < todayMidnight;
-  
   const startHour = settings?.slot_start_hour ?? 9;
   const endHour = settings?.slot_end_hour ?? 17;
   const deadlineHours = settings?.booking_deadline_hours ?? 1;
@@ -455,11 +470,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (selectedTypes.includes('return')) {
       const returnDeadlineDays = settings.return_deadline_days || 0;
       if (returnDeadlineDays > 0) {
-        const minAllowedDate = new Date(todayMidnight);
-        minAllowedDate.setDate(todayMidnight.getDate() + returnDeadlineDays);
-        
-        if (selectedMidnight < minAllowedDate) {
-          return alert(`Для поставок, включающих "Возврат", запись возможна только начиная с ${minAllowedDate.toLocaleDateString('ru-RU')}.`);
+        const minAllowedDateISO = addBusinessDays(businessTodayISO, returnDeadlineDays);
+        if (selectedDate < minAllowedDateISO) {
+          return alert(`Для поставок, включающих "Возврат", запись возможна только начиная с ${formatBusinessDate(minAllowedDateISO)}.`);
         }
       }
     }
@@ -527,7 +540,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const typesStr = b.supply_types?.length ? b.supply_types.map(t => `${getSupplyIcon(t, supplyDict[t]||t)} ${supplyDict[t] || t}`).join(', ') : `${getSupplyIcon(b.supply_type, supplyDict[b.supply_type]||b.supply_type)} ${supplyDict[b.supply_type] || b.supply_type}`;
     
-    document.getElementById('modalDate').innerText = new Date(selectedDate).toLocaleDateString('ru-RU');
+    document.getElementById('modalDate').innerText = formatBusinessDate(selectedDate);
     document.getElementById('modalTime').innerText = `${hour}:00 - ${hour+1}:00`;
     document.getElementById('modalType').textContent = typesStr;
     const oTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };

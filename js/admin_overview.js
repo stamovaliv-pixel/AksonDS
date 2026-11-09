@@ -33,12 +33,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `${values.year}-${values.month}-${values.day}`;
   };
 
-  const addDays = (isoDate, amount) => {
-    const date = new Date(`${isoDate}T12:00:00Z`);
-    date.setUTCDate(date.getUTCDate() + amount);
-    return date.toISOString().slice(0, 10);
-  };
-
   const formatDate = (isoDate) => {
     if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(String(isoDate))) return '—';
     const [year, month, day] = String(isoDate).split('-');
@@ -108,13 +102,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   };
 
+  // Рабочий стол по умолчанию показывает ближайший день с активными
+  // записями, начиная с завтрашнего дня по бизнес-календарю РЦ (Asia/Almaty).
+  // Считаем календарные дни через UTC, чтобы часовой пояс устройства
+  // не сдвигал дату накануне/послезавтра.
+  const addBusinessDays = (isoDate, amount) => {
+    const date = new Date(`${isoDate}T12:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + amount);
+    return date.toISOString().slice(0, 10);
+  };
+
   const chooseDefaultDate = async () => {
-    const tomorrow = addDays(businessDate(), 1);
+    const firstSearchDate = addBusinessDays(businessDate(), 1);
     const { data, error } = await sb
       .from('bookings')
       .select('slot_date')
       .eq('status', 'active')
-      .gte('slot_date', tomorrow)
+      .gte('slot_date', firstSearchDate)
       .order('slot_date', { ascending: true })
       .limit(1);
     if (error) throw error;

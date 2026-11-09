@@ -236,12 +236,13 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       decorateActive();
     } else if (normalized === 'supplier') {
-      // Keep the supplier navigation exactly within its existing two pages.
+      // Поставщику доступны календарь, личный кабинет и справочная страница.
       if (appHeader) appHeader.append(themeButton);
       else nav.append(themeButton);
       right.append(
         makeLink('calendar.html', 'Календарь', 'calendar', 'calendar.html'),
         makeLink('dashboard.html', 'Личный кабинет', 'profile', 'dashboard.html'),
+        makeLink('help.html', 'Помощь', 'help', 'help.html'),
         logout
       );
       decorateActive();
