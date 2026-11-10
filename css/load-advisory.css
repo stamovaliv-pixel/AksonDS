@@ -1,0 +1,39 @@
+/* Shared visual language for non-blocking load recommendations in calendars and hour cards. */
+.load-advisory-marker{display:inline-flex;align-items:center;justify-content:center;gap:4px;position:relative;z-index:2;max-width:100%;font-size:10px;font-weight:800;line-height:1.1;pointer-events:none}
+.load-advisory-marker .load-advisory-glyph{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;flex:0 0 17px;border-radius:50%;font-size:11px;font-weight:900}
+.load-advisory-marker .load-advisory-text{font-size:8px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.day-cell .load-advisory-marker{position:absolute;bottom:5px;left:3px;right:3px;margin:auto}
+.day-cell.load-advisory-favorable{--load-advisory-rgb:22,163,74;color:#15803d}
+.day-cell.load-advisory-normal{--load-advisory-rgb:217,119,6;color:#b45309}
+.day-cell.load-advisory-dense{--load-advisory-rgb:220,38,38;color:#b91c1c}
+.day-cell.load-advisory-unknown{--load-advisory-rgb:100,116,139;color:#64748b}
+.load-advisory-hour.load-advisory-favorable{--load-advisory-rgb:22,163,74;color:#15803d}
+.load-advisory-hour.load-advisory-normal{--load-advisory-rgb:217,119,6;color:#b45309}
+.load-advisory-hour.load-advisory-dense{--load-advisory-rgb:220,38,38;color:#b91c1c}
+.load-advisory-hour.load-advisory-unknown{--load-advisory-rgb:100,116,139;color:#64748b}
+.load-advisory-fill{background-color:rgba(var(--load-advisory-rgb),.09)!important;border-color:rgba(var(--load-advisory-rgb),.34)!important}
+.load-advisory-gradient{background-image:linear-gradient(135deg,rgba(var(--load-advisory-rgb),.19),rgba(var(--load-advisory-rgb),.015) 72%)!important}
+.load-advisory-pulse{animation:loadAdvisoryPulse 2.8s ease-in-out infinite}
+.load-advisory-marker .load-advisory-glyph{background:rgba(var(--load-advisory-rgb),.13);color:currentColor}
+.load-advisory-icon-only .load-advisory-marker .load-advisory-text{display:none}
+.load-advisory-high-concentration .load-advisory-marker::after{content:'!';display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;border-radius:50%;background:#b91c1c;color:#fff;font-size:9px;font-weight:900}
+.load-advisory-hour{position:relative}
+.load-advisory-hour .load-advisory-marker{display:flex;justify-content:flex-end;margin:0 0 5px}
+.load-advisory-hour .load-advisory-marker .load-advisory-text{font-size:9px}
+.load-advisory-summary{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:10px 12px;margin:0 0 14px;border:1px solid var(--color-border);border-radius:10px;background:var(--color-surface);font-size:11px;color:var(--color-text-main)}
+.load-advisory-summary strong{font-size:11px}
+.load-advisory-summary span{color:var(--color-text-muted)}
+.load-advisory-day-detail{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;margin:0 0 14px;border:1px solid var(--color-border);border-left:4px solid rgba(var(--load-advisory-rgb),.8);border-radius:10px;background:rgba(var(--load-advisory-rgb),.07);color:var(--color-text-main)}
+.load-advisory-day-detail.load-advisory-favorable{--load-advisory-rgb:22,163,74}
+.load-advisory-day-detail.load-advisory-normal{--load-advisory-rgb:217,119,6}
+.load-advisory-day-detail.load-advisory-dense{--load-advisory-rgb:220,38,38}
+.load-advisory-day-detail.load-advisory-unknown{--load-advisory-rgb:100,116,139}
+.load-advisory-detail-copy{display:flex;flex-direction:column;gap:4px;min-width:0}
+.load-advisory-detail-copy strong{font-size:12px}
+.load-advisory-detail-copy span{font-size:10px;line-height:1.4;color:var(--color-text-muted)}
+@keyframes loadAdvisoryPulse{0%,100%{box-shadow:0 0 0 0 rgba(var(--load-advisory-rgb),0)}50%{box-shadow:0 0 0 4px rgba(var(--load-advisory-rgb),.12)}}
+html[data-theme="dark"] .load-advisory-fill{background-color:rgba(var(--load-advisory-rgb),.17)!important}
+html[data-theme="dark"] .load-advisory-gradient{background-image:linear-gradient(135deg,rgba(var(--load-advisory-rgb),.24),rgba(var(--load-advisory-rgb),.025) 72%)!important}
+html[data-theme="dark"] .load-advisory-day-detail{background:rgba(var(--load-advisory-rgb),.12)}
+@media(max-width:480px){.day-cell .load-advisory-marker{bottom:3px}.day-cell .load-advisory-marker .load-advisory-text{display:none}.load-advisory-summary{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.load-advisory-pulse{animation:none!important}}
