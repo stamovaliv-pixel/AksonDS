@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const items = [
       { href: 'suppliers.html', label: 'Пользователи', detail: 'Учётные записи и поставщики', icon: 'users' },
       { href: 'analytics.html', label: 'Аналитика', detail: 'Показатели и качество поставок', icon: 'analytics' },
-      { href: 'load_management.html', label: 'Управление нагрузкой', detail: 'Прогноз и лимиты по дням и часам', icon: 'load' },
+      { href: 'load_management.html', label: 'Управление нагрузкой', detail: 'Прогноз загруженности и визуальные рекомендации', icon: 'load' },
       { href: 'settings.html', label: 'Настройки', detail: 'Слоты, расписание и параметры', icon: 'settings' },
       { type: 'theme', label: 'Темный режим', detail: 'Переключить оформление приложения' },
       { href: 'help.html', label: 'Помощь', detail: 'Инструкции по работе с ДокСлотом', icon: 'help' }

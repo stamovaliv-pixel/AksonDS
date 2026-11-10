@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const calendarGrid = document.getElementById('calendarGrid');
   const selectedExportDates = new Set();
   let dateSelectionMode = false;
+  let advisorySnapshot = null;
+  let advisoryWatcher = null;
 
   const syncPastToggleIcon = () => {
     if (!pastToggleIcon || !pastToggle) return;
@@ -333,6 +335,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const bookingCountsByDate = new Map();
     let bookings = [];
+    advisorySnapshot = window.dockslotLoadAdvisory?.loadSnapshot
+      ? await window.dockslotLoadAdvisory.loadSnapshot(sb, rangeFrom, rangeTo)
+      : null;
+    const advisoryDaysByDate = new Map((advisorySnapshot?.days || []).map(item => [String(item.slot_date), item]));
 
     if (isSearchActive) {
       // Детальные строки нужны только для поиска. Ограничиваем запрос видимым диапазоном.
@@ -438,6 +444,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           : '';
         cell.dataset.date = isoDate;
         cell.innerHTML = `<div class="date-text">${d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})}</div>${countBadge}`;
+        window.dockslotLoadAdvisory?.applyCalendarCell(cell, advisoryDaysByDate.get(isoDate), advisorySnapshot?.settings || {});
         if (dateSelectionMode && (isAdmin || isOperator) && bookingCount > 0) {
           const dateCheckbox = document.createElement('input');
           dateCheckbox.type = 'checkbox';
@@ -463,6 +470,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         grid.appendChild(cell);
       }
+      window.dockslotLoadAdvisory?.renderCalendarPanel(grid, advisorySnapshot);
     }
 
     const listContainer = document.getElementById('upcomingBookingsList');
@@ -680,5 +688,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   syncExportButton();
-  renderCalendar();
+  renderCalendar().then(() => {
+    if (!advisoryWatcher && advisorySnapshot?.settings && window.dockslotLoadAdvisory?.watch) {
+      advisoryWatcher = window.dockslotLoadAdvisory.watch(sb, () => renderCalendar(), advisorySnapshot.settings);
+    }
+  }).catch((error) => console.error('Не удалось отрисовать календарь:', error));
 });

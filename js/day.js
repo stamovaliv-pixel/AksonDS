@@ -197,6 +197,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  const advisorySnapshot = window.dockslotLoadAdvisory?.loadSnapshot
+    ? await window.dockslotLoadAdvisory.loadSnapshot(sb, selectedDate, selectedDate)
+    : null;
+  const advisorySettings = advisorySnapshot?.settings || {};
+  const advisoryDay = (advisorySnapshot?.days || []).find(item => String(item.slot_date) === String(selectedDate));
+  const advisoryHoursByHour = new Map((advisorySnapshot?.hours || []).map(item => [Number(item.slot_hour), item]));
+  window.dockslotLoadAdvisory?.renderDayDetail(document.getElementById('loadAdvisoryDayDetail'), advisoryDay, advisorySettings);
+
   const slotsContainer = document.getElementById('slotsContainer');
   slotsContainer.innerHTML = '';
   if (!occupancyAvailable) {
@@ -303,6 +311,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const card = document.createElement('div');
     card.className = 'slot-card';
+    card.dataset.slotHour = String(hour);
     if (myBookingCount > 0) card.classList.add('slot-booked', 'has-supplier-bookings');
     else if (canCreate && freeCount > 0) card.classList.add('slot-free');
     else if (occupancyAvailable && freeCount <= 0) card.classList.add('slot-full', 'inactive');
@@ -312,6 +321,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     timeElement.className = 'slot-time';
     timeElement.textContent = `${hour}:00 - ${hour + 1}:00`;
     card.appendChild(timeElement);
+    window.dockslotLoadAdvisory?.applyHourCard(card, advisoryHoursByHour.get(Number(hour)), advisorySettings);
 
     if (myBookingCount > 0) {
       const bookingList = document.createElement('div');
@@ -382,10 +392,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  if (advisorySnapshot?.settings && window.dockslotLoadAdvisory?.watch) {
+    window.dockslotLoadAdvisory.watch(sb, async () => {
+      const fresh = await window.dockslotLoadAdvisory.loadSnapshot(sb, selectedDate, selectedDate);
+      const freshSettings = fresh?.settings || {};
+      const freshDay = (fresh?.days || []).find(item => String(item.slot_date) === String(selectedDate));
+      const freshHours = new Map((fresh?.hours || []).map(item => [Number(item.slot_hour), item]));
+      window.dockslotLoadAdvisory.renderDayDetail(document.getElementById('loadAdvisoryDayDetail'), freshDay, freshSettings);
+      document.querySelectorAll('.slot-card[data-slot-hour]').forEach((card) => {
+        window.dockslotLoadAdvisory.applyHourCard(card, freshHours.get(Number(card.dataset.slotHour)), freshSettings);
+      });
+    }, advisorySettings);
+  }
+
   // Переменные состояния для редактирования
   let currentMainLeft = 0;
   let currentEditBookingId = null;
-  let currentEditHadReturn = false;
   let existingFileUrl = null;
 
   const createModal = document.getElementById('bookingModal');
@@ -393,7 +415,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function openCreateModal(hour, mainLeft) {
     currentEditBookingId = null;
-    currentEditHadReturn = false;
     existingFileUrl = null;
     hourInput.value = hour;
     currentMainLeft = mainLeft;
@@ -425,7 +446,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('bookingForm').reset();
 
     const types = b.supply_types?.length ? b.supply_types : [b.supply_type];
-    currentEditHadReturn = types.some(type => String(type || '').trim().toLowerCase() === 'return');
     document.querySelectorAll('#supplyTypesGroup input').forEach(cb => {
       cb.checked = types.includes(cb.value);
     });
@@ -470,18 +490,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       return alert('В этом слоте закончились основные места. Запись доступна только для типа "Заказы ИМ".');
     }
 
-    // Срок для типа «Возврат» проверяется только при создании записи
-    // или при первом добавлении «Возврата» в существующую запись.
-    // Замена реестра, номера документа, комментария и повторное сохранение
-    // уже существующей записи с «Возвратом» не должны запускать этот дедлайн.
-    const addingReturnToBooking = selectedTypes.includes('return')
-      && (!currentEditBookingId || !currentEditHadReturn);
-    if (addingReturnToBooking) {
+    if (selectedTypes.includes('return')) {
       const returnDeadlineDays = settings.return_deadline_days || 0;
       if (returnDeadlineDays > 0) {
         const minAllowedDateISO = addBusinessDays(businessTodayISO, returnDeadlineDays);
         if (selectedDate < minAllowedDateISO) {
-          return alert(`Для новых поставок, включающих "Возврат", запись возможна только начиная с ${formatBusinessDate(minAllowedDateISO)}.`);
+          return alert(`Для поставок, включающих "Возврат", запись возможна только начиная с ${formatBusinessDate(minAllowedDateISO)}.`);
         }
       }
     }

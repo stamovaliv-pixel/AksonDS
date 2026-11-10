@@ -234,6 +234,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     .eq('slot_date', selectedDate)
     .eq('status', 'active');
 
+  const advisorySnapshot = window.dockslotLoadAdvisory?.loadSnapshot
+    ? await window.dockslotLoadAdvisory.loadSnapshot(sb, selectedDate, selectedDate)
+    : null;
+  const advisorySettings = advisorySnapshot?.settings || {};
+  const advisoryDay = (advisorySnapshot?.days || []).find(item => String(item.slot_date) === String(selectedDate));
+  const advisoryHoursByHour = new Map((advisorySnapshot?.hours || []).map(item => [Number(item.slot_hour), item]));
+  window.dockslotLoadAdvisory?.renderDayDetail(document.getElementById('loadAdvisoryDayDetail'), advisoryDay, advisorySettings);
+
   let verifiedBookingIds = new Set();
   if (isAdmin && (bookings || []).length) {
     const { data: verificationRows, error: verificationError } = await sb.from('booking_verification')
@@ -322,6 +330,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const hourBookings = (bookings || []).filter(b => b.slot_hour === hour);
     const block = document.createElement('div');
     block.className = 'hour-block';
+    block.dataset.slotHour = String(hour);
     
     let reserveCards = [];
     let mainCards = [];
@@ -387,7 +396,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       ? `<span class="hour-count-badge" aria-label="Записей: ${totalBookingsForHour}" title="Записей: ${totalBookingsForHour}">${totalBookingsForHour > 99 ? '99+' : totalBookingsForHour}</span>`
       : '';
     block.innerHTML = `<div class="hour-header"><span class="hour-period-label">${hour}:00 - ${hour+1}:00</span>${hourCountBadge}</div><div class="cards-grid">${cardsHtml}</div>`;
+    window.dockslotLoadAdvisory?.applyHourCard(block, advisoryHoursByHour.get(Number(hour)), advisorySettings);
     container.appendChild(block);
+  }
+
+  if (advisorySnapshot?.settings && window.dockslotLoadAdvisory?.watch) {
+    window.dockslotLoadAdvisory.watch(sb, async () => {
+      const fresh = await window.dockslotLoadAdvisory.loadSnapshot(sb, selectedDate, selectedDate);
+      const freshSettings = fresh?.settings || {};
+      const freshDay = (fresh?.days || []).find(item => String(item.slot_date) === String(selectedDate));
+      const freshHours = new Map((fresh?.hours || []).map(item => [Number(item.slot_hour), item]));
+      window.dockslotLoadAdvisory.renderDayDetail(document.getElementById('loadAdvisoryDayDetail'), freshDay, freshSettings);
+      container.querySelectorAll('.hour-block[data-slot-hour]').forEach((block) => {
+        window.dockslotLoadAdvisory.applyHourCard(block, freshHours.get(Number(block.dataset.slotHour)), freshSettings);
+      });
+    }, advisorySettings);
   }
 
   const paintVerificationButton = (button, verified) => {

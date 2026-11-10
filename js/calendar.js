@@ -121,6 +121,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+  let advisorySnapshot = null;
+  if (window.dockslotLoadAdvisory?.loadSnapshot) {
+    advisorySnapshot = await window.dockslotLoadAdvisory.loadSnapshot(sb, isoToday, countToIso);
+  }
+  const advisoryDaysByDate = new Map((advisorySnapshot?.days || []).map(item => [String(item.slot_date), item]));
+
   const bookedDates = new Set();
   userBookings.forEach(b => bookedDates.add(b.slot_date));
 
@@ -347,6 +353,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
       const dayCell = document.createElement('div');
+      dayCell.dataset.date = isoDate;
 
       let isActive = d >= today && d <= endActiveDate;
 
@@ -417,6 +424,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         dayCell.classList.add('date-excluded');
       }
 
+      window.dockslotLoadAdvisory?.applyCalendarCell(dayCell, advisoryDaysByDate.get(isoDate), advisorySnapshot?.settings || {});
+
       if (isClickable || bookedDates.has(isoDate)) {
         dayCell.addEventListener('click', () => {
           window.location.href = `day.html?date=${isoDate}`;
@@ -424,6 +433,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       calendarGrid.appendChild(dayCell);
+    }
+    window.dockslotLoadAdvisory?.renderCalendarPanel(calendarGrid, advisorySnapshot);
+
+    if (advisorySnapshot?.settings) {
+      window.dockslotLoadAdvisory?.watch(sb, async () => {
+        const fresh = await window.dockslotLoadAdvisory.loadSnapshot(sb, isoToday, countToIso);
+        const freshDays = new Map((fresh?.days || []).map(item => [String(item.slot_date), item]));
+        calendarGrid.querySelectorAll('.day-cell[data-date]').forEach((cell) => {
+          window.dockslotLoadAdvisory.applyCalendarCell(cell, freshDays.get(cell.dataset.date), fresh?.settings || {});
+        });
+        window.dockslotLoadAdvisory.renderCalendarPanel(calendarGrid, fresh);
+      }, advisorySnapshot.settings);
     }
   }
 
