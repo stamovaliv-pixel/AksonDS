@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="../css/dark-mode.css?v=5-role-calendar-colors">
   <link rel="stylesheet" href="../css/mobile-refinements.css?v=2" media="(max-width: 767px)">
   <link rel="stylesheet" href="../css/notifications.css?v=8-dynamic-load">
-  <link rel="stylesheet" href="../css/load-management.css?v=advisory-load-v1-3-1">
+  <link rel="stylesheet" href="../css/load-management.css?v=advisory-load-v1-4">
   <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
 </head>
 <body class="app-body load-management-page">
@@ -100,13 +100,14 @@
           </label>
         </div>
         <div class="load-visual-options">
-          <label class="load-check-option"><input id="visualIconOnly" type="checkbox"><span><strong>Только пиктограмма</strong><small>Без заливки и текстовой подписи в ячейке.</small></span></label>
+          <label class="load-check-option"><input id="visualCenterStatus" type="checkbox" checked><span><strong>Показывать центральную пиктограмму и название статуса</strong><small>Позволяет отдельно скрыть или показать значок и подпись внутри ячейки дня / карточки часа.</small></span></label>
+          <label class="load-check-option"><input id="visualLedStrip" type="checkbox"><span><strong>L-образная светодиодная подсветка</strong><small>Полоска до 96 px вверх по правому краю и влево по нижнему; мягкое свечение направлено внутрь ячейки. В углу — цветная пиктограмма с подсказкой.</small></span></label>
+          <label class="load-check-option"><input id="visualIconOnly" type="checkbox"><span><strong>Только центральная пиктограмма</strong><small>Если центральный статус включён, скрывает его текстовое название, оставляя только значок.</small></span></label>
           <label class="load-check-option"><input id="visualFill" type="checkbox"><span><strong>Заливка ячейки дня / часа</strong><small>Мягкий цветовой фон категории.</small></span></label>
           <label class="load-check-option"><input id="visualGradient" type="checkbox"><span><strong>Градиентная подсветка</strong><small>Плавный переход цвета внутри ячейки.</small></span></label>
           <label class="load-check-option"><input id="visualPulse" type="checkbox"><span><strong>Эффект пульсации</strong><small>Ненавязчивый импульс для цветового индикатора.</small></span></label>
-          <label class="load-check-option"><input id="visualPageCorner" type="checkbox"><span><strong>Приоткрытый уголок карточки дня</strong><small>Приоткрытая примерно на 5% страница в правом нижнем углу; цвет показывает нагрузку, подсказка появляется при наведении.</small></span></label>
         </div>
-        <p class="load-inline-hint">Режим «Только пиктограмма» имеет приоритет и отключает визуальные эффекты. При включении пульсации учитывается системная настройка уменьшения анимации.</p>
+        <p class="load-inline-hint">Центральный статус можно полностью скрыть независимо от светодиодной подсветки. Режим «Только центральная пиктограмма» скрывает лишь текст. Пульсация учитывает системную настройку уменьшения анимации.</p>
       </section>
 
       <div class="load-save-row">
@@ -129,7 +130,7 @@
   <script src="../js/push-config.js?v=2-windows-push"></script>
   <script src="../js/notifications.js?v=moscow-time-v1"></script>
   <script src="../js/admin-navigation.js?v=15-advisory-load"></script>
-  <script src="../js/load-advisory.js?v=advisory-load-v1-3-1"></script>
-  <script src="../js/load-management.js?v=advisory-load-v1-3-1"></script>
+  <script src="../js/load-advisory.js?v=advisory-load-v1-4"></script>
+  <script src="../js/load-management.js?v=advisory-load-v1-4"></script>
 </body>
 </html>
