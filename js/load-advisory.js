@@ -21,6 +21,25 @@
     return 'Недостаточно данных';
   };
 
+  const pageCornerMessage = (status) => ({
+    favorable: 'Много свободных слотов, быстрая разгрузка',
+    normal: 'Есть свободные слоты, штатное время выгрузки',
+    dense: 'Плотная запись, сложности с парковкой',
+    unknown: 'Недостаточно данных для оценки загруженности'
+  }[status] || 'Недостаточно данных для оценки загруженности');
+
+  const makePageCorner = (status) => {
+    const corner = document.createElement('span');
+    const safeStatus = Object.prototype.hasOwnProperty.call(STATUS, status) ? status : 'unknown';
+    const message = pageCornerMessage(safeStatus);
+    corner.className = `load-advisory-page-corner load-advisory-page-corner-${safeStatus}`;
+    corner.setAttribute('title', message);
+    corner.setAttribute('aria-label', message);
+    corner.setAttribute('role', 'img');
+    corner.setAttribute('data-tooltip', message);
+    return corner;
+  };
+
   const visualClasses = (status, settings = {}) => {
     const meta = STATUS[status] || STATUS.unknown;
     const classes = [`load-advisory-${meta.colorClass}`];
@@ -106,10 +125,11 @@
       cell.dataset.loadAdvisoryOriginalTitle = cell.getAttribute('title') || '';
     }
     cell.querySelector('.load-advisory-marker')?.remove();
+    cell.querySelector('.load-advisory-page-corner')?.remove();
     cell.classList.remove(
       'load-advisory-favorable', 'load-advisory-normal', 'load-advisory-dense', 'load-advisory-unknown',
       'load-advisory-fill', 'load-advisory-gradient', 'load-advisory-pulse',
-      'load-advisory-icon-only', 'load-advisory-high-concentration'
+      'load-advisory-icon-only', 'load-advisory-high-concentration', 'load-advisory-page-corner-active'
     );
     cell.title = cell.dataset.loadAdvisoryOriginalTitle || '';
     cell.setAttribute('aria-label', cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim());
@@ -117,6 +137,10 @@
     cell.classList.add(...visualClasses(item.status, settings));
     if (item.high_concentration) cell.classList.add('load-advisory-high-concentration');
     cell.appendChild(makeMarker(item.status, settings));
+    if (settings.visual_page_corner) {
+      cell.classList.add('load-advisory-page-corner-active');
+      cell.appendChild(makePageCorner(item.status));
+    }
     const detail = detailsFor(item, settings);
     cell.title = `${detail.label} · Максимальная загрузка пула ${detail.pct || '—'} · Основные места ${detail.mainCount}/${detail.mainCapacity} (${detail.mainPct || '—'}) · Резерв ИМ ${detail.reserveCount}/${detail.reserveCapacity} (${detail.reservePct || '—'})${item.high_concentration ? ' · Высокая концентрация недельного потока' : ''}`;
     cell.setAttribute('aria-label', `${cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim()}. ${cell.title}`);
