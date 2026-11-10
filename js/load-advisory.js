@@ -41,15 +41,16 @@
   };
 
   const densityBarTitle = (state) => {
+    if (state.unavailable) return 'Недоступно';
     const percentText = state.percent === null ? '—' : `${state.percent}%`;
-    return state.label ? `${percentText} · ${state.label}` : percentText;
+    return `Занято ${percentText} слотов`;
   };
 
   const makeDensityBar = (item, { unavailable = false } = {}) => {
     // Past or unavailable dates are deliberately shown as a full blue strip,
     // independently of their load forecast or the presence of a snapshot row.
     const state = unavailable
-      ? { level: 4, label: '', percent: 100 }
+      ? { level: 4, label: '', percent: 100, unavailable: true }
       : densityBarState(item);
     const track = document.createElement('span');
     track.className = `load-advisory-density-track load-advisory-density-level-${state.level}`;
@@ -145,8 +146,44 @@
     return data || null;
   }
 
+  function syncDensityLegend(cell, settings = {}) {
+    const grid = cell?.closest?.('.calendar-grid');
+    if (!grid) return;
+    const existing = grid.parentElement?.querySelector(':scope > .load-advisory-density-legend');
+    if (!settings.enabled || !settings.visual_density_bar) {
+      existing?.remove();
+      return;
+    }
+    if (existing) return;
+
+    const legend = document.createElement('div');
+    legend.className = 'load-advisory-density-legend';
+    legend.setAttribute('aria-label', 'Расшифровка индикатора загруженности');
+    const items = [
+      ['free', 'Свободно', 'linear-gradient(90deg, #2879e8, #3292db)'],
+      ['moderate', 'Умеренно', '#35b77b'],
+      ['dense', 'Плотно', '#f0ad3d'],
+      ['full', 'Нет свободных слотов', 'linear-gradient(90deg, #ef4444, #dc2626)'],
+      ['unavailable', 'Прошедшие и недоступные дни', 'linear-gradient(90deg, #94a3b8, #64748b)']
+    ];
+    items.forEach(([key, label, background]) => {
+      const item = document.createElement('span');
+      item.className = `load-advisory-density-legend-item load-advisory-density-legend-${key}`;
+      const swatch = document.createElement('span');
+      swatch.className = 'load-advisory-density-legend-swatch';
+      swatch.style.background = background;
+      swatch.setAttribute('aria-hidden', 'true');
+      const text = document.createElement('span');
+      text.textContent = label;
+      item.append(swatch, text);
+      legend.appendChild(item);
+    });
+    grid.insertAdjacentElement('afterend', legend);
+  }
+
   function applyCalendarCell(cell, item, settings = {}) {
     if (!cell) return;
+    syncDensityLegend(cell, settings);
     if (!Object.prototype.hasOwnProperty.call(cell.dataset, 'loadAdvisoryOriginalAria')) {
       cell.dataset.loadAdvisoryOriginalAria = cell.getAttribute('aria-label') || cell.textContent.trim();
     }
@@ -166,15 +203,18 @@
     cell.setAttribute('aria-label', cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim());
     if (!settings.enabled) return;
 
-    const isUnavailableDay = cell.classList.contains('inactive');
+    const isUnavailableDay = cell.classList.contains('inactive')
+      || cell.classList.contains('disabled')
+      || cell.getAttribute('aria-disabled') === 'true'
+      || cell.hasAttribute('disabled');
 
     // Closed/past dates still receive the requested full blue indicator,
     // even when the snapshot does not contain a forecast row for that date.
     if (settings.visual_density_bar && isUnavailableDay) {
       cell.classList.add('load-advisory-density-bar-active');
       cell.appendChild(makeDensityBar(null, { unavailable: true }));
-      cell.title = '100%';
-      cell.setAttribute('aria-label', `${cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim()}. 100%`);
+      cell.title = 'Недоступно';
+      cell.setAttribute('aria-label', `${cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim()}. Недоступно`);
       return;
     }
 
