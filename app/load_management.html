@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="../css/dark-mode.css?v=5-role-calendar-colors">
   <link rel="stylesheet" href="../css/mobile-refinements.css?v=2" media="(max-width: 767px)">
   <link rel="stylesheet" href="../css/notifications.css?v=8-dynamic-load">
-  <link rel="stylesheet" href="../css/load-management.css?v=dynamic-load-v4">
+  <link rel="stylesheet" href="../css/load-management.css?v=advisory-load-v1">
   <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
 </head>
 <body class="app-body load-management-page">
@@ -19,65 +19,116 @@
     <div class="header-nav"><button class="theme-toggle" type="button" data-theme-toggle title="Темный режим" aria-label="Темный режим"></button><a href="#" id="logoutBtn" class="nav-icon" title="Выход" aria-label="Выход"></a></div>
   </header>
   <div class="top-gradient-bar"></div>
+
   <main class="load-page-shell">
     <section class="load-page-heading">
       <div>
         <div class="load-eyebrow">АКСОН ДОКСЛОТ · ОПЕРАЦИОННОЕ УПРАВЛЕНИЕ</div>
         <h1>Управление нагрузкой</h1>
-        <p>Раздельный прогноз основных мест и резерва для заказов ИМ</p>
+        <p>Рекомендации по распределению потока машин без сокращения доступных слотов</p>
       </div>
-      <div class="load-status-chip" id="planStatus"><span class="load-status-dot"></span><span>Проверка состояния…</span></div>
+      <div class="load-status-chip" id="advisoryStatus"><span class="load-status-dot"></span><span>Проверка состояния…</span></div>
     </section>
 
-    <section class="load-mode-card" aria-label="Режим динамического управления">
+    <section class="load-mode-card" aria-label="Включение рекомендаций загруженности">
       <div class="load-mode-copy">
-        <span class="load-mode-label">ДИНАМИЧЕСКИЙ АЛГОРИТМ</span>
-        <strong id="modeTitle">Алгоритм выключен</strong>
-        <span id="modeDescription">Работает текущая схема основных и резервных слотов.</span>
+        <span class="load-mode-label">СИСТЕМА РЕКОМЕНДАЦИЙ</span>
+        <strong id="modeTitle">Рекомендации выключены</strong>
+        <span id="modeDescription">Индикаторы загруженности не отображаются в календарях.</span>
+        <small id="modeNote" class="load-mode-note-inline">Включать и выключать систему может только суперадминистратор.</small>
       </div>
-      <label class="load-switch" id="modeSwitchWrap" title="Включить или выключить динамические лимиты">
-        <input id="modeSwitch" type="checkbox" aria-label="Динамическое управление нагрузкой">
+      <label class="load-switch" id="modeSwitchWrap" title="Включить или выключить визуализацию загруженности">
+        <input id="modeSwitch" type="checkbox" aria-label="Включить рекомендации загруженности">
         <span class="load-switch-track"><span></span></span>
       </label>
     </section>
-    <p class="load-mode-note" id="modeNote">По умолчанию алгоритм отключён. Подтверждённые прогнозы не влияют на запись, пока абсолютный администратор не включит этот переключатель.</p>
 
-    <section class="load-summary-grid" aria-label="Параметры расчёта">
-      <article class="load-summary-card"><span>Период прогноза</span><strong>14 дней</strong><small>Только рабочие даты РЦ</small></article>
-      <article class="load-summary-card"><span>Историческая база</span><strong>8 недель</strong><small>Основные места и резерв ИМ рассчитываются отдельно</small></article>
-      <article class="load-summary-card"><span>Метод расчёта</span><strong>75-й процентиль по двум потокам</strong><small>Резерв доступен только для чистых заказов ИМ</small></article>
+    <form id="advisorySettingsForm" class="load-settings-form">
+      <section class="load-settings-panel">
+        <div class="load-panel-heading">
+          <div><h2>Алгоритм и пороги</h2><p>Настройте метод прогноза и границы категорий. Процент показывает наиболее загруженный пул: основные места или резерв ИМ.</p></div>
+        </div>
+        <div class="load-settings-grid">
+          <label class="load-field"><span>Алгоритм расчёта</span>
+            <select id="algorithm">
+              <option value="actual">А — только текущие записи</option>
+              <option value="historical">Б — прогноз по истории</option>
+              <option value="combined">В — текущие записи + прогноз прироста</option>
+            </select>
+            <small>Комбинированный алгоритм учитывает текущие брони и типичный прирост до даты разгрузки.</small>
+          </label>
+          <label class="load-field"><span>Историческая база</span>
+            <select id="lookbackWeeks"><option value="4">4 недели</option><option value="6">6 недель</option><option value="8">8 недель</option><option value="12">12 недель</option><option value="16">16 недель</option><option value="26">26 недель</option></select>
+            <small>Сравниваются одинаковые дни недели и аналогичный срок до разгрузки.</small>
+          </label>
+          <label class="load-field"><span>Горизонт прогноза</span>
+            <select id="forecastDays"><option value="7">7 дней</option><option value="14">14 дней</option><option value="21">21 день</option><option value="30">30 дней</option></select>
+            <small>Дальше этого срока в календаре рекомендации не рассчитываются.</small>
+          </label>
+          <label class="load-field"><span>Благоприятно: ниже (%)</span><input id="favorableThreshold" type="number" min="1" max="98" step="1" required><small>При загрузке ниже этого значения день считается благоприятным.</small></label>
+          <label class="load-field"><span>Плотно: выше (%)</span><input id="denseThreshold" type="number" min="2" max="100" step="1" required><small>При превышении этого значения фиксируется высокая загрузка.</small></label>
+          <label class="load-field"><span>Концентрация недельного потока (%)</span><input id="weeklyConcentrationThreshold" type="number" min="1" max="100" step="1" required><small>Если загрузка дня выше порога «Плотно» и его доля превышает это значение, появится предупреждение о концентрации потока.</small></label>
+        </div>
+      </section>
+
+      <section class="load-settings-panel">
+        <div class="load-panel-heading"><div><h2>Названия категорий</h2><p>Текстовые обозначения можно адаптировать под терминологию РЦ.</p></div></div>
+        <div class="load-settings-grid load-settings-grid-three">
+          <label class="load-field"><span>Благоприятная нагрузка</span><input id="favorableLabel" type="text" maxlength="28" required placeholder="Благоприятно"></label>
+          <label class="load-field"><span>Штатная нагрузка</span><input id="normalLabel" type="text" maxlength="28" required placeholder="Штатно"></label>
+          <label class="load-field"><span>Высокая нагрузка</span><input id="denseLabel" type="text" maxlength="28" required placeholder="Плотно"></label>
+        </div>
+      </section>
+
+      <section class="load-settings-panel">
+        <div class="load-panel-heading"><div><h2>Визуализация и обновление</h2><p>Выберите, как рекомендации будут выглядеть в календаре и на странице выбранного дня.</p></div></div>
+        <div class="load-settings-grid">
+          <label class="load-field"><span>Где показывать рекомендации</span>
+            <select id="displayMode">
+              <option value="calendar_only">Только карточки календаря (без почасовых деталей)</option>
+              <option value="calendar_detail">Календарь, карточки часов и подробности выбранного дня</option>
+              <option value="calendar_panel">Календарь и отдельная сводная панель</option>
+            </select>
+          </label>
+          <label class="load-field"><span>Обновление данных</span>
+            <select id="refreshMode">
+              <option value="open_only">Только при открытии страницы</option>
+              <option value="poll_3m">Каждые 2–3 минуты</option>
+              <option value="realtime">При изменении записей (Realtime)</option>
+            </select>
+            <small>Realtime использует отдельный агрегированный сигнал без передачи данных о чужих бронированиях; предусмотрена резервная проверка.</small>
+          </label>
+        </div>
+        <div class="load-visual-options">
+          <label class="load-check-option"><input id="visualIconOnly" type="checkbox"><span><strong>Только пиктограмма</strong><small>Без заливки и текстовой подписи в ячейке.</small></span></label>
+          <label class="load-check-option"><input id="visualFill" type="checkbox"><span><strong>Заливка ячейки дня / часа</strong><small>Мягкий цветовой фон категории.</small></span></label>
+          <label class="load-check-option"><input id="visualGradient" type="checkbox"><span><strong>Градиентная подсветка</strong><small>Плавный переход цвета внутри ячейки.</small></span></label>
+          <label class="load-check-option"><input id="visualPulse" type="checkbox"><span><strong>Эффект пульсации</strong><small>Ненавязчивый импульс для цветового индикатора.</small></span></label>
+        </div>
+        <p class="load-inline-hint">Режим «Только пиктограмма» имеет приоритет и отключает визуальные эффекты. При включении пульсации учитывается системная настройка уменьшения анимации.</p>
+      </section>
+
+      <div class="load-save-row">
+        <span id="saveMeta" class="load-muted">Изменения применяются к рекомендациям и не влияют на доступность записи.</span>
+        <button class="load-btn load-btn-primary" id="saveSettingsBtn" type="submit">Сохранить настройки</button>
+      </div>
+    </form>
+
+    <section class="load-preview-panel">
+      <div class="load-panel-heading"><div><h2>Предварительный просмотр</h2><p id="previewMeta">Предпросмотр отражает последние сохранённые настройки. После изменения параметров сначала сохраните их.</p></div><button class="load-btn load-btn-secondary" id="refreshPreviewBtn" type="button">Обновить прогноз</button></div>
+      <div id="previewList" class="load-preview-grid"><div class="load-empty-inline">Загрузка прогноза…</div></div>
     </section>
 
-    <section class="load-plan-panel">
-      <div class="load-panel-heading">
-        <div><h2>Предложение системы</h2><p id="planMeta">Запусти расчёт, чтобы получить рекомендуемые лимиты.</p></div>
-        <button class="load-btn load-btn-secondary" id="recalculateBtn" type="button"><span aria-hidden="true">↻</span> Рассчитать</button>
-      </div>
-      <div class="load-empty" id="emptyState">
-        <div class="load-empty-icon" aria-hidden="true">⌁</div>
-        <strong>План ещё не рассчитан</strong>
-        <span>Система сравнит последние 8 недель и предложит лимиты на следующие 14 дней.</span>
-        <button class="load-btn load-btn-primary" id="emptyCalculateBtn" type="button">Рассчитать нагрузку</button>
-      </div>
-      <div class="load-days-list" id="daysList" hidden></div>
-      <div class="load-plan-footer" id="planFooter" hidden>
-        <div class="load-footer-copy"><strong id="approvalState">Проверь предложенные значения</strong><span>Можно изменить дневной и любой почасовой лимит перед подтверждением.</span></div>
-        <button class="load-btn load-btn-primary" id="approveBtn" type="button">Подтвердить план</button>
-      </div>
-    </section>
-
-    <section class="load-history-panel">
-      <div class="load-panel-heading"><div><h2>История управления</h2><p>Расчёты, подтверждения и переключение режима</p></div></div>
-      <div id="historyList" class="load-history-list"><span class="load-muted">Загрузка истории…</span></div>
-    </section>
     <div class="load-toast" id="loadToast" role="status" aria-live="polite"></div>
   </main>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js?v=security-20261023"></script>
   <script src="../js/auth-profile.js?v=2-dashboard-profile"></script>
   <script src="../js/push-config.js?v=2-windows-push"></script>
   <script src="../js/notifications.js?v=moscow-time-v1"></script>
-  <script src="../js/admin-navigation.js?v=14-operator-viewer-nav-order"></script>
-  <script src="../js/load-management.js?v=moscow-time-v1"></script>
+  <script src="../js/admin-navigation.js?v=15-advisory-load"></script>
+  <script src="../js/load-advisory.js?v=advisory-load-v1"></script>
+  <script src="../js/load-management.js?v=advisory-load-v1"></script>
 </body>
 </html>
