@@ -21,23 +21,45 @@
     return 'Недостаточно данных';
   };
 
-  const makeLedStrip = (status, settings = {}) => {
-    const safeStatus = Object.prototype.hasOwnProperty.call(STATUS, status) ? status : 'unknown';
-    const meta = STATUS[safeStatus] || STATUS.unknown;
-    const label = labelFor(safeStatus, settings);
-    const strip = document.createElement('span');
-    strip.className = `load-advisory-led-strip load-advisory-led-${safeStatus}`;
-    strip.setAttribute('aria-hidden', 'false');
+  const densityBarState = (item) => {
+    const pct = item?.load_percent === null || item?.load_percent === undefined
+      ? null
+      : safeNumber(item.load_percent, NaN);
+    if (Number.isFinite(pct) && pct >= 100) {
+      return { level: 4, label: 'Нет свободных слотов', description: 'Все доступные места заняты' };
+    }
+    switch (item?.status) {
+      case 'favorable':
+        return { level: 1, label: 'Свободно', description: 'Много свободных слотов' };
+      case 'normal':
+        return { level: 2, label: 'Умеренно занято', description: 'Часть слотов уже занята' };
+      case 'dense':
+        return { level: 3, label: 'Плотно занято', description: 'Осталось мало свободных слотов' };
+      default:
+        return { level: 0, label: 'Недостаточно данных', description: 'Нельзя надёжно оценить загруженность' };
+    }
+  };
 
-    const glyph = document.createElement('span');
-    glyph.className = 'load-advisory-led-glyph';
-    glyph.textContent = meta.icon;
-    glyph.setAttribute('title', label);
-    glyph.setAttribute('aria-label', label);
-    glyph.setAttribute('role', 'img');
-    glyph.setAttribute('tabindex', '0');
-    strip.appendChild(glyph);
-    return strip;
+  const makeDensityBar = (item) => {
+    const state = densityBarState(item);
+    const track = document.createElement('span');
+    track.className = `load-advisory-density-track load-advisory-density-level-${state.level}`;
+    track.setAttribute('role', 'img');
+    const percent = item?.load_percent === null || item?.load_percent === undefined
+      ? null
+      : Math.round(safeNumber(item.load_percent));
+    const title = `${state.label} · ${state.level}/4 уровня${percent === null ? '' : ` · прогнозная загрузка ${percent}%`}. ${state.description}.`;
+    track.setAttribute('aria-label', title);
+    track.setAttribute('title', title);
+
+    for (let index = 1; index <= 4; index += 1) {
+      const segment = document.createElement('span');
+      segment.className = `load-advisory-density-segment load-advisory-density-segment-${index}`;
+      if (index <= state.level) segment.classList.add('is-filled');
+      segment.setAttribute('aria-hidden', 'true');
+      track.appendChild(segment);
+    }
+    return track;
   };
 
   const visualClasses = (status, settings = {}) => {
@@ -125,12 +147,13 @@
       cell.dataset.loadAdvisoryOriginalTitle = cell.getAttribute('title') || '';
     }
     cell.querySelector('.load-advisory-marker')?.remove();
-    cell.querySelector('.load-advisory-page-corner')?.remove(); // cleanup if an old cached node survived navigation
+    cell.querySelector('.load-advisory-page-corner')?.remove(); // cleanup stale DOM from older cached builds
     cell.querySelector('.load-advisory-led-strip')?.remove();
+    cell.querySelector('.load-advisory-density-track')?.remove();
     cell.classList.remove(
       'load-advisory-favorable', 'load-advisory-normal', 'load-advisory-dense', 'load-advisory-unknown',
       'load-advisory-fill', 'load-advisory-gradient', 'load-advisory-pulse',
-      'load-advisory-icon-only', 'load-advisory-high-concentration', 'load-advisory-page-corner-active', 'load-advisory-led-active'
+      'load-advisory-icon-only', 'load-advisory-high-concentration', 'load-advisory-page-corner-active', 'load-advisory-led-active', 'load-advisory-density-bar-active'
     );
     cell.title = cell.dataset.loadAdvisoryOriginalTitle || '';
     cell.setAttribute('aria-label', cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim());
@@ -138,9 +161,9 @@
     cell.classList.add(...visualClasses(item.status, settings));
     if (item.high_concentration) cell.classList.add('load-advisory-high-concentration');
     if (settings.visual_center_status !== false) cell.appendChild(makeMarker(item.status, settings));
-    if (settings.visual_led_strip) {
-      cell.classList.add('load-advisory-led-active');
-      cell.appendChild(makeLedStrip(item.status, settings));
+    if (settings.visual_density_bar) {
+      cell.classList.add('load-advisory-density-bar-active');
+      cell.appendChild(makeDensityBar(item));
     }
     const detail = detailsFor(item, settings);
     cell.title = `${detail.label} · Максимальная загрузка пула ${detail.pct || '—'} · Основные места ${detail.mainCount}/${detail.mainCapacity} (${detail.mainPct || '—'}) · Резерв ИМ ${detail.reserveCount}/${detail.reserveCapacity} (${detail.reservePct || '—'})${item.high_concentration ? ' · Высокая концентрация недельного потока' : ''}`;

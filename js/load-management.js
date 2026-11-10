@@ -3,6 +3,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const sb = window.supabaseClient;
   const $ = (id) => document.getElementById(id);
+  const setValue = (id, value) => { const node = $(id); if (node) node.value = value; };
+  const setChecked = (id, value) => { const node = $(id); if (node) node.checked = Boolean(value); };
+  const bind = (id, eventName, handler) => {
+    const node = $(id);
+    if (!node) {
+      console.warn(`[DockSlot load advisory] Optional control #${id} is absent; skipped ${eventName} handler.`);
+      return false;
+    }
+    node.addEventListener(eventName, handler);
+    return true;
+  };
   if (!sb) return;
 
   const auth = await window.dockslotGetAuthProfile?.();
@@ -16,12 +27,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const isSuperAdmin = role === 'super_admin';
   const modeSwitch = $('modeSwitch');
-  modeSwitch.disabled = true; // enabled only after role and saved state are confirmed
   const form = $('advisorySettingsForm');
+  if (!modeSwitch || !form) {
+    console.error('[DockSlot load advisory] Required page controls are missing.', { modeSwitch: Boolean(modeSwitch), form: Boolean(form) });
+    return;
+  }
+  modeSwitch.disabled = true; // enabled only after role and saved state are confirmed
   const settingFields = [
     'algorithm', 'lookbackWeeks', 'forecastDays', 'favorableThreshold', 'denseThreshold',
     'weeklyConcentrationThreshold', 'favorableLabel', 'normalLabel', 'denseLabel', 'displayMode',
-    'refreshMode', 'visualCenterStatus', 'visualIconOnly', 'visualFill', 'visualGradient', 'visualPulse', 'visualLedStrip'
+    'refreshMode', 'visualCenterStatus', 'visualIconOnly', 'visualFill', 'visualGradient', 'visualPulse', 'visualDensityBar'
   ];
   let settings = null;
   let toastTimer = null;
@@ -29,6 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const showToast = (message, isError = false) => {
     const node = $('loadToast');
+    if (!node) { console[isError ? 'error' : 'warn']('[DockSlot load advisory]', message); return; }
     node.textContent = message;
     node.classList.toggle('is-error', isError);
     node.classList.add('is-visible');
@@ -57,9 +73,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const setBusy = (busy) => {
-    $('saveSettingsBtn').disabled = busy;
-    $('refreshPreviewBtn').disabled = busy || previewBusy;
-    settingFields.forEach((id) => { $(id).disabled = busy; });
+    const saveButton = $('saveSettingsBtn');
+    const previewButton = $('refreshPreviewBtn');
+    if (saveButton) saveButton.disabled = busy;
+    if (previewButton) previewButton.disabled = busy || previewBusy;
+    settingFields.forEach((id) => { const node = $(id); if (node) node.disabled = busy; });
     modeSwitch.disabled = busy || !isSuperAdmin;
   };
 
@@ -67,70 +85,92 @@ document.addEventListener('DOMContentLoaded', async () => {
     const enabled = Boolean(settings?.enabled);
     modeSwitch.checked = enabled;
     modeSwitch.disabled = !isSuperAdmin;
-    $('modeTitle').textContent = enabled ? 'Рекомендации включены' : 'Рекомендации выключены';
-    $('modeDescription').textContent = enabled
+    const modeTitle = $('modeTitle');
+    const modeDescription = $('modeDescription');
+    const modeNote = $('modeNote');
+    const modeSwitchWrap = $('modeSwitchWrap');
+    const advisoryStatus = $('advisoryStatus');
+    if (modeTitle) modeTitle.textContent = enabled ? 'Рекомендации включены' : 'Рекомендации выключены';
+    if (modeDescription) modeDescription.textContent = enabled
       ? 'Цветовые и текстовые индикаторы загруженности отображаются в календарях.'
       : 'Индикаторы загруженности скрыты. Все штатные правила записи продолжают работать.';
-    $('modeNote').textContent = isSuperAdmin
+    if (modeNote) modeNote.textContent = isSuperAdmin
       ? 'Переключатель управляет только визуальными рекомендациями и не меняет вместимость слотов.'
       : 'У оператора нет права включать или выключать систему. Глобальное состояние задаёт суперадминистратор.';
-    $('modeSwitchWrap').classList.toggle('is-locked', !isSuperAdmin);
-    $('advisoryStatus').classList.toggle('is-enabled', enabled);
-    $('advisoryStatus').querySelector('span:last-child').textContent = enabled ? 'Визуализация включена' : 'Визуализация выключена';
+    modeSwitchWrap?.classList.toggle('is-locked', !isSuperAdmin);
+    advisoryStatus?.classList.toggle('is-enabled', enabled);
+    const advisoryStatusText = advisoryStatus?.querySelector('span:last-child');
+    if (advisoryStatusText) advisoryStatusText.textContent = enabled ? 'Визуализация включена' : 'Визуализация выключена';
   };
 
   const populateForm = (row) => {
-    $('algorithm').value = row.algorithm || 'combined';
-    $('lookbackWeeks').value = String(row.lookback_weeks || 8);
-    $('forecastDays').value = String(row.forecast_days || 14);
-    $('favorableThreshold').value = String(row.favorable_threshold ?? 50);
-    $('denseThreshold').value = String(row.dense_threshold ?? 80);
-    $('weeklyConcentrationThreshold').value = String(row.weekly_concentration_threshold ?? 30);
-    $('favorableLabel').value = row.favorable_label || 'Благоприятно';
-    $('normalLabel').value = row.normal_label || 'Штатно';
-    $('denseLabel').value = row.dense_label || 'Плотно';
-    $('displayMode').value = row.display_mode || 'calendar_detail';
-    $('refreshMode').value = row.refresh_mode || 'poll_3m';
-    $('visualIconOnly').checked = Boolean(row.visual_icon_only);
-    $('visualFill').checked = Boolean(row.visual_fill);
-    $('visualGradient').checked = Boolean(row.visual_gradient);
-    $('visualPulse').checked = Boolean(row.visual_pulse);
-    $('visualLedStrip').checked = Boolean(row.visual_led_strip);
-    $('visualCenterStatus').checked = row.visual_center_status !== false;
+    setValue('algorithm', row.algorithm || 'combined');
+    setValue('lookbackWeeks', String(row.lookback_weeks || 8));
+    setValue('forecastDays', String(row.forecast_days || 14));
+    setValue('favorableThreshold', String(row.favorable_threshold ?? 50));
+    setValue('denseThreshold', String(row.dense_threshold ?? 80));
+    setValue('weeklyConcentrationThreshold', String(row.weekly_concentration_threshold ?? 30));
+    setValue('favorableLabel', row.favorable_label || 'Благоприятно');
+    setValue('normalLabel', row.normal_label || 'Штатно');
+    setValue('denseLabel', row.dense_label || 'Плотно');
+    setValue('displayMode', row.display_mode || 'calendar_detail');
+    setValue('refreshMode', row.refresh_mode || 'poll_3m');
+    setChecked('visualIconOnly', row.visual_icon_only);
+    setChecked('visualFill', row.visual_fill);
+    setChecked('visualGradient', row.visual_gradient);
+    setChecked('visualPulse', row.visual_pulse);
+    setChecked('visualDensityBar', row.visual_density_bar);
+    setChecked('visualCenterStatus', row.visual_center_status !== false);
     syncVisualOptions();
   };
 
   const syncVisualOptions = () => {
-    const iconOnly = $('visualIconOnly').checked;
-    const centerVisible = $('visualCenterStatus').checked;
-    $('visualIconOnly').disabled = !centerVisible;
-    $('visualIconOnly').closest('.load-check-option')?.classList.toggle('is-disabled', !centerVisible);
+    const iconOnlyNode = $('visualIconOnly');
+    const centerStatusNode = $('visualCenterStatus');
+    const iconOnly = Boolean(iconOnlyNode?.checked);
+    const centerVisible = centerStatusNode ? centerStatusNode.checked : true;
+    if (iconOnlyNode) {
+      iconOnlyNode.disabled = !centerVisible;
+      iconOnlyNode.closest('.load-check-option')?.classList.toggle('is-disabled', !centerVisible);
+    }
     ['visualFill', 'visualGradient', 'visualPulse'].forEach((id) => {
-      $(id).disabled = iconOnly;
-      $(id).closest('.load-check-option')?.classList.toggle('is-disabled', iconOnly);
-      if (iconOnly) $(id).checked = false;
+      const node = $(id);
+      if (!node) return;
+      node.disabled = iconOnly;
+      node.closest('.load-check-option')?.classList.toggle('is-disabled', iconOnly);
+      if (iconOnly) node.checked = false;
     });
   };
 
-  const collectSettings = () => ({
-    algorithm: $('algorithm').value,
-    lookback_weeks: Number($('lookbackWeeks').value),
-    forecast_days: Number($('forecastDays').value),
-    favorable_threshold: Number($('favorableThreshold').value),
-    dense_threshold: Number($('denseThreshold').value),
-    weekly_concentration_threshold: Number($('weeklyConcentrationThreshold').value),
-    favorable_label: $('favorableLabel').value.trim(),
-    normal_label: $('normalLabel').value.trim(),
-    dense_label: $('denseLabel').value.trim(),
-    display_mode: $('displayMode').value,
-    refresh_mode: $('refreshMode').value,
-    visual_icon_only: $('visualIconOnly').checked,
-    visual_fill: $('visualFill').checked,
-    visual_gradient: $('visualGradient').checked,
-    visual_pulse: $('visualPulse').checked,
-    visual_led_strip: $('visualLedStrip').checked,
-    visual_center_status: $('visualCenterStatus').checked
-  });
+  const collectSettings = () => {
+    const result = {
+      algorithm: $('algorithm').value,
+      lookback_weeks: Number($('lookbackWeeks').value),
+      forecast_days: Number($('forecastDays').value),
+      favorable_threshold: Number($('favorableThreshold').value),
+      dense_threshold: Number($('denseThreshold').value),
+      weekly_concentration_threshold: Number($('weeklyConcentrationThreshold').value),
+      favorable_label: $('favorableLabel').value.trim(),
+      normal_label: $('normalLabel').value.trim(),
+      dense_label: $('denseLabel').value.trim(),
+      display_mode: $('displayMode').value,
+      refresh_mode: $('refreshMode').value
+    };
+    // Optional visual controls are only included when present in the currently published HTML.
+    // This keeps mixed-cache deployments from crashing and avoids resetting missing options to false.
+    [
+      ['visual_icon_only', 'visualIconOnly'],
+      ['visual_fill', 'visualFill'],
+      ['visual_gradient', 'visualGradient'],
+      ['visual_pulse', 'visualPulse'],
+      ['visual_density_bar', 'visualDensityBar'],
+      ['visual_center_status', 'visualCenterStatus']
+    ].forEach(([field, id]) => {
+      const node = $(id);
+      if (node) result[field] = node.checked;
+    });
+    return result;
+  };
 
   const statusLabel = (day, row) => {
     if (day.status === 'favorable') return row.favorable_label || 'Благоприятно';
@@ -142,8 +182,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function refreshPreview() {
     if (!settings || previewBusy) return;
     previewBusy = true;
-    $('refreshPreviewBtn').disabled = true;
-    $('previewList').replaceChildren();
+    const refreshButton = $('refreshPreviewBtn');
+    const previewList = $('previewList');
+    if (refreshButton) refreshButton.disabled = true;
+    if (previewList) previewList.replaceChildren();
     const today = businessTodayISO();
     // Preview always reflects the last saved server configuration, not unsaved form edits.
     const savedHorizon = Number(settings.forecast_days || 14);
@@ -156,7 +198,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const empty = document.createElement('div');
         empty.className = 'load-empty-inline';
         empty.textContent = 'В выбранном горизонте нет рабочих дат для отображения.';
-        $('previewList').appendChild(empty);
+        previewList?.appendChild(empty);
         return;
       }
       days.slice(0, 12).forEach((day) => {
@@ -179,23 +221,23 @@ document.addEventListener('DOMContentLoaded', async () => {
           ? `Доля недели ${Math.round(Number(day.weekly_share_percent || 0))}% · возможна плотная концентрация потока.`
           : `Текущие записи: ${Number(day.current_count || 0)} · прогноз: ${Number(day.forecast_count || 0)}.`;
         card.append(heading, metric, counts, note);
-        $('previewList').appendChild(card);
+        previewList?.appendChild(card);
       });
     } catch (error) {
       console.error('Load advisory preview:', error);
       const empty = document.createElement('div');
       empty.className = 'load-empty-inline';
       empty.textContent = error.message || 'Не удалось получить предварительный прогноз.';
-      $('previewList').appendChild(empty);
+      previewList?.appendChild(empty);
     } finally {
       previewBusy = false;
-      $('refreshPreviewBtn').disabled = false;
+      if (refreshButton) refreshButton.disabled = false;
     }
   }
 
   async function loadState() {
     const { data, error } = await sb.from('load_advisory_settings')
-      .select('enabled,algorithm,lookback_weeks,forecast_days,favorable_threshold,dense_threshold,weekly_concentration_threshold,favorable_label,normal_label,dense_label,display_mode,refresh_mode,visual_icon_only,visual_fill,visual_gradient,visual_pulse,visual_led_strip,visual_center_status,updated_at')
+      .select('enabled,algorithm,lookback_weeks,forecast_days,favorable_threshold,dense_threshold,weekly_concentration_threshold,favorable_label,normal_label,dense_label,display_mode,refresh_mode,visual_icon_only,visual_fill,visual_gradient,visual_pulse,visual_density_bar,visual_center_status,updated_at')
       .eq('id', true)
       .single();
     if (error) throw error;
@@ -227,13 +269,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       const { data, error } = await sb.from('load_advisory_settings')
         .update(next)
         .eq('id', true)
-        .select('enabled,algorithm,lookback_weeks,forecast_days,favorable_threshold,dense_threshold,weekly_concentration_threshold,favorable_label,normal_label,dense_label,display_mode,refresh_mode,visual_icon_only,visual_fill,visual_gradient,visual_pulse,visual_led_strip,visual_center_status,updated_at')
+        .select('enabled,algorithm,lookback_weeks,forecast_days,favorable_threshold,dense_threshold,weekly_concentration_threshold,favorable_label,normal_label,dense_label,display_mode,refresh_mode,visual_icon_only,visual_fill,visual_gradient,visual_pulse,visual_density_bar,visual_center_status,updated_at')
         .single();
       if (error) throw error;
       settings = data;
       populateForm(data);
       renderMode();
-      $('saveMeta').textContent = `Сохранено: ${new Date(data.updated_at).toLocaleString('ru-RU')}`;
+      const saveMeta = $('saveMeta');
+      if (saveMeta) saveMeta.textContent = `Сохранено: ${new Date(data.updated_at).toLocaleString('ru-RU')}`;
       showToast('Настройки рекомендаций загруженности сохранены.');
       await refreshPreview();
     } catch (error) {
@@ -269,16 +312,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  $('visualIconOnly').addEventListener('change', syncVisualOptions);
-  $('visualCenterStatus').addEventListener('change', syncVisualOptions);
-  ['visualFill', 'visualGradient', 'visualPulse'].forEach((id) => $(id).addEventListener('change', () => {
-    if ($(id).checked) $('visualIconOnly').checked = false;
+  bind('visualIconOnly', 'change', syncVisualOptions);
+  bind('visualCenterStatus', 'change', syncVisualOptions);
+  bind('visualDensityBar', 'change', syncVisualOptions);
+  ['visualFill', 'visualGradient', 'visualPulse'].forEach((id) => bind(id, 'change', () => {
+    const changedNode = $(id);
+    const iconOnlyNode = $('visualIconOnly');
+    if (changedNode?.checked && iconOnlyNode) iconOnlyNode.checked = false;
     syncVisualOptions();
   }));
   form.addEventListener('submit', saveSettings);
-  $('refreshPreviewBtn').addEventListener('click', refreshPreview);
+  bind('refreshPreviewBtn', 'click', refreshPreview);
   modeSwitch.addEventListener('change', toggleAdvisory);
-  $('logoutBtn').addEventListener('click', async (event) => {
+  bind('logoutBtn', 'click', async (event) => {
     event.preventDefault();
     await sb.auth.signOut();
     window.location.replace('../index.html');
@@ -289,11 +335,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (error) {
     console.error('Load advisory initialization:', error);
     showToast(error.message || 'Не удалось загрузить управление нагрузкой.', true);
-    $('previewMeta').textContent = 'Проверь, что миграция load_advisory_management_v1.sql выполнена в Supabase.';
-    $('previewList').replaceChildren();
+    const previewMeta = $('previewMeta');
+    const previewList = $('previewList');
+    if (previewMeta) previewMeta.textContent = 'Проверь, что миграции управления загруженностью выполнены в Supabase.';
+    previewList?.replaceChildren();
     const empty = document.createElement('div');
     empty.className = 'load-empty-inline';
     empty.textContent = 'Нет соединения с настройками рекомендаций. После применения SQL-миграции обновите страницу.';
-    $('previewList').appendChild(empty);
+    previewList?.appendChild(empty);
   }
 });
