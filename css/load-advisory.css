@@ -94,3 +94,8 @@ html[data-theme="dark"] .load-advisory-density-segment:not(.is-filled) {
 .load-advisory-density-level-4 .load-advisory-density-segment.is-filled {
   background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
 }
+
+/* Past and unavailable dates: full-width blue indicator, regardless of load level. */
+.load-advisory-density-track.load-advisory-density-unavailable .load-advisory-density-segment.is-filled {
+  background: linear-gradient(90deg, #2879e8 0%, #3292db 100%);
+}
