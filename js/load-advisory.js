@@ -26,29 +26,36 @@
       ? null
       : safeNumber(item.load_percent, NaN);
     if (Number.isFinite(pct) && pct >= 100) {
-      return { level: 4, label: 'Нет свободных слотов', description: 'Все доступные места заняты' };
+      return { level: 4, label: 'Плотно', percent: Math.round(pct) };
     }
     switch (item?.status) {
       case 'favorable':
-        return { level: 1, label: 'Свободно', description: 'Много свободных слотов' };
+        return { level: 1, label: 'Свободно', percent: Number.isFinite(pct) ? Math.round(pct) : null };
       case 'normal':
-        return { level: 2, label: 'Умеренно занято', description: 'Часть слотов уже занята' };
+        return { level: 2, label: 'Умеренно', percent: Number.isFinite(pct) ? Math.round(pct) : null };
       case 'dense':
-        return { level: 3, label: 'Плотно занято', description: 'Осталось мало свободных слотов' };
+        return { level: 3, label: 'Плотно', percent: Number.isFinite(pct) ? Math.round(pct) : null };
       default:
-        return { level: 0, label: 'Недостаточно данных', description: 'Нельзя надёжно оценить загруженность' };
+        return { level: 0, label: '', percent: Number.isFinite(pct) ? Math.round(pct) : null };
     }
   };
 
-  const makeDensityBar = (item) => {
-    const state = densityBarState(item);
+  const densityBarTitle = (state) => {
+    const percentText = state.percent === null ? '—' : `${state.percent}%`;
+    return state.label ? `${percentText} · ${state.label}` : percentText;
+  };
+
+  const makeDensityBar = (item, { unavailable = false } = {}) => {
+    // Past or unavailable dates are deliberately shown as a full blue strip,
+    // independently of their load forecast or the presence of a snapshot row.
+    const state = unavailable
+      ? { level: 4, label: '', percent: 100 }
+      : densityBarState(item);
     const track = document.createElement('span');
     track.className = `load-advisory-density-track load-advisory-density-level-${state.level}`;
+    if (unavailable) track.classList.add('load-advisory-density-unavailable');
     track.setAttribute('role', 'img');
-    const percent = item?.load_percent === null || item?.load_percent === undefined
-      ? null
-      : Math.round(safeNumber(item.load_percent));
-    const title = `${state.label} · ${state.level}/4 уровня${percent === null ? '' : ` · прогнозная загрузка ${percent}%`}. ${state.description}.`;
+    const title = densityBarTitle(state);
     track.setAttribute('aria-label', title);
     track.setAttribute('title', title);
 
@@ -157,16 +164,34 @@
     );
     cell.title = cell.dataset.loadAdvisoryOriginalTitle || '';
     cell.setAttribute('aria-label', cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim());
-    if (!item || !settings.enabled) return;
+    if (!settings.enabled) return;
+
+    const isUnavailableDay = cell.classList.contains('inactive');
+
+    // Closed/past dates still receive the requested full blue indicator,
+    // even when the snapshot does not contain a forecast row for that date.
+    if (settings.visual_density_bar && isUnavailableDay) {
+      cell.classList.add('load-advisory-density-bar-active');
+      cell.appendChild(makeDensityBar(null, { unavailable: true }));
+      cell.title = '100%';
+      cell.setAttribute('aria-label', `${cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim()}. 100%`);
+      return;
+    }
+
+    if (!item) return;
     cell.classList.add(...visualClasses(item.status, settings));
     if (item.high_concentration) cell.classList.add('load-advisory-high-concentration');
     if (settings.visual_center_status !== false) cell.appendChild(makeMarker(item.status, settings));
     if (settings.visual_density_bar) {
       cell.classList.add('load-advisory-density-bar-active');
-      cell.appendChild(makeDensityBar(item));
+      const bar = makeDensityBar(item);
+      cell.appendChild(bar);
+      // Keep the day-cell and strip tooltip concise and consistent.
+      cell.title = bar.getAttribute('title') || '';
+    } else {
+      const detail = detailsFor(item, settings);
+      cell.title = `${detail.label} · Максимальная загрузка пула ${detail.pct || '—'} · Основные места ${detail.mainCount}/${detail.mainCapacity} (${detail.mainPct || '—'}) · Резерв ИМ ${detail.reserveCount}/${detail.reserveCapacity} (${detail.reservePct || '—'})${item.high_concentration ? ' · Высокая концентрация недельного потока' : ''}`;
     }
-    const detail = detailsFor(item, settings);
-    cell.title = `${detail.label} · Максимальная загрузка пула ${detail.pct || '—'} · Основные места ${detail.mainCount}/${detail.mainCapacity} (${detail.mainPct || '—'}) · Резерв ИМ ${detail.reserveCount}/${detail.reserveCapacity} (${detail.reservePct || '—'})${item.high_concentration ? ' · Высокая концентрация недельного потока' : ''}`;
     cell.setAttribute('aria-label', `${cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim()}. ${cell.title}`);
   }
 
