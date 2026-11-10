@@ -385,6 +385,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Переменные состояния для редактирования
   let currentMainLeft = 0;
   let currentEditBookingId = null;
+  let currentEditHadReturn = false;
   let existingFileUrl = null;
 
   const createModal = document.getElementById('bookingModal');
@@ -392,6 +393,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function openCreateModal(hour, mainLeft) {
     currentEditBookingId = null;
+    currentEditHadReturn = false;
     existingFileUrl = null;
     hourInput.value = hour;
     currentMainLeft = mainLeft;
@@ -423,6 +425,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('bookingForm').reset();
 
     const types = b.supply_types?.length ? b.supply_types : [b.supply_type];
+    currentEditHadReturn = types.some(type => String(type || '').trim().toLowerCase() === 'return');
     document.querySelectorAll('#supplyTypesGroup input').forEach(cb => {
       cb.checked = types.includes(cb.value);
     });
@@ -467,12 +470,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       return alert('В этом слоте закончились основные места. Запись доступна только для типа "Заказы ИМ".');
     }
 
-    if (selectedTypes.includes('return')) {
+    // Срок для типа «Возврат» проверяется только при создании записи
+    // или при первом добавлении «Возврата» в существующую запись.
+    // Замена реестра, номера документа, комментария и повторное сохранение
+    // уже существующей записи с «Возвратом» не должны запускать этот дедлайн.
+    const addingReturnToBooking = selectedTypes.includes('return')
+      && (!currentEditBookingId || !currentEditHadReturn);
+    if (addingReturnToBooking) {
       const returnDeadlineDays = settings.return_deadline_days || 0;
       if (returnDeadlineDays > 0) {
         const minAllowedDateISO = addBusinessDays(businessTodayISO, returnDeadlineDays);
         if (selectedDate < minAllowedDateISO) {
-          return alert(`Для поставок, включающих "Возврат", запись возможна только начиная с ${formatBusinessDate(minAllowedDateISO)}.`);
+          return alert(`Для новых поставок, включающих "Возврат", запись возможна только начиная с ${formatBusinessDate(minAllowedDateISO)}.`);
         }
       }
     }
