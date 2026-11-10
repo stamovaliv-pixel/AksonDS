@@ -149,30 +149,48 @@
   function syncDensityLegend(cell, settings = {}) {
     const grid = cell?.closest?.('.calendar-grid');
     if (!grid) return;
-    const existing = grid.parentElement?.querySelector(':scope > .load-advisory-density-legend');
-    if (!settings.enabled || !settings.visual_density_bar) {
-      existing?.remove();
+
+    const existing = grid.nextElementSibling?.classList?.contains('load-advisory-density-legend')
+      ? grid.nextElementSibling
+      : grid.parentElement?.querySelector('.load-advisory-density-legend');
+
+    // Settings can be passed while cells are being rebuilt. Do not remove an
+    // already visible legend merely because an intermediate call omitted a flag.
+    if (settings.enabled !== true || settings.visual_density_bar !== true) {
+      if (settings.enabled === false || settings.visual_density_bar === false) existing?.remove();
       return;
     }
-    if (existing) return;
+    if (existing) {
+      if (existing.previousElementSibling !== grid) grid.insertAdjacentElement('afterend', existing);
+      return;
+    }
 
     const legend = document.createElement('div');
     legend.className = 'load-advisory-density-legend';
     legend.setAttribute('aria-label', 'Расшифровка индикатора загруженности');
+    // Each legend sample is built from the exact same four segments and
+    // state classes as a calendar cell (including the full-red and solid-gray overrides).
     const items = [
-      ['free', 'Свободно', 'linear-gradient(90deg, #2879e8, #3292db)'],
-      ['moderate', 'Умеренно', '#35b77b'],
-      ['dense', 'Плотно', '#f0ad3d'],
-      ['full', 'Нет свободных слотов', 'linear-gradient(90deg, #ef4444, #dc2626)'],
-      ['unavailable', 'Прошедшие и недоступные дни', 'linear-gradient(90deg, #94a3b8, #64748b)']
+      ['free', 'Свободно', 1],
+      ['moderate', 'Умеренно', 2],
+      ['dense', 'Плотно', 3],
+      ['full', 'Нет свободных слотов', 4],
+      ['unavailable', 'Прошедшие и недоступные дни', 4]
     ];
-    items.forEach(([key, label, background]) => {
+    items.forEach(([key, label, level]) => {
       const item = document.createElement('span');
       item.className = `load-advisory-density-legend-item load-advisory-density-legend-${key}`;
       const swatch = document.createElement('span');
-      swatch.className = 'load-advisory-density-legend-swatch';
-      swatch.style.background = background;
+      swatch.className = `load-advisory-density-legend-swatch load-advisory-density-level-${level}`;
+      if (key === 'unavailable') swatch.classList.add('load-advisory-density-unavailable');
       swatch.setAttribute('aria-hidden', 'true');
+      for (let index = 1; index <= 4; index += 1) {
+        const segment = document.createElement('span');
+        segment.className = `load-advisory-density-segment load-advisory-density-segment-${index}`;
+        if (index <= level) segment.classList.add('is-filled');
+        segment.setAttribute('aria-hidden', 'true');
+        swatch.appendChild(segment);
+      }
       const text = document.createElement('span');
       text.textContent = label;
       item.append(swatch, text);
