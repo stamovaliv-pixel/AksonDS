@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const settingFields = [
     'algorithm', 'lookbackWeeks', 'forecastDays', 'favorableThreshold', 'denseThreshold',
     'weeklyConcentrationThreshold', 'favorableLabel', 'normalLabel', 'denseLabel', 'displayMode',
-    'refreshMode', 'visualIconOnly', 'visualFill', 'visualGradient', 'visualPulse', 'visualPageCorner'
+    'refreshMode', 'visualCenterStatus', 'visualIconOnly', 'visualFill', 'visualGradient', 'visualPulse', 'visualLedStrip'
   ];
   let settings = null;
   let toastTimer = null;
@@ -95,13 +95,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('visualFill').checked = Boolean(row.visual_fill);
     $('visualGradient').checked = Boolean(row.visual_gradient);
     $('visualPulse').checked = Boolean(row.visual_pulse);
-    $('visualPageCorner').checked = Boolean(row.visual_page_corner);
+    $('visualLedStrip').checked = Boolean(row.visual_led_strip);
+    $('visualCenterStatus').checked = row.visual_center_status !== false;
     syncVisualOptions();
   };
 
   const syncVisualOptions = () => {
     const iconOnly = $('visualIconOnly').checked;
-    ['visualFill', 'visualGradient', 'visualPulse', 'visualPageCorner'].forEach((id) => {
+    const centerVisible = $('visualCenterStatus').checked;
+    $('visualIconOnly').disabled = !centerVisible;
+    $('visualIconOnly').closest('.load-check-option')?.classList.toggle('is-disabled', !centerVisible);
+    ['visualFill', 'visualGradient', 'visualPulse'].forEach((id) => {
       $(id).disabled = iconOnly;
       $(id).closest('.load-check-option')?.classList.toggle('is-disabled', iconOnly);
       if (iconOnly) $(id).checked = false;
@@ -124,7 +128,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     visual_fill: $('visualFill').checked,
     visual_gradient: $('visualGradient').checked,
     visual_pulse: $('visualPulse').checked,
-    visual_page_corner: $('visualPageCorner').checked
+    visual_led_strip: $('visualLedStrip').checked,
+    visual_center_status: $('visualCenterStatus').checked
   });
 
   const statusLabel = (day, row) => {
@@ -190,7 +195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function loadState() {
     const { data, error } = await sb.from('load_advisory_settings')
-      .select('enabled,algorithm,lookback_weeks,forecast_days,favorable_threshold,dense_threshold,weekly_concentration_threshold,favorable_label,normal_label,dense_label,display_mode,refresh_mode,visual_icon_only,visual_fill,visual_gradient,visual_pulse,visual_page_corner,updated_at')
+      .select('enabled,algorithm,lookback_weeks,forecast_days,favorable_threshold,dense_threshold,weekly_concentration_threshold,favorable_label,normal_label,dense_label,display_mode,refresh_mode,visual_icon_only,visual_fill,visual_gradient,visual_pulse,visual_led_strip,visual_center_status,updated_at')
       .eq('id', true)
       .single();
     if (error) throw error;
@@ -216,14 +221,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       next.visual_fill = false;
       next.visual_gradient = false;
       next.visual_pulse = false;
-      next.visual_page_corner = false;
     }
     setBusy(true);
     try {
       const { data, error } = await sb.from('load_advisory_settings')
         .update(next)
         .eq('id', true)
-        .select('enabled,algorithm,lookback_weeks,forecast_days,favorable_threshold,dense_threshold,weekly_concentration_threshold,favorable_label,normal_label,dense_label,display_mode,refresh_mode,visual_icon_only,visual_fill,visual_gradient,visual_pulse,visual_page_corner,updated_at')
+        .select('enabled,algorithm,lookback_weeks,forecast_days,favorable_threshold,dense_threshold,weekly_concentration_threshold,favorable_label,normal_label,dense_label,display_mode,refresh_mode,visual_icon_only,visual_fill,visual_gradient,visual_pulse,visual_led_strip,visual_center_status,updated_at')
         .single();
       if (error) throw error;
       settings = data;
@@ -266,7 +270,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   $('visualIconOnly').addEventListener('change', syncVisualOptions);
-  ['visualFill', 'visualGradient', 'visualPulse', 'visualPageCorner'].forEach((id) => $(id).addEventListener('change', () => {
+  $('visualCenterStatus').addEventListener('change', syncVisualOptions);
+  ['visualFill', 'visualGradient', 'visualPulse'].forEach((id) => $(id).addEventListener('change', () => {
     if ($(id).checked) $('visualIconOnly').checked = false;
     syncVisualOptions();
   }));
