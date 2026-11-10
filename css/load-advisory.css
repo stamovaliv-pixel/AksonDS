@@ -37,3 +37,70 @@ html[data-theme="dark"] .load-advisory-gradient{background-image:linear-gradient
 html[data-theme="dark"] .load-advisory-day-detail{background:rgba(var(--load-advisory-rgb),.12)}
 @media(max-width:480px){.day-cell .load-advisory-marker{bottom:3px}.day-cell .load-advisory-marker .load-advisory-text{display:none}.load-advisory-summary{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.load-advisory-pulse{animation:none!important}}
+
+
+/* Small folded-page marker in the lower-right corner of each calendar day cell. */
+.day-cell.load-advisory-page-corner-active{position:relative}
+.day-cell.load-advisory-page-corner-active .load-advisory-marker{right:25px;max-width:calc(100% - 30px)}
+.load-advisory-page-corner{
+  --load-page-under-light:#e8f5ff;
+  --load-page-under-deep:#86c7f0;
+  --load-page-flap:#f9fcff;
+  --load-page-flap-edge:#c8d9e7;
+  position:absolute;
+  right:0;
+  bottom:0;
+  z-index:4;
+  display:block;
+  width:21px;
+  height:21px;
+  overflow:hidden;
+  border-bottom-right-radius:inherit;
+  pointer-events:auto;
+  cursor:help;
+  user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+.load-advisory-page-corner::before,
+.load-advisory-page-corner::after{content:"";position:absolute;inset:0}
+/* The lower-right triangle is the colored layer underneath the lifted page. */
+.load-advisory-page-corner::before{
+  background:linear-gradient(135deg,var(--load-page-under-light) 0%,var(--load-page-under-deep) 100%);
+  clip-path:polygon(0 100%,100% 0,100% 100%);
+}
+/* The upper flap is slightly offset and shaded so it reads as a page turned by its corner. */
+.load-advisory-page-corner::after{
+  background:linear-gradient(135deg,rgba(255,255,255,.96) 0%,var(--load-page-flap) 62%,var(--load-page-flap-edge) 100%);
+  clip-path:polygon(0 0,100% 0,100% 100%);
+  filter:drop-shadow(-1px -1px 1px rgba(15,23,42,.22));
+  transform:translate(-1px,-1px);
+}
+.load-advisory-page-corner-favorable{
+  --load-page-under-light:#e7f4ff;
+  --load-page-under-deep:#83c5ed;
+  --load-page-flap:#f8fcff;
+  --load-page-flap-edge:#c9e1f1;
+}
+.load-advisory-page-corner-normal{
+  --load-page-under-light:#e5f7e9;
+  --load-page-under-deep:#83d09a;
+  --load-page-flap:#f9fefa;
+  --load-page-flap-edge:#c9e8d1;
+}
+.load-advisory-page-corner-dense{
+  --load-page-under-light:#ffeded;
+  --load-page-under-deep:#ee9a9a;
+  --load-page-flap:#fffafa;
+  --load-page-flap-edge:#f0cccc;
+}
+.load-advisory-page-corner-unknown{
+  --load-page-under-light:#edf1f5;
+  --load-page-under-deep:#aab8c6;
+  --load-page-flap:#fbfcfd;
+  --load-page-flap-edge:#d7dfe7;
+}
+html[data-theme="dark"] .load-advisory-page-corner-favorable{--load-page-under-light:#24425b;--load-page-under-deep:#5b9bc5;--load-page-flap:#263746;--load-page-flap-edge:#1c2a36}
+html[data-theme="dark"] .load-advisory-page-corner-normal{--load-page-under-light:#244a34;--load-page-under-deep:#5aa977;--load-page-flap:#263b30;--load-page-flap-edge:#1e3026}
+html[data-theme="dark"] .load-advisory-page-corner-dense{--load-page-under-light:#542d32;--load-page-under-deep:#c26f76;--load-page-flap:#422b30;--load-page-flap-edge:#332126}
+html[data-theme="dark"] .load-advisory-page-corner-unknown{--load-page-under-light:#344252;--load-page-under-deep:#7d91a6;--load-page-flap:#2b3744;--load-page-flap-edge:#202a35}
+@media(max-width:480px){.load-advisory-page-corner{width:19px;height:19px}.day-cell.load-advisory-page-corner-active .load-advisory-marker{right:22px}}
