@@ -46,15 +46,16 @@
     return `Занято ${percentText} слотов`;
   };
 
-  const makeDensityBar = (item, { unavailable = false } = {}) => {
-    // Past or unavailable dates are deliberately shown as a full blue strip,
-    // independently of their load forecast or the presence of a snapshot row.
+  const makeDensityBar = (item, { unavailable = false, past = false } = {}) => {
+    // Only dates outside the 30-day booking window use a solid gray strip.
+    // Past dates retain their calculated level and are muted separately.
     const state = unavailable
-      ? { level: 4, label: '', percent: 100, unavailable: true }
+      ? { level: 4, label: '', percent: null, unavailable: true }
       : densityBarState(item);
     const track = document.createElement('span');
     track.className = `load-advisory-density-track load-advisory-density-level-${state.level}`;
     if (unavailable) track.classList.add('load-advisory-density-unavailable');
+    if (past && !unavailable) track.classList.add('load-advisory-density-past');
     track.setAttribute('role', 'img');
     const title = densityBarTitle(state);
     track.setAttribute('aria-label', title);
@@ -154,8 +155,6 @@
       ? grid.nextElementSibling
       : grid.parentElement?.querySelector('.load-advisory-density-legend');
 
-    // Settings can be passed while cells are being rebuilt. Do not remove an
-    // already visible legend merely because an intermediate call omitted a flag.
     if (settings.enabled !== true || settings.visual_density_bar !== true) {
       if (settings.enabled === false || settings.visual_density_bar === false) existing?.remove();
       return;
@@ -168,29 +167,25 @@
     const legend = document.createElement('div');
     legend.className = 'load-advisory-density-legend';
     legend.setAttribute('aria-label', 'Расшифровка индикатора загруженности');
-    // Each legend sample is built from the exact same four segments and
-    // state classes as a calendar cell (including the full-red and solid-gray overrides).
+
+    // Use makeDensityBar so every legend sample has the exact same four
+    // segments, gradients, gaps and level overrides as a day-cell indicator.
     const items = [
-      ['free', 'Свободно', 1],
-      ['moderate', 'Умеренно', 2],
-      ['dense', 'Плотно', 3],
-      ['full', 'Нет свободных слотов', 4],
-      ['unavailable', 'Прошедшие и недоступные дни', 4]
+      ['free', 'Свободно', { status: 'favorable', load_percent: 25 }],
+      ['moderate', 'Умеренно', { status: 'normal', load_percent: 50 }],
+      ['dense', 'Плотно', { status: 'dense', load_percent: 75 }],
+      ['full', 'Запись полная', { status: 'dense', load_percent: 100 }],
+      ['unavailable', 'Недоступно (>30 дней)', null]
     ];
-    items.forEach(([key, label, level]) => {
+    items.forEach(([key, label, sample]) => {
       const item = document.createElement('span');
       item.className = `load-advisory-density-legend-item load-advisory-density-legend-${key}`;
-      const swatch = document.createElement('span');
-      swatch.className = `load-advisory-density-legend-swatch load-advisory-density-level-${level}`;
-      if (key === 'unavailable') swatch.classList.add('load-advisory-density-unavailable');
+      const swatch = makeDensityBar(sample, { unavailable: key === 'unavailable' });
+      swatch.classList.add('load-advisory-density-legend-swatch');
+      swatch.removeAttribute('role');
+      swatch.removeAttribute('aria-label');
+      swatch.removeAttribute('title');
       swatch.setAttribute('aria-hidden', 'true');
-      for (let index = 1; index <= 4; index += 1) {
-        const segment = document.createElement('span');
-        segment.className = `load-advisory-density-segment load-advisory-density-segment-${index}`;
-        if (index <= level) segment.classList.add('is-filled');
-        segment.setAttribute('aria-hidden', 'true');
-        swatch.appendChild(segment);
-      }
       const text = document.createElement('span');
       text.textContent = label;
       item.append(swatch, text);
@@ -221,28 +216,34 @@
     cell.setAttribute('aria-label', cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim());
     if (!settings.enabled) return;
 
-    const isUnavailableDay = cell.classList.contains('inactive')
-      || cell.classList.contains('disabled')
-      || cell.getAttribute('aria-disabled') === 'true'
-      || cell.hasAttribute('disabled');
+    const dateIso = String(cell.dataset.date || '');
+    const todayParts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date());
+    const todayIso = `${todayParts.find(part => part.type === 'year')?.value}-${todayParts.find(part => part.type === 'month')?.value}-${todayParts.find(part => part.type === 'day')?.value}`;
+    const maxDate = new Date(`${todayIso}T00:00:00Z`);
+    maxDate.setUTCDate(maxDate.getUTCDate() + 30);
+    const maxDateIso = `${maxDate.getUTCFullYear()}-${String(maxDate.getUTCMonth() + 1).padStart(2, '0')}-${String(maxDate.getUTCDate()).padStart(2, '0')}`;
+    const isPastDate = Boolean(dateIso && dateIso < todayIso);
+    const isBeyond30Days = Boolean(dateIso && dateIso > maxDateIso);
 
-    // Closed/past dates still receive the requested full blue indicator,
-    // even when the snapshot does not contain a forecast row for that date.
-    if (settings.visual_density_bar && isUnavailableDay) {
+    if (settings.visual_density_bar && isBeyond30Days) {
       cell.classList.add('load-advisory-density-bar-active');
       cell.appendChild(makeDensityBar(null, { unavailable: true }));
-      cell.title = 'Недоступно';
-      cell.setAttribute('aria-label', `${cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim()}. Недоступно`);
+      cell.title = 'Недоступно для записи: более 30 дней';
+      cell.setAttribute('aria-label', `${cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim()}. Недоступно для записи: более 30 дней`);
       return;
     }
 
+    // Past dates keep the actual density level from the snapshot, only muted.
+    // If no historical snapshot exists, do not fabricate a load level.
     if (!item) return;
     cell.classList.add(...visualClasses(item.status, settings));
     if (item.high_concentration) cell.classList.add('load-advisory-high-concentration');
     if (settings.visual_center_status !== false) cell.appendChild(makeMarker(item.status, settings));
     if (settings.visual_density_bar) {
       cell.classList.add('load-advisory-density-bar-active');
-      const bar = makeDensityBar(item);
+      const bar = makeDensityBar(item, { past: isPastDate });
       cell.appendChild(bar);
       // Keep the day-cell and strip tooltip concise and consistent.
       cell.title = bar.getAttribute('title') || '';
