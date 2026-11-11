@@ -92,9 +92,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const isoToday = `${businessYear}-${String(businessMonth).padStart(2, '0')}-${String(businessDay).padStart(2, '0')}`;
 
+  // Calendar grid starts on Monday, so at most six prior days are visible.
+  // Request their aggregate counts together with the existing future range.
+  const countFrom = new Date(today);
+  countFrom.setDate(countFrom.getDate() - 6);
+  const countFromIso = `${countFrom.getFullYear()}-${String(countFrom.getMonth() + 1).padStart(2, '0')}-${String(countFrom.getDate()).padStart(2, '0')}`;
+
   const countTo = new Date(today);
   countTo.setDate(countTo.getDate() + 35);
-
   const countToIso = `${countTo.getFullYear()}-${String(countTo.getMonth() + 1).padStart(2, '0')}-${String(countTo.getDate()).padStart(2, '0')}`;
 
   const [
@@ -109,10 +114,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       .order('slot_date', { ascending: true })
       .order('slot_hour', { ascending: true }),
 
-    sb.rpc('get_calendar_booking_counts', {
-      p_from: isoToday,
-      p_to: countToIso
-    })
+    (async () => {
+      let result = await sb.rpc('get_calendar_booking_counts', {
+        p_from: countFromIso,
+        p_to: countToIso
+      });
+      // Compatibility fallback: if the historical-range SQL patch has not yet
+      // been applied, keep the calendar working with the original future-only range.
+      if (result.error && countFromIso < isoToday) {
+        console.warn('[DockSlot calendar] Исторические агрегаты пока недоступны; повторяем запрос только на будущий диапазон:', result.error.message || result.error);
+        result = await sb.rpc('get_calendar_booking_counts', {
+          p_from: isoToday,
+          p_to: countToIso
+        });
+      }
+      return result;
+    })()
   ]);
 
   if (bookingsError || countsError) {
@@ -424,7 +441,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         dayCell.classList.add('date-excluded');
       }
 
-      window.dockslotLoadAdvisory?.applyCalendarCell(dayCell, advisoryDaysByDate.get(isoDate), advisorySnapshot?.settings || {});
+      const advisorySettings = advisorySnapshot?.settings || {};
+      const historicalItem = isoDate < isoToday
+        ? window.dockslotLoadAdvisory?.createHistoricalItem?.(
+            dateCapacities[isoDate] || 0, maxCapacityPerDay, advisorySettings
+          )
+        : null;
+      window.dockslotLoadAdvisory?.applyCalendarCell(
+        dayCell, advisoryDaysByDate.get(isoDate) || historicalItem, advisorySettings
+      );
 
       if (isClickable || bookedDates.has(isoDate)) {
         dayCell.addEventListener('click', () => {
@@ -441,7 +466,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const fresh = await window.dockslotLoadAdvisory.loadSnapshot(sb, isoToday, countToIso);
         const freshDays = new Map((fresh?.days || []).map(item => [String(item.slot_date), item]));
         calendarGrid.querySelectorAll('.day-cell[data-date]').forEach((cell) => {
-          window.dockslotLoadAdvisory.applyCalendarCell(cell, freshDays.get(cell.dataset.date), fresh?.settings || {});
+          const cellDate = cell.dataset.date;
+          const advisorySettings = fresh?.settings || {};
+          const historicalItem = cellDate < isoToday
+            ? window.dockslotLoadAdvisory.createHistoricalItem?.(
+                dateCapacities[cellDate] || 0, maxCapacityPerDay, advisorySettings
+              )
+            : null;
+          window.dockslotLoadAdvisory.applyCalendarCell(
+            cell, freshDays.get(cellDate) || historicalItem, advisorySettings
+          );
         });
         window.dockslotLoadAdvisory.renderCalendarPanel(calendarGrid, fresh);
       }, advisorySnapshot.settings);

@@ -40,6 +40,31 @@
     }
   };
 
+  // Historical days use actual active-booking counts, not forecast rows.
+  // Keep the same thresholds and four-segment renderer as future advisory days.
+  const createHistoricalItem = (bookingCount, dailyCapacity, settings = {}) => {
+    const count = Math.max(0, safeNumber(bookingCount, 0));
+    const capacity = Math.max(0, safeNumber(dailyCapacity, 0));
+    if (capacity <= 0) return null;
+
+    const loadPercent = (count / capacity) * 100;
+    const favorableThreshold = safeNumber(settings.favorable_threshold, 50);
+    const denseThreshold = safeNumber(settings.dense_threshold, 80);
+    const status = loadPercent <= favorableThreshold
+      ? 'favorable'
+      : loadPercent <= denseThreshold
+        ? 'normal'
+        : 'dense';
+
+    return {
+      slot_date: null,
+      status,
+      load_percent: loadPercent,
+      forecast_count: count,
+      capacity
+    };
+  };
+
   const densityBarTitle = (state) => {
     if (state.unavailable) return 'Недоступно';
     const percentText = state.percent === null ? '—' : `${state.percent}%`;
@@ -229,9 +254,13 @@
     if (!settings.enabled) return;
 
     const date = String(cell.dataset.date || '');
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const limitDateObj = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const businessParts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date());
+    const businessValues = Object.fromEntries(businessParts.map(part => [part.type, part.value]));
+    const today = `${businessValues.year}-${businessValues.month}-${businessValues.day}`;
+    const [todayYear, todayMonth, todayDay] = today.split('-').map(Number);
+    const limitDateObj = new Date(todayYear, todayMonth - 1, todayDay);
     limitDateObj.setDate(limitDateObj.getDate() + 30);
     const limitDate = `${limitDateObj.getFullYear()}-${String(limitDateObj.getMonth() + 1).padStart(2, '0')}-${String(limitDateObj.getDate()).padStart(2, '0')}`;
 
@@ -409,6 +438,7 @@
 
   window.dockslotLoadAdvisory = {
     loadSnapshot,
+    createHistoricalItem,
     applyCalendarCell,
     applyHourCard,
     renderDayDetail,
