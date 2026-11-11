@@ -26,6 +26,32 @@
     return `${values.year}-${values.month}-${values.day}`;
   };
 
+  // Исторические даты рассчитываются по фактическому числу активных записей,
+  // а не по прогнозной строке snapshot (она предназначена для сегодняшних/будущих дат).
+  // Используем те же пороги, что и для будущей загрузки.
+  const createHistoricalItem = (bookingCount, dailyCapacity, settings = {}) => {
+    const count = Math.max(0, safeNumber(bookingCount, 0));
+    const capacity = Math.max(0, safeNumber(dailyCapacity, 0));
+    if (capacity <= 0) return null;
+
+    const loadPercent = (count / capacity) * 100;
+    const favorableThreshold = safeNumber(settings.favorable_threshold, 50);
+    const denseThreshold = safeNumber(settings.dense_threshold, 80);
+    const status = loadPercent <= favorableThreshold
+      ? 'favorable'
+      : loadPercent <= denseThreshold
+        ? 'normal'
+        : 'dense';
+
+    return {
+      slot_date: null,
+      status,
+      load_percent: loadPercent,
+      forecast_count: count,
+      capacity
+    };
+  };
+
   const labelFor = (status, settings = {}) => {
     if (status === 'favorable') return String(settings.favorable_label || 'Благоприятно');
     if (status === 'normal') return String(settings.normal_label || 'Штатно');
@@ -186,8 +212,7 @@
       ['free', 'Свободно', 1],
       ['moderate', 'Умеренно', 2],
       ['dense', 'Плотно', 3],
-      ['full', 'Запись полная', 4],
-      ['unavailable', 'Недоступно (свыше 30 дней)', 4]
+      ['full', 'Запись полная', 4]
     ];
 
     items.forEach(([key, label, level]) => {
@@ -423,6 +448,7 @@
 
   window.dockslotLoadAdvisory = {
     loadSnapshot,
+    createHistoricalItem,
     applyCalendarCell,
     applyHourCard,
     renderDayDetail,
