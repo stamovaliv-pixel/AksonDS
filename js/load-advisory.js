@@ -40,31 +40,6 @@
     }
   };
 
-  // Historical days use actual active-booking counts, not forecast rows.
-  // Keep the same thresholds and four-segment renderer as future advisory days.
-  const createHistoricalItem = (bookingCount, dailyCapacity, settings = {}) => {
-    const count = Math.max(0, safeNumber(bookingCount, 0));
-    const capacity = Math.max(0, safeNumber(dailyCapacity, 0));
-    if (capacity <= 0) return null;
-
-    const loadPercent = (count / capacity) * 100;
-    const favorableThreshold = safeNumber(settings.favorable_threshold, 50);
-    const denseThreshold = safeNumber(settings.dense_threshold, 80);
-    const status = loadPercent <= favorableThreshold
-      ? 'favorable'
-      : loadPercent <= denseThreshold
-        ? 'normal'
-        : 'dense';
-
-    return {
-      slot_date: null,
-      status,
-      load_percent: loadPercent,
-      forecast_count: count,
-      capacity
-    };
-  };
-
   const densityBarTitle = (state) => {
     if (state.unavailable) return 'Недоступно';
     const percentText = state.percent === null ? '—' : `${state.percent}%`;
@@ -199,7 +174,8 @@
       ['free', 'Свободно', 1],
       ['moderate', 'Умеренно', 2],
       ['dense', 'Плотно', 3],
-      ['full', 'Запись полная', 4]
+      ['full', 'Запись полная', 4],
+      ['unavailable', 'Недоступно (свыше 30 дней)', 4]
     ];
 
     items.forEach(([key, label, level]) => {
@@ -254,25 +230,19 @@
     if (!settings.enabled) return;
 
     const date = String(cell.dataset.date || '');
-    const businessParts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit'
-    }).formatToParts(new Date());
-    const businessValues = Object.fromEntries(businessParts.map(part => [part.type, part.value]));
-    const today = `${businessValues.year}-${businessValues.month}-${businessValues.day}`;
-    const [todayYear, todayMonth, todayDay] = today.split('-').map(Number);
-    const limitDateObj = new Date(todayYear, todayMonth - 1, todayDay);
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const limitDateObj = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     limitDateObj.setDate(limitDateObj.getDate() + 30);
     const limitDate = `${limitDateObj.getFullYear()}-${String(limitDateObj.getMonth() + 1).padStart(2, '0')}-${String(limitDateObj.getDate()).padStart(2, '0')}`;
 
     const isPastDate = Boolean(date && date < today);
     const isBeyondThirtyDays = Boolean(date && date > limitDate);
     const isExplicitlyExcluded = cell.classList.contains('date-excluded');
-    const isInactive = cell.classList.contains('inactive') ||
-      cell.classList.contains('disabled') ||
-      cell.getAttribute('aria-disabled') === 'true';
 
-    // Dates beyond the 30-day booking horizon are always one continuous solid-gray bar.
-    if (settings.visual_density_bar && isBeyondThirtyDays) {
+    // Dates beyond the 30-day booking horizon (and explicitly excluded dates)
+    // always use four solid-gray segments, never the colored gradient.
+    if (settings.visual_density_bar && (isBeyondThirtyDays || isExplicitlyExcluded)) {
       cell.classList.add('load-advisory-density-bar-active');
       cell.appendChild(makeDensityBar(null, { unavailable: true }));
       cell.title = 'Недоступно';
@@ -280,8 +250,9 @@
       return;
     }
 
-    // Past dates take precedence over the calendar's inactive styling:
-    // keep the real load level and dim the whole indicator, not recolor it.
+    // Past dates retain their real 1/4–4/4 color state and are only dimmed.
+    // If the snapshot has no historical row, keep the one-segment neutral fallback,
+    // but do not replace a known historical level with a blue-only marker.
     if (settings.visual_density_bar && isPastDate) {
       cell.classList.add('load-advisory-density-bar-active');
       const bar = makeDensityBar(item || null);
@@ -291,16 +262,15 @@
       return;
     }
 
-    // Explicitly excluded / unavailable dates inside the horizon are also solid gray.
-    if (settings.visual_density_bar && (isExplicitlyExcluded || isInactive)) {
-      cell.classList.add('load-advisory-density-bar-active');
-      cell.appendChild(makeDensityBar(null, { unavailable: true }));
-      cell.title = 'Недоступно';
-      cell.setAttribute('aria-label', `${cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim()}. Недоступно`);
+    // Inactive dates inside the visible horizon are not automatically treated as
+    // >30-day dates; preserve their forecast indication whenever one is available.
+    if (!item) {
+      if (settings.visual_density_bar && cell.classList.contains('inactive')) {
+        cell.classList.add('load-advisory-density-bar-active');
+        cell.appendChild(makeDensityBar(null));
+      }
       return;
     }
-
-    if (!item) return;
 
     cell.classList.add(...visualClasses(item.status, settings));
     if (item.high_concentration) cell.classList.add('load-advisory-high-concentration');
@@ -438,7 +408,6 @@
 
   window.dockslotLoadAdvisory = {
     loadSnapshot,
-    createHistoricalItem,
     applyCalendarCell,
     applyHourCard,
     renderDayDetail,

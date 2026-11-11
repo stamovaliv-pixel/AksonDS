@@ -334,7 +334,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const rangeTo = toISODate(rangeEndDate);
 
     const bookingCountsByDate = new Map();
-    const historicalCountsByDate = new Map();
     let bookings = [];
     advisorySnapshot = window.dockslotLoadAdvisory?.loadSnapshot
       ? await window.dockslotLoadAdvisory.loadSnapshot(sb, rangeFrom, rangeTo)
@@ -361,25 +360,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const dateKey = String(booking.slot_date || '');
         if (dateKey) bookingCountsByDate.set(dateKey, (bookingCountsByDate.get(dateKey) || 0) + 1);
       });
-
-      // Search results are filtered; fetch a separate, unfiltered count for past-day load bars.
-      const businessTodayISO = getBusinessTodayISODate();
-      const yesterday = new Date(`${businessTodayISO}T00:00:00`);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayISO = toISODate(yesterday);
-      const historyTo = rangeTo < yesterdayISO ? rangeTo : yesterdayISO;
-      if (rangeFrom <= historyTo) {
-        const { data: historyRows, error: historyError } = await sb.from('bookings')
-          .select('slot_date')
-          .eq('status', 'active')
-          .gte('slot_date', rangeFrom)
-          .lte('slot_date', historyTo);
-        if (historyError) throw historyError;
-        (historyRows || []).forEach((row) => {
-          const key = String(row.slot_date || '');
-          if (key) historicalCountsByDate.set(key, (historicalCountsByDate.get(key) || 0) + 1);
-        });
-      }
     } else {
       // Для прошедших дней RPC намеренно не используется: серверная функция разрешает
       // только диапазон от бизнес-сегодня. Историю запрашиваем отдельно и только в пределах сетки.
@@ -404,11 +384,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (error) throw error;
           (data || []).forEach((row) => {
             const key = String(row.slot_date || '');
-            if (key) {
-              const nextCount = (bookingCountsByDate.get(key) || 0) + 1;
-              bookingCountsByDate.set(key, nextCount);
-              historicalCountsByDate.set(key, nextCount);
-            }
+            if (key) bookingCountsByDate.set(key, (bookingCountsByDate.get(key) || 0) + 1);
           });
         })());
       }
@@ -443,10 +419,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       await Promise.all(tasks);
     }
 
-    const maxCapacityPerDay =
-      (Number(settings.slot_end_hour ?? 16) - Number(settings.slot_start_hour ?? 9) + 1) *
-      (Number(settings.slots_per_hour ?? 5) + Number(settings.reserve_slots_per_hour ?? 0));
-
     const grid = document.getElementById('calendarGrid');
     if (grid) {
       grid.classList.toggle('is-selecting', dateSelectionMode);
@@ -472,15 +444,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           : '';
         cell.dataset.date = isoDate;
         cell.innerHTML = `<div class="date-text">${d.toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'})}</div>${countBadge}`;
-        const advisorySettings = advisorySnapshot?.settings || {};
-        const historicalItem = isoDate < businessTodayISO
-          ? window.dockslotLoadAdvisory?.createHistoricalItem?.(
-              historicalCountsByDate.get(isoDate) || 0, maxCapacityPerDay, advisorySettings
-            )
-          : null;
-        window.dockslotLoadAdvisory?.applyCalendarCell(
-          cell, advisoryDaysByDate.get(isoDate) || historicalItem, advisorySettings
-        );
+        window.dockslotLoadAdvisory?.applyCalendarCell(cell, advisoryDaysByDate.get(isoDate), advisorySnapshot?.settings || {});
         if (dateSelectionMode && (isAdmin || isOperator) && bookingCount > 0) {
           const dateCheckbox = document.createElement('input');
           dateCheckbox.type = 'checkbox';

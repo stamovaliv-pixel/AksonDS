@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const icons = {
     desk: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="3" width="8" height="8" rx="1.5"></rect><rect x="13" y="3" width="8" height="5" rx="1.5"></rect><rect x="13" y="10" width="8" height="11" rx="1.5"></rect><rect x="3" y="13" width="8" height="8" rx="1.5"></rect></svg>',
     calendar: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>',
+    shift: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 21V8l9-5 9 5v13"></path><path d="M7 21v-7h10v7M3 10h18"></path><path d="M10 14h4"></path></svg>',
     tools: '<svg class="tools-five-dots" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="3.9" r="1.75"></circle><circle cx="19.1" cy="9.2" r="1.75"></circle><circle cx="16.4" cy="17.4" r="1.75"></circle><circle cx="7.6" cy="17.4" r="1.75"></circle><circle cx="4.9" cy="9.2" r="1.75"></circle></svg>',
     users: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
     profile: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="7" r="4"></circle><path d="M20 21v-2a8 8 0 0 0-16 0v2"></path></svg>',
@@ -222,6 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
       right.append(
         makeLink('admin_overview.html', 'Рабочий стол', 'desk', 'admin_overview.html'),
         makeLink('admin_calendar.html', 'Календарь', 'calendar', 'admin_calendar.html'),
+        makeLink('shift_board.html', 'Доска смены', 'shift', 'shift_board.html'),
         menu.wrapper,
         logout
       );
@@ -232,6 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
       nav.insertBefore(themeButton, right);
       right.append(
         makeLink('admin_calendar.html', 'Календарь', 'calendar', 'admin_calendar.html'),
+        makeLink('shift_board.html', 'Рабочий стол', 'shift', 'shift_board.html'),
         ...(['operator'].includes(normalized) ? [makeLink('load_management.html', 'Управление нагрузкой', 'load', 'load_management.html')] : []),
         makeLink('help.html', 'Помощь', 'help', 'help.html'),
         logout
