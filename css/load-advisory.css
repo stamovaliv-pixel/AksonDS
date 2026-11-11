@@ -176,3 +176,16 @@ html[data-theme="dark"] .load-advisory-density-segment:not(.is-filled) {
   background: none !important;
   background-image: none !important;
 }
+
+
+/* v1.5.10: past dates without a historical forecast row still get a visible,
+   muted neutral indicator. Historical colored levels keep the existing dimming. */
+.load-advisory-density-track.load-advisory-density-past-neutral {
+  opacity: .72 !important;
+  filter: none !important;
+}
+.load-advisory-density-track.load-advisory-density-past-neutral .load-advisory-density-segment {
+  background: #8190a3 !important;
+  background-image: none !important;
+  opacity: .9 !important;
+}
