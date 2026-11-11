@@ -124,25 +124,66 @@ html[data-theme="dark"] .load-advisory-density-segment:not(.is-filled) {
   line-height: 1.25;
 }
 .load-advisory-density-legend-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-.load-advisory-density-legend-swatch {
-  display: flex;
-  align-items: stretch;
-  gap: 2px;
-  width: 28px;
-  height: 5px;
-  flex: 0 0 28px;
-  box-sizing: border-box;
-  padding: 0 1px;
-  border-radius: 999px 999px 0 0;
-  overflow: hidden;
-}
-.load-advisory-density-legend-swatch .load-advisory-density-segment {
-  height: 5px;
-  min-width: 0;
-  flex: 1 1 25%;
-}
-.load-advisory-density-legend-swatch:hover .load-advisory-density-segment.is-filled { filter: none; }
 @media (max-width: 480px) {
   .load-advisory-density-legend { gap: 7px 10px; padding: 8px; font-size: 9px; }
   .load-advisory-density-legend-swatch { width: 28px; flex-basis: 28px; }
+}
+
+
+/* Past dates keep their real four-segment load level, but the indicator is muted. */
+.load-advisory-density-past {
+  opacity: .58;
+  filter: saturate(.72);
+}
+/* The supplier calendar already fades inactive cells as a whole. */
+.day-cell.inactive .load-advisory-density-past {
+  opacity: 1;
+  filter: saturate(.72);
+}
+/* Admin calendar keeps past cells fully legible; mute the whole past cell there. */
+.day-cell.inactive:has(.load-advisory-density-past) {
+  opacity: .58;
+}
+
+/* More than 30 days ahead: the date is outside the booking window. */
+.load-advisory-density-unavailable .load-advisory-density-segment,
+.load-advisory-density-unavailable .load-advisory-density-segment.is-filled {
+  background: #94a3b8 !important;
+  opacity: 1;
+  filter: none;
+}
+
+/* Legend samples reuse the exact same track and segment markup as calendar cells. */
+.load-advisory-density-legend-swatch {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  display: flex;
+  width: 44px;
+  height: 5px;
+  flex: 0 0 44px;
+  padding: 0 1px;
+  margin: 0;
+  cursor: default;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: 999px 999px 0 0;
+  gap: 2px;
+}
+.load-advisory-density-legend-swatch .load-advisory-density-segment {
+  height: 100%;
+  flex: 1 1 25%;
+}
+.load-advisory-density-legend-swatch.load-advisory-density-past {
+  opacity: .58;
+  filter: saturate(.72);
+}
+/* The supplier calendar already fades inactive cells as a whole. */
+.day-cell.inactive .load-advisory-density-past {
+  opacity: 1;
+  filter: saturate(.72);
+}
+/* Admin calendar keeps past cells fully legible; mute the whole past cell there. */
+.day-cell.inactive:has(.load-advisory-density-past) {
+  opacity: .58;
 }
