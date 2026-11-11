@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f7f9">
+  <title>Рабочий стол — АКСОН ДокСлот</title>
+  <link rel="stylesheet" href="../css/theme.css?v=shift-board-v1">
+  <link rel="stylesheet" href="../css/main.css?v=shift-board-v1">
+  <link rel="stylesheet" href="../css/admin-navigation.css?v=15-advisory-load">
+  <link rel="stylesheet" href="../css/notifications.css?v=6-floating-bell-theme">
+  <link rel="stylesheet" href="../css/dark-mode.css?v=4">
+  <link rel="stylesheet" href="../css/mobile-refinements.css?v=2" media="(max-width: 767px)">
+  <link rel="stylesheet" href="../css/shift-board.css?v=1">
+  <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
+</head>
+<body class="app-body shift-board-page">
+  <header class="app-header">
+    <div class="header-logo"><img src="../assets/logistic-logo.svg" alt="АКСОН Логистика" class="app-logo"></div>
+    <nav class="header-nav" aria-label="Основная навигация"></nav>
+  </header>
+
+  <main class="shift-board-shell">
+    <section class="shift-page-heading">
+      <div>
+        <h1>Рабочий стол</h1>
+        <p class="shift-date-subtitle" id="shiftDateSubtitle">Загрузка даты…</p>
+        <p class="shift-date-caption" id="shiftDateCaption">Оперативная доска смены РЦ</p>
+      </div>
+      <div class="shift-date-controls" aria-label="Выбор даты">
+        <button type="button" class="shift-date-step" id="shiftYesterday" aria-label="Вчера">‹</button>
+        <button type="button" class="shift-date-today" id="shiftToday">Сегодня</button>
+        <button type="button" class="shift-date-step" id="shiftTomorrow" aria-label="Завтра">›</button>
+        <label class="shift-date-input-wrap" title="Выбрать дату">
+          <span aria-hidden="true">▦</span>
+          <input type="date" id="shiftDateInput" aria-label="Выбрать дату">
+        </label>
+      </div>
+    </section>
+
+    <div class="shift-page-message" id="shiftPageMessage" role="status" aria-live="polite" hidden></div>
+
+    <section class="shift-summary" aria-label="Сводка за выбранный день">
+      <article class="shift-summary-card summary-expected"><span>Ожидаются</span><strong id="countExpected">—</strong><i></i></article>
+      <article class="shift-summary-card summary-arrived"><span>На территории</span><strong id="countArrived">—</strong><i></i></article>
+      <article class="shift-summary-card summary-departed"><span>Убыли</span><strong id="countDeparted">—</strong><i></i></article>
+      <article class="shift-summary-card summary-late"><span>Опаздывают</span><strong id="countLate">—</strong><i></i></article>
+    </section>
+
+    <section class="shift-tabs-row">
+      <div class="shift-tabs" role="tablist" aria-label="Представление записей">
+        <button type="button" class="shift-tab is-active" id="shiftBoardTab" role="tab" aria-selected="true" aria-controls="shiftBoardTabPanel">Доска смены</button>
+        <button type="button" class="shift-tab" id="shiftLateTab" role="tab" aria-selected="false" aria-controls="shiftLateTabPanel">Опоздавшие <span class="shift-tab-count" id="lateTabCount">0</span></button>
+      </div>
+      <div class="shift-tabs-actions">
+        <button type="button" class="shift-settings-trigger" id="shiftSettingsTrigger" hidden>Доступ к перетаскиванию</button>
+        <div class="shift-updated" id="shiftUpdatedAt">Обновление ожидается</div>
+      </div>
+    </section>
+
+    <section class="shift-board-content" id="shiftBoardTabPanel" role="tabpanel" aria-labelledby="shiftBoardTab">
+      <div class="shift-empty-state" id="shiftEmptyState" hidden>
+        <div class="shift-empty-icon" aria-hidden="true">▤</div>
+        <strong>На эту дату активных записей нет</strong>
+        <a href="admin_calendar.html">Перейти в календарь</a>
+      </div>
+
+      <div class="shift-board-layout" id="shiftBoardLayout" hidden>
+        <div class="shift-board-main">
+          <div class="shift-board-toolbar">
+            <div>
+              <h2>Ворота и поставки</h2>
+              <p id="shiftBoardHint">Карточки сгруппированы по часу записи и воротам</p>
+            </div>
+          </div>
+          <div class="shift-grid-scroll" id="shiftGridScroll">
+            <div class="shift-grid" id="shiftGrid" aria-label="Поставки по часам и воротам"></div>
+          </div>
+          <div class="shift-mobile-hours" id="shiftMobileHours"></div>
+          <div class="shift-outside-hours" id="shiftOutsideHours" hidden>
+            <h3>Вне часов смены</h3>
+            <div id="shiftOutsideHoursCards"></div>
+          </div>
+          <div class="shift-legend" aria-label="Обозначения статусов">
+            <span><i class="legend-dot status-dot-expected"></i>Ожидается</span>
+            <span><i class="legend-dot status-dot-arrived"></i>На территории</span>
+            <span><i class="legend-dot status-dot-late"></i>Опаздывает</span>
+            <span><i class="legend-dot status-dot-departed"></i>Убыл</span>
+          </div>
+        </div>
+
+        <aside class="shift-detail-panel" id="shiftDetailPanel" aria-label="Детали выбранной поставки">
+          <div class="shift-panel-empty" id="shiftPanelEmpty">
+            <div class="shift-panel-empty-icon" aria-hidden="true">↖</div>
+            <strong>Выберите поставку</strong>
+            <span>Нажмите карточку на доске, чтобы посмотреть детали и оперативные отметки.</span>
+          </div>
+          <div id="shiftPanelContent" hidden></div>
+        </aside>
+      </div>
+
+      <section class="shift-settings-panel" id="shiftSettingsPanel" hidden aria-label="Настройки доступа к перетаскиванию">
+        <div class="shift-settings-heading">
+          <div><strong>Кому разрешено перетаскивать карточки</strong><p>Суперадминистратор всегда имеет доступ. Наблюдатель остаётся в режиме просмотра.</p></div>
+          <button type="button" id="shiftSettingsClose" aria-label="Закрыть настройки">×</button>
+        </div>
+        <div class="shift-role-options">
+          <label><input type="checkbox" id="dragRoleOperator"> <span><b>Оператор</b><small>Разрешить перемещать карточки между воротами</small></span></label>
+          <label><input type="checkbox" id="dragRoleAdmin"> <span><b>Администратор</b><small>Разрешить перемещать карточки между воротами</small></span></label>
+        </div>
+        <div class="shift-settings-footer"><span id="shiftSettingsMessage" role="status" aria-live="polite"></span><button type="button" id="shiftSettingsSave">Сохранить доступ</button></div>
+      </section>
+    </section>
+
+    <section class="shift-late-content" id="shiftLateTabPanel" role="tabpanel" aria-labelledby="shiftLateTab" hidden>
+      <div class="shift-late-header"><h2>Опоздавшие поставки</h2><span id="shiftLateSubtitle"></span></div>
+      <div id="shiftLateList" class="shift-late-list"></div>
+      <div class="shift-late-empty" id="shiftLateEmpty" hidden>Опоздавших нет</div>
+    </section>
+  </main>
+
+  <div class="shift-toast" id="shiftToast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supabase-client.js?v=security-20261023"></script>
+  <script src="../js/auth-profile.js?v=2-dashboard-profile"></script>
+  <script src="../js/push-config.js?v=2-windows-push"></script>
+  <script src="../js/notifications.js?v=moscow-time-v1"></script>
+  <script src="../js/admin-navigation.js?v=16-shift-board"></script>
+  <script src="../js/shift-board.js?v=1"></script>
+</body>
+</html>
