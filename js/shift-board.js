@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const sb = window.supabaseClient;
   const $ = (id) => document.getElementById(id);
-  const allowedRoles = ['operator', 'admin', 'super_admin', 'viewer'];
+  const allowedRoles = ['super_admin'];
   const orderTypes = { order: 'Заказ', upd: 'УПД', etrn: 'ЭТрН' };
   const pageMessage = $('shiftPageMessage');
   const toast = $('shiftToast');
@@ -243,18 +243,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     return columns;
   }
 
-  function createGridCell(gate, hour) {
+  function createGridCell(gate) {
     const cell = document.createElement('div');
     cell.className = 'shift-grid-cell shift-door-cell';
     cell.dataset.gateKey = gate.key;
     cell.dataset.gateValue = gate.value || '';
-    // Подсказку для колонки «Без ворот» показываем один раз, а не в каждой строке.
-    if (!gate.key && hour === startHour) {
+    if (!gate.key) {
       const note = document.createElement('div');
       note.className = 'shift-no-gate-note';
       const hasAssignedGates = bookings.some(b => normalizeGate(b.gate_number));
       const hasUnassignedBookings = bookings.some(b => !normalizeGate(b.gate_number));
-      note.textContent = !hasAssignedGates ? 'Ворота ещё не назначены' : (hasUnassignedBookings ? 'Есть записи без ворот' : 'Перетащите сюда, чтобы снять назначение');
+      note.textContent = !hasAssignedGates ? 'Ворота ещё не назначены' : (hasUnassignedBookings ? 'Назначение ворот не задано' : 'Перетащите сюда, чтобы снять назначение');
       cell.append(note);
     }
     return cell;
@@ -289,7 +288,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       hourCell.textContent = `${String(hour).padStart(2, '0')}:00`;
       row.append(hourCell);
       gates.forEach(gate => {
-        const cell = createGridCell(gate, hour);
+        const cell = createGridCell(gate);
         const hourBookings = bookings
           .filter(booking => Number(booking.slot_hour) === hour && normalizeGate(booking.gate_number) === gate.key)
           .sort((a, b) => String(a.order_number || '').localeCompare(String(b.order_number || ''), 'ru-RU', { numeric: true }));
@@ -422,27 +421,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     const registry = $('panelRegistry');
     registry.replaceChildren();
     if (booking.registry_file_url) {
-      registry.append(document.createTextNode('Есть · '));
+      registry.textContent = 'Есть · ';
       const link = document.createElement('a');
       link.href = '#';
-      link.textContent = 'Подготавливаем ссылку…';
-      link.setAttribute('aria-disabled', 'true');
-      link.addEventListener('click', event => {
-        if (link.getAttribute('aria-disabled') === 'true') event.preventDefault();
+      link.textContent = 'Открыть реестр';
+      link.addEventListener('click', async event => {
+        event.preventDefault();
+        link.textContent = 'Открываем…';
+        try {
+          const url = await window.registryStorage.signedUrl(booking.registry_file_url);
+          window.open(url, '_blank', 'noopener,noreferrer');
+          link.textContent = 'Открыть реестр';
+        } catch (error) {
+          link.textContent = 'Не удалось открыть';
+          showToast(`Не удалось открыть реестр: ${error.message || 'ошибка Storage'}`, true);
+        }
       });
       registry.append(link);
-      // Получаем подписанную ссылку заранее: к моменту клика обычный переход
-      // откроет файл без блокировки всплывающего окна браузером.
-      window.registryStorage.signedUrl(booking.registry_file_url).then(url => {
-        link.href = url;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.textContent = 'Открыть реестр';
-        link.removeAttribute('aria-disabled');
-      }).catch(error => {
-        link.textContent = 'Не удалось открыть';
-        showToast(`Не удалось открыть реестр: ${error.message || 'ошибка Storage'}`, true);
-      });
     } else {
       registry.textContent = 'Нет';
     }
@@ -833,11 +828,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.location.replace('../index.html');
     return;
   }
-  if (authProfile?.error || !profile || profile.is_blocked || !allowedRoles.includes(String(profile.role || '').toLowerCase())) {
+  const verifiedRole = String(profile?.role || '').trim().toLowerCase();
+  if (authProfile?.error || !profile || profile.is_blocked || !allowedRoles.includes(verifiedRole)) {
+    // Страница доступна только суперадминистратору. Проверяем подтверждённую роль из profiles,
+    // а не кэш навигации или значение из localStorage.
     window.location.replace('../index.html');
     return;
   }
-  currentRole = String(profile.role).toLowerCase();
+  currentRole = verifiedRole;
   if (currentRole === 'viewer') document.body.classList.add('role-viewer');
 
   todayISO = getMoscowTodayISO();
@@ -872,15 +870,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }, 60000);
 
   // Опоздание пересчитывается по московскому часу независимо от сетевого обновления.
-  setInterval(() => {
-    todayISO = getMoscowTodayISO();
-    updateTimeBasedStatuses();
-    setCurrentDateLabels();
-  }, 15000);
+  setInterval(updateTimeBasedStatuses, 15000);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       todayISO = getMoscowTodayISO();
-      loadDay({ silent: true });
       updateTimeBasedStatuses();
       setCurrentDateLabels();
     }

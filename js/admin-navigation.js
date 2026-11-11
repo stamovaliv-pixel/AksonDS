@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
       right.append(
         makeLink('admin_overview.html', 'Рабочий стол', 'desk', 'admin_overview.html'),
         makeLink('admin_calendar.html', 'Календарь', 'calendar', 'admin_calendar.html'),
-        makeLink('shift_board.html', 'Доска смены', 'shift', 'shift_board.html'),
+        ...(normalized === 'super_admin' ? [makeLink('shift_board.html', 'Доска смены', 'shift', 'shift_board.html')] : []),
         menu.wrapper,
         logout
       );
@@ -234,7 +234,6 @@ document.addEventListener('DOMContentLoaded', () => {
       nav.insertBefore(themeButton, right);
       right.append(
         makeLink('admin_calendar.html', 'Календарь', 'calendar', 'admin_calendar.html'),
-        makeLink('shift_board.html', 'Рабочий стол', 'shift', 'shift_board.html'),
         ...(['operator'].includes(normalized) ? [makeLink('load_management.html', 'Управление нагрузкой', 'load', 'load_management.html')] : []),
         makeLink('help.html', 'Помощь', 'help', 'help.html'),
         logout
