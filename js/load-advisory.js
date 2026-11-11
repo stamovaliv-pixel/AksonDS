@@ -46,16 +46,14 @@
     return `Занято ${percentText} слотов`;
   };
 
-  const makeDensityBar = (item, { unavailable = false, past = false } = {}) => {
-    // Only dates outside the 30-day booking window use a solid gray strip.
-    // Past dates retain their calculated level and are muted separately.
+  const makeDensityBar = (item, { unavailable = false } = {}) => {
+    // Unavailable dates use four solid-gray segments, independently of forecast data.
     const state = unavailable
-      ? { level: 4, label: '', percent: null, unavailable: true }
+      ? { level: 4, label: '', percent: 100, unavailable: true }
       : densityBarState(item);
     const track = document.createElement('span');
     track.className = `load-advisory-density-track load-advisory-density-level-${state.level}`;
     if (unavailable) track.classList.add('load-advisory-density-unavailable');
-    if (past && !unavailable) track.classList.add('load-advisory-density-past');
     track.setAttribute('role', 'img');
     const title = densityBarTitle(state);
     track.setAttribute('aria-label', title);
@@ -148,19 +146,23 @@
   }
 
   function syncDensityLegend(cell, settings = {}) {
-    const grid = cell?.closest?.('.calendar-grid');
+    // During calendar rendering a day cell may not yet be appended to the grid.
+    // Resolve the grid by its stable page id first, then fall back to DOM ancestry.
+    const grid = document.getElementById('calendarGrid')
+      || cell?.closest?.('.calendar-grid');
     if (!grid) return;
 
-    const existing = grid.nextElementSibling?.classList?.contains('load-advisory-density-legend')
-      ? grid.nextElementSibling
-      : grid.parentElement?.querySelector('.load-advisory-density-legend');
+    const parent = grid.parentElement;
+    const existing = parent?.querySelector(':scope > .load-advisory-density-legend');
 
-    if (settings.enabled !== true || settings.visual_density_bar !== true) {
-      if (settings.enabled === false || settings.visual_density_bar === false) existing?.remove();
+    if (settings.enabled === false || settings.visual_density_bar === false) {
+      existing?.remove();
       return;
     }
+    if (settings.enabled !== true || settings.visual_density_bar !== true) return;
+
     if (existing) {
-      if (existing.previousElementSibling !== grid) grid.insertAdjacentElement('afterend', existing);
+      if (grid.nextElementSibling !== existing) grid.insertAdjacentElement('afterend', existing);
       return;
     }
 
@@ -168,84 +170,116 @@
     legend.className = 'load-advisory-density-legend';
     legend.setAttribute('aria-label', 'Расшифровка индикатора загруженности');
 
-    // Use makeDensityBar so every legend sample has the exact same four
-    // segments, gradients, gaps and level overrides as a day-cell indicator.
     const items = [
-      ['free', 'Свободно', { status: 'favorable', load_percent: 25 }],
-      ['moderate', 'Умеренно', { status: 'normal', load_percent: 50 }],
-      ['dense', 'Плотно', { status: 'dense', load_percent: 75 }],
-      ['full', 'Запись полная', { status: 'dense', load_percent: 100 }],
-      ['unavailable', 'Недоступно (>30 дней)', null]
+      ['free', 'Свободно', 1],
+      ['moderate', 'Умеренно', 2],
+      ['dense', 'Плотно', 3],
+      ['full', 'Запись полная', 4],
+      ['unavailable', 'Недоступно (свыше 30 дней)', 4]
     ];
-    items.forEach(([key, label, sample]) => {
+
+    items.forEach(([key, label, level]) => {
       const item = document.createElement('span');
       item.className = `load-advisory-density-legend-item load-advisory-density-legend-${key}`;
-      const swatch = makeDensityBar(sample, { unavailable: key === 'unavailable' });
-      swatch.classList.add('load-advisory-density-legend-swatch');
-      swatch.removeAttribute('role');
-      swatch.removeAttribute('aria-label');
-      swatch.removeAttribute('title');
+
+      const swatch = document.createElement('span');
+      swatch.className = `load-advisory-density-legend-swatch load-advisory-density-level-${level}`;
+      if (key === 'unavailable') swatch.classList.add('load-advisory-density-unavailable');
       swatch.setAttribute('aria-hidden', 'true');
+
+      for (let index = 1; index <= 4; index += 1) {
+        const segment = document.createElement('span');
+        segment.className = `load-advisory-density-segment load-advisory-density-segment-${index}`;
+        if (index <= level) segment.classList.add('is-filled');
+        swatch.appendChild(segment);
+      }
+
       const text = document.createElement('span');
       text.textContent = label;
       item.append(swatch, text);
       legend.appendChild(item);
     });
+
     grid.insertAdjacentElement('afterend', legend);
   }
 
   function applyCalendarCell(cell, item, settings = {}) {
     if (!cell) return;
     syncDensityLegend(cell, settings);
+
     if (!Object.prototype.hasOwnProperty.call(cell.dataset, 'loadAdvisoryOriginalAria')) {
       cell.dataset.loadAdvisoryOriginalAria = cell.getAttribute('aria-label') || cell.textContent.trim();
     }
     if (!Object.prototype.hasOwnProperty.call(cell.dataset, 'loadAdvisoryOriginalTitle')) {
       cell.dataset.loadAdvisoryOriginalTitle = cell.getAttribute('title') || '';
     }
+
     cell.querySelector('.load-advisory-marker')?.remove();
-    cell.querySelector('.load-advisory-page-corner')?.remove(); // cleanup stale DOM from older cached builds
+    cell.querySelector('.load-advisory-page-corner')?.remove();
     cell.querySelector('.load-advisory-led-strip')?.remove();
     cell.querySelector('.load-advisory-density-track')?.remove();
     cell.classList.remove(
       'load-advisory-favorable', 'load-advisory-normal', 'load-advisory-dense', 'load-advisory-unknown',
       'load-advisory-fill', 'load-advisory-gradient', 'load-advisory-pulse',
-      'load-advisory-icon-only', 'load-advisory-high-concentration', 'load-advisory-page-corner-active', 'load-advisory-led-active', 'load-advisory-density-bar-active'
+      'load-advisory-icon-only', 'load-advisory-high-concentration',
+      'load-advisory-page-corner-active', 'load-advisory-led-active',
+      'load-advisory-density-bar-active'
     );
     cell.title = cell.dataset.loadAdvisoryOriginalTitle || '';
     cell.setAttribute('aria-label', cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim());
     if (!settings.enabled) return;
 
-    const dateIso = String(cell.dataset.date || '');
-    const todayParts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Europe/Moscow', year: 'numeric', month: '2-digit', day: '2-digit'
-    }).formatToParts(new Date());
-    const todayIso = `${todayParts.find(part => part.type === 'year')?.value}-${todayParts.find(part => part.type === 'month')?.value}-${todayParts.find(part => part.type === 'day')?.value}`;
-    const maxDate = new Date(`${todayIso}T00:00:00Z`);
-    maxDate.setUTCDate(maxDate.getUTCDate() + 30);
-    const maxDateIso = `${maxDate.getUTCFullYear()}-${String(maxDate.getUTCMonth() + 1).padStart(2, '0')}-${String(maxDate.getUTCDate()).padStart(2, '0')}`;
-    const isPastDate = Boolean(dateIso && dateIso < todayIso);
-    const isBeyond30Days = Boolean(dateIso && dateIso > maxDateIso);
+    const date = String(cell.dataset.date || '');
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const limitDateObj = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    limitDateObj.setDate(limitDateObj.getDate() + 30);
+    const limitDate = `${limitDateObj.getFullYear()}-${String(limitDateObj.getMonth() + 1).padStart(2, '0')}-${String(limitDateObj.getDate()).padStart(2, '0')}`;
 
-    if (settings.visual_density_bar && isBeyond30Days) {
+    const isPastDate = Boolean(date && date < today);
+    const isBeyondThirtyDays = Boolean(date && date > limitDate);
+    const isExplicitlyExcluded = cell.classList.contains('date-excluded');
+
+    // Dates beyond the 30-day booking horizon (and explicitly excluded dates)
+    // always use four solid-gray segments, never the colored gradient.
+    if (settings.visual_density_bar && (isBeyondThirtyDays || isExplicitlyExcluded)) {
       cell.classList.add('load-advisory-density-bar-active');
       cell.appendChild(makeDensityBar(null, { unavailable: true }));
-      cell.title = 'Недоступно для записи: более 30 дней';
-      cell.setAttribute('aria-label', `${cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim()}. Недоступно для записи: более 30 дней`);
+      cell.title = 'Недоступно';
+      cell.setAttribute('aria-label', `${cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim()}. Недоступно`);
       return;
     }
 
-    // Past dates keep the actual density level from the snapshot, only muted.
-    // If no historical snapshot exists, do not fabricate a load level.
-    if (!item) return;
+    // Past dates retain their real 1/4–4/4 color state and are only dimmed.
+    // If the snapshot has no historical row, keep the one-segment neutral fallback,
+    // but do not replace a known historical level with a blue-only marker.
+    if (settings.visual_density_bar && isPastDate) {
+      cell.classList.add('load-advisory-density-bar-active');
+      const bar = makeDensityBar(item || null);
+      bar.classList.add('load-advisory-density-past');
+      cell.appendChild(bar);
+      cell.title = bar.getAttribute('title') || 'Прошедшая дата';
+      return;
+    }
+
+    // Inactive dates inside the visible horizon are not automatically treated as
+    // >30-day dates; preserve their forecast indication whenever one is available.
+    if (!item) {
+      if (settings.visual_density_bar && cell.classList.contains('inactive')) {
+        cell.classList.add('load-advisory-density-bar-active');
+        cell.appendChild(makeDensityBar(null));
+      }
+      return;
+    }
+
     cell.classList.add(...visualClasses(item.status, settings));
     if (item.high_concentration) cell.classList.add('load-advisory-high-concentration');
     if (settings.visual_center_status !== false) cell.appendChild(makeMarker(item.status, settings));
+
     if (settings.visual_density_bar) {
       cell.classList.add('load-advisory-density-bar-active');
-      const bar = makeDensityBar(item, { past: isPastDate });
+      const bar = makeDensityBar(item);
       cell.appendChild(bar);
-      // Keep the day-cell and strip tooltip concise and consistent.
       cell.title = bar.getAttribute('title') || '';
     } else {
       const detail = detailsFor(item, settings);
