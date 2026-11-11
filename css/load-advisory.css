@@ -163,3 +163,16 @@ html[data-theme="dark"] .load-advisory-density-segment:not(.is-filled) {
   .load-advisory-density-legend { gap: 7px 10px; padding: 8px; font-size: 9px; }
   .load-advisory-density-legend-swatch { width: 42px; flex-basis: 42px; }
 }
+
+
+/* v1.5.9: hide the legacy day-cell pseudo-strip when the density track is active.
+   Calendar scripts force .inactive::before back on; this selector is deliberately
+   more specific so the old solid-blue strip cannot overlap the real indicator. */
+.day-cell.inactive.load-advisory-density-bar-active::before,
+.day-cell.booked.load-advisory-density-bar-active::before,
+.day-cell.load-advisory-density-bar-active::before {
+  display: none !important;
+  content: none !important;
+  background: none !important;
+  background-image: none !important;
+}
