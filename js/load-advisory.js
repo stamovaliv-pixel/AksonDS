@@ -14,6 +14,18 @@
     return Number.isFinite(number) ? number : fallback;
   };
 
+  // Calendar boundaries follow the application's business timezone, not the device timezone.
+  const getBusinessTodayISO = () => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Moscow',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).formatToParts(new Date());
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  };
+
   const labelFor = (status, settings = {}) => {
     if (status === 'favorable') return String(settings.favorable_label || 'Благоприятно');
     if (status === 'normal') return String(settings.normal_label || 'Штатно');
@@ -230,19 +242,42 @@
     if (!settings.enabled) return;
 
     const date = String(cell.dataset.date || '');
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const limitDateObj = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    limitDateObj.setDate(limitDateObj.getDate() + 30);
-    const limitDate = `${limitDateObj.getFullYear()}-${String(limitDateObj.getMonth() + 1).padStart(2, '0')}-${String(limitDateObj.getDate()).padStart(2, '0')}`;
+    const today = getBusinessTodayISO();
+    const todayUtc = new Date(`${today}T00:00:00Z`);
+    // 30 calendar dates including today means today + 29 days is the last bookable date.
+    todayUtc.setUTCDate(todayUtc.getUTCDate() + 29);
+    const limitDate = `${todayUtc.getUTCFullYear()}-${String(todayUtc.getUTCMonth() + 1).padStart(2, '0')}-${String(todayUtc.getUTCDate()).padStart(2, '0')}`;
 
     const isPastDate = Boolean(date && date < today);
     const isBeyondThirtyDays = Boolean(date && date > limitDate);
     const isExplicitlyExcluded = cell.classList.contains('date-excluded');
+    const isInactive = cell.classList.contains('inactive')
+      || cell.classList.contains('disabled')
+      || cell.getAttribute('aria-disabled') === 'true'
+      || cell.hasAttribute('disabled');
 
-    // Dates beyond the 30-day booking horizon (and explicitly excluded dates)
-    // always use four solid-gray segments, never the colored gradient.
-    if (settings.visual_density_bar && (isBeyondThirtyDays || isExplicitlyExcluded)) {
+    // Past dates have priority over inactive/excluded styling.
+    // Keep real historical load colors when available; if the forecast has no
+    // historical row (the normal case), show a muted neutral four-part indicator.
+    if (settings.visual_density_bar && isPastDate) {
+      cell.classList.add('load-advisory-density-bar-active');
+      const bar = makeDensityBar(item || null);
+      bar.classList.add('load-advisory-density-past');
+      if (densityBarState(item || null).level === 0) {
+        bar.classList.add('load-advisory-density-past-neutral');
+      }
+      cell.appendChild(bar);
+      cell.title = bar.getAttribute('title') || 'Прошедшая дата';
+      return;
+    }
+
+    // Outside the 30-day window and explicitly closed dates are always solid gray.
+    // A future inactive date without a forecast row is also unavailable; where a
+    // forecast row exists, preserve its real load level (for example, a full day).
+    const isInactiveWithoutForecast = !item && isInactive;
+    if (settings.visual_density_bar && !isPastDate && (
+      isBeyondThirtyDays || isExplicitlyExcluded || isInactiveWithoutForecast
+    )) {
       cell.classList.add('load-advisory-density-bar-active');
       cell.appendChild(makeDensityBar(null, { unavailable: true }));
       cell.title = 'Недоступно';
@@ -250,27 +285,7 @@
       return;
     }
 
-    // Past dates retain their real 1/4–4/4 color state and are only dimmed.
-    // If the snapshot has no historical row, keep the one-segment neutral fallback,
-    // but do not replace a known historical level with a blue-only marker.
-    if (settings.visual_density_bar && isPastDate) {
-      cell.classList.add('load-advisory-density-bar-active');
-      const bar = makeDensityBar(item || null);
-      bar.classList.add('load-advisory-density-past');
-      cell.appendChild(bar);
-      cell.title = bar.getAttribute('title') || 'Прошедшая дата';
-      return;
-    }
-
-    // Inactive dates inside the visible horizon are not automatically treated as
-    // >30-day dates; preserve their forecast indication whenever one is available.
-    if (!item) {
-      if (settings.visual_density_bar && cell.classList.contains('inactive')) {
-        cell.classList.add('load-advisory-density-bar-active');
-        cell.appendChild(makeDensityBar(null));
-      }
-      return;
-    }
+    if (!item) return;
 
     cell.classList.add(...visualClasses(item.status, settings));
     if (item.high_concentration) cell.classList.add('load-advisory-high-concentration');
