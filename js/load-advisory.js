@@ -174,8 +174,7 @@
       ['free', 'Свободно', 1],
       ['moderate', 'Умеренно', 2],
       ['dense', 'Плотно', 3],
-      ['full', 'Запись полная', 4],
-      ['unavailable', 'Недоступно (свыше 30 дней)', 4]
+      ['full', 'Запись полная', 4]
     ];
 
     items.forEach(([key, label, level]) => {
@@ -239,10 +238,12 @@
     const isPastDate = Boolean(date && date < today);
     const isBeyondThirtyDays = Boolean(date && date > limitDate);
     const isExplicitlyExcluded = cell.classList.contains('date-excluded');
+    const isInactive = cell.classList.contains('inactive') ||
+      cell.classList.contains('disabled') ||
+      cell.getAttribute('aria-disabled') === 'true';
 
-    // Dates beyond the 30-day booking horizon (and explicitly excluded dates)
-    // always use four solid-gray segments, never the colored gradient.
-    if (settings.visual_density_bar && (isBeyondThirtyDays || isExplicitlyExcluded)) {
+    // Dates beyond the 30-day booking horizon are always one continuous solid-gray bar.
+    if (settings.visual_density_bar && isBeyondThirtyDays) {
       cell.classList.add('load-advisory-density-bar-active');
       cell.appendChild(makeDensityBar(null, { unavailable: true }));
       cell.title = 'Недоступно';
@@ -250,9 +251,8 @@
       return;
     }
 
-    // Past dates retain their real 1/4–4/4 color state and are only dimmed.
-    // If the snapshot has no historical row, keep the one-segment neutral fallback,
-    // but do not replace a known historical level with a blue-only marker.
+    // Past dates take precedence over the calendar's inactive styling:
+    // keep the real load level and dim the whole indicator, not recolor it.
     if (settings.visual_density_bar && isPastDate) {
       cell.classList.add('load-advisory-density-bar-active');
       const bar = makeDensityBar(item || null);
@@ -262,15 +262,16 @@
       return;
     }
 
-    // Inactive dates inside the visible horizon are not automatically treated as
-    // >30-day dates; preserve their forecast indication whenever one is available.
-    if (!item) {
-      if (settings.visual_density_bar && cell.classList.contains('inactive')) {
-        cell.classList.add('load-advisory-density-bar-active');
-        cell.appendChild(makeDensityBar(null));
-      }
+    // Explicitly excluded / unavailable dates inside the horizon are also solid gray.
+    if (settings.visual_density_bar && (isExplicitlyExcluded || isInactive)) {
+      cell.classList.add('load-advisory-density-bar-active');
+      cell.appendChild(makeDensityBar(null, { unavailable: true }));
+      cell.title = 'Недоступно';
+      cell.setAttribute('aria-label', `${cell.dataset.loadAdvisoryOriginalAria || cell.textContent.trim()}. Недоступно`);
       return;
     }
+
+    if (!item) return;
 
     cell.classList.add(...visualClasses(item.status, settings));
     if (item.high_concentration) cell.classList.add('load-advisory-high-concentration');
