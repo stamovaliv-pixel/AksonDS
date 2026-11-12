@@ -66,11 +66,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault(); await sb.auth.signOut(); window.location.href = '../index.html';
   };
 
-  // Оптимизация: Кэширование настроек
+  // Настройки вместимости должны совпадать с поставщиком: учитываем основные
+  // И резервные слоты. Старый sessionStorage мог содержать неполный набор полей,
+  // поэтому обновляем его, если в кэше отсутствуют параметры вместимости.
   async function getSettings() {
     const cached = sessionStorage.getItem('app_settings');
-    if (cached) return JSON.parse(cached);
-    const { data } = await sb.from('app_settings').select('slot_start_hour, slot_end_hour, available_days, supply_types').eq('id', 1).single();
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (parsed && Object.prototype.hasOwnProperty.call(parsed, 'slots_per_hour')
+          && Object.prototype.hasOwnProperty.call(parsed, 'reserve_slots_per_hour')) {
+          return parsed;
+        }
+      } catch (_) { /* discard malformed or outdated cache */ }
+      sessionStorage.removeItem('app_settings');
+    }
+
+    const { data, error } = await sb.from('app_settings')
+      .select('slot_start_hour, slot_end_hour, slots_per_hour, reserve_slots_per_hour, available_days, supply_types')
+      .eq('id', 1)
+      .single();
+    if (error) console.error('[DockSlot admin calendar] Не удалось загрузить настройки вместимости:', error);
     if (data) sessionStorage.setItem('app_settings', JSON.stringify(data));
     return data || {};
   }
@@ -79,6 +95,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const settings = {
     slot_start_hour: settingsData.slot_start_hour ?? 9,
     slot_end_hour: settingsData.slot_end_hour ?? 17,
+    slots_per_hour: settingsData.slots_per_hour ?? 5,
+    reserve_slots_per_hour: settingsData.reserve_slots_per_hour ?? 3,
     available_days: settingsData.available_days ?? [1, 2, 3, 4, 5, 6, 7],
     supply_types: settingsData.supply_types ?? []
   };
