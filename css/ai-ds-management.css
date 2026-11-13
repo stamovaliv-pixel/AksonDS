@@ -1,0 +1,96 @@
+/* AKSON DockSlot — Doxi management page v1.7. Scoped styles only. */
+.doxi-admin-shell {
+  width: min(1180px, calc(100% - 40px));
+  margin: 28px auto 56px;
+  color: var(--color-text-main, #243247);
+}
+.doxi-admin-shell[hidden] { display: none !important; }
+.doxi-admin-heading {
+  display:flex; align-items:flex-end; justify-content:space-between; gap:22px; margin-bottom:22px;
+}
+.doxi-admin-eyebrow { color:#8493a7; font-size:10px; font-weight:800; letter-spacing:.14em; margin-bottom:8px; }
+.doxi-admin-heading h1 { margin:0; color:var(--color-text-main,#243247); font-size:clamp(25px,3vw,32px); font-weight:780; letter-spacing:-.035em; }
+.doxi-admin-heading p { margin:8px 0 0; color:var(--color-text-muted,#64748b); font-size:13px; line-height:1.55; }
+.doxi-admin-role-chip,.doxi-admin-static-tag,.doxi-admin-lock-label {
+  display:inline-flex; align-items:center; gap:7px; padding:8px 11px; border:1px solid rgba(148,163,184,.22);
+  border-radius:999px; color:#63738a; background:rgba(255,255,255,.72); font-size:10px; font-weight:700; white-space:nowrap;
+}
+.doxi-admin-role-chip span { width:7px; height:7px; border-radius:50%; background:#22a06b; box-shadow:0 0 0 3px rgba(34,160,107,.10); }
+.doxi-admin-status-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:13px; margin-bottom:14px; }
+.doxi-admin-card { min-width:0; margin-bottom:14px; padding:20px 21px; border:1px solid var(--color-border,rgba(148,163,184,.25)); border-radius:17px; background:var(--color-surface,#fff); box-shadow:0 5px 18px rgba(20,36,58,.045); }
+.doxi-admin-status-grid .doxi-admin-card { margin:0; min-height:116px; }
+.doxi-admin-card-label { margin-bottom:12px; color:var(--color-text-muted,#7b899b); font-size:10px; font-weight:760; letter-spacing:.07em; text-transform:uppercase; }
+.doxi-admin-status-line { display:flex; align-items:center; gap:9px; font-size:17px; }
+.doxi-admin-status-dot { width:9px; height:9px; border-radius:50%; background:#94a3b8; box-shadow:0 0 0 4px rgba(148,163,184,.12); }
+.doxi-admin-status-dot.is-online { background:#22a06b; box-shadow:0 0 0 4px rgba(34,160,107,.12); }
+.doxi-admin-status-dot.is-offline { background:#d97706; box-shadow:0 0 0 4px rgba(217,119,6,.12); }
+.doxi-admin-card p { margin:8px 0 0; color:var(--color-text-muted,#77869a); font-size:11px; line-height:1.5; }
+.doxi-admin-model-name { color:var(--color-text-main,#27364b); font-size:18px; font-weight:780; letter-spacing:-.02em; }
+.doxi-admin-section-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:15px; }
+.doxi-admin-section-heading h2 { margin:0; color:var(--color-text-main,#25344a); font-size:16px; font-weight:780; letter-spacing:-.02em; }
+.doxi-admin-section-heading p { margin:6px 0 0; color:var(--color-text-muted,#77869a); font-size:11px; line-height:1.5; }
+.doxi-admin-lock-label { background:linear-gradient(110deg,#fff4f4,#f2f7ff); color:#75849a; }
+.doxi-admin-lock-label span { color:#bc7286; font-size:9px; }
+.doxi-admin-setting-row { display:flex; align-items:center; justify-content:space-between; gap:22px; padding:16px 0; border-top:1px solid var(--color-border,rgba(148,163,184,.2)); }
+.doxi-admin-setting-copy { display:flex; flex-direction:column; gap:5px; min-width:0; }
+.doxi-admin-setting-copy strong { color:var(--color-text-main,#29384d); font-size:13px; font-weight:730; }
+.doxi-admin-setting-copy span { color:var(--color-text-muted,#77869a); font-size:11px; line-height:1.5; }
+.doxi-admin-switch { position:relative; display:inline-flex; flex:0 0 46px; width:46px; height:26px; cursor:pointer; }
+.doxi-admin-switch input { position:absolute; width:1px; height:1px; opacity:0; }
+.doxi-admin-switch > span { position:absolute; inset:0; border-radius:999px; background:#cbd5e1; transition:background .18s ease; }
+.doxi-admin-switch > span::before { content:""; position:absolute; left:3px; top:3px; width:20px; height:20px; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(15,23,42,.18); transition:transform .18s ease; }
+.doxi-admin-switch input:checked + span { background:linear-gradient(105deg,#7db9dc,#b99acb); }
+.doxi-admin-switch input:checked + span::before { transform:translateX(20px); }
+.doxi-admin-switch input:focus-visible + span { outline:3px solid rgba(59,130,246,.2); outline-offset:3px; }
+.doxi-admin-actions { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:8px; padding-top:15px; border-top:1px solid var(--color-border,rgba(148,163,184,.2)); }
+.doxi-admin-save-meta { color:var(--color-text-muted,#8492a5); font-size:10px; }
+.doxi-admin-btn { display:inline-flex; align-items:center; justify-content:center; min-height:37px; padding:0 14px; border:1px solid transparent; border-radius:10px; font:700 11px/1 var(--font-main,Arial,sans-serif); cursor:pointer; transition:transform .16s ease,filter .16s ease,background .16s ease; }
+.doxi-admin-btn:hover:not(:disabled) { transform:translateY(-1px); filter:brightness(1.025); }
+.doxi-admin-btn:disabled { opacity:.55; cursor:not-allowed; }
+.doxi-admin-btn-primary { color:#fff; background:linear-gradient(105deg,#527fb5,#8b8cc2); box-shadow:0 4px 12px rgba(94,126,177,.18); }
+.doxi-admin-btn-secondary { color:#52647c; background:linear-gradient(110deg,#fff1f2,#f5f8ff); border-color:rgba(148,163,184,.24); }
+.doxi-admin-test-result { display:flex; align-items:center; gap:9px; min-height:42px; padding:10px 12px; border-radius:11px; background:rgba(100,116,139,.055); color:var(--color-text-muted,#708198); font-size:11px; line-height:1.5; }
+.doxi-admin-test-indicator { width:8px; height:8px; flex:0 0 8px; border-radius:50%; background:#94a3b8; }
+.doxi-admin-test-result.is-ok { color:#27785a; background:rgba(34,160,107,.07); }
+.doxi-admin-test-result.is-ok .doxi-admin-test-indicator { background:#22a06b; }
+.doxi-admin-test-result.is-error { color:#a15c4f; background:rgba(197,94,126,.075); }
+.doxi-admin-test-result.is-error .doxi-admin-test-indicator { background:#c65e7e; }
+.doxi-admin-persona-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.doxi-admin-persona-main { display:flex; align-items:center; gap:13px; grid-column:1/-1; padding:5px 0 13px; border-bottom:1px solid var(--color-border,rgba(148,163,184,.2)); margin-bottom:3px; }
+.doxi-admin-persona-avatar { position:relative; display:flex; align-items:baseline; justify-content:center; width:54px; height:54px; flex:0 0 54px; padding-top:15px; border-radius:16px; background:linear-gradient(120deg,#fff0f1,#fffafd 48%,#edf7ff); box-shadow:0 5px 13px rgba(83,112,145,.09),inset 0 1px #fff; color:#2d405a; font:800 24px/1 Arial,sans-serif; letter-spacing:-.08em; }
+.doxi-admin-persona-avatar em { color:#c65e7e; font-size:.84em; font-style:normal; transform:skewX(-5deg); }
+.doxi-admin-persona-avatar i { position:absolute; top:7px; right:6px; color:#d17b98; font-size:12px; font-style:normal; }
+.doxi-admin-persona-main h3 { margin:0; font-size:17px; font-weight:800; }
+.doxi-admin-persona-main p { margin:4px 0 0; }
+.doxi-admin-persona-fact { display:flex; flex-direction:column; gap:5px; padding:10px 11px; border-radius:11px; background:rgba(100,116,139,.045); }
+.doxi-admin-persona-fact span { color:var(--color-text-muted,#8a97a8); font-size:9px; font-weight:750; text-transform:uppercase; letter-spacing:.06em; }
+.doxi-admin-persona-fact strong { color:var(--color-text-main,#304056); font-size:11px; font-weight:680; line-height:1.45; }
+.doxi-admin-hint { margin-top:13px !important; }
+.doxi-admin-guardrail-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.doxi-admin-guardrail-grid > div { padding:13px; border-radius:12px; background:rgba(100,116,139,.045); }
+.doxi-admin-guardrail-grid strong { display:block; margin-top:7px; color:var(--color-text-main,#34445b); font-size:11px; }
+.doxi-admin-guardrail-grid p { margin-top:5px; font-size:10px; }
+.doxi-guardrail-ok,.doxi-guardrail-no,.doxi-guardrail-lock { display:inline-grid; place-items:center; width:22px; height:22px; border-radius:7px; background:rgba(34,160,107,.1); color:#27966d; font-weight:800; }
+.doxi-guardrail-no { background:rgba(198,94,126,.10); color:#bd6a82; }
+.doxi-guardrail-lock { background:rgba(91,130,183,.1); color:#6384b4; }
+.doxi-admin-toast { position:fixed; left:50%; bottom:25px; z-index:10060; max-width:min(520px,calc(100vw - 30px)); padding:11px 15px; border-radius:11px; background:#26364b; color:#fff; font-size:11px; box-shadow:0 12px 32px rgba(15,23,42,.2); opacity:0; pointer-events:none; transform:translate(-50%,8px); transition:opacity .18s ease,transform .18s ease; }
+.doxi-admin-toast.is-visible { opacity:1; transform:translate(-50%,0); }
+html[data-theme="dark"] .doxi-admin-role-chip,html[data-theme="dark"] .doxi-admin-static-tag,html[data-theme="dark"] .doxi-admin-lock-label { background:#202c39; border-color:#364455; color:#bdc8d6; }
+html[data-theme="dark"] .doxi-admin-lock-label { background:linear-gradient(110deg,#34272f,#202c39); }
+html[data-theme="dark"] .doxi-admin-persona-fact,html[data-theme="dark"] .doxi-admin-guardrail-grid > div { background:rgba(148,163,184,.07); }
+html[data-theme="dark"] .doxi-admin-persona-fact strong,html[data-theme="dark"] .doxi-admin-guardrail-grid strong { color:#e1e8f0; }
+html[data-theme="dark"] .doxi-admin-test-result { background:rgba(148,163,184,.08); }
+@media(max-width:760px) {
+  .doxi-admin-shell { width:calc(100% - 24px); margin:19px auto 42px; }
+  .doxi-admin-heading { align-items:flex-start; flex-direction:column; gap:12px; }
+  .doxi-admin-status-grid { grid-template-columns:1fr; }
+  .doxi-admin-status-grid .doxi-admin-card { min-height:auto; }
+  .doxi-admin-card { padding:16px; }
+  .doxi-admin-section-heading { flex-direction:column; }
+  .doxi-admin-lock-label { white-space:normal; }
+  .doxi-admin-actions { align-items:stretch; flex-direction:column; }
+  .doxi-admin-btn { width:100%; }
+  .doxi-admin-persona-grid { grid-template-columns:1fr; }
+  .doxi-admin-guardrail-grid { grid-template-columns:1fr; }
+}
+@media(prefers-reduced-motion:reduce) { .doxi-admin-btn,.doxi-admin-toast,.doxi-admin-switch > span,.doxi-admin-switch > span::before { transition:none; } }
