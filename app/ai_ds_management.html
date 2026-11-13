@@ -4,23 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#f4f7f9">
-  <title>Управление Докси — AKSON DockSlot</title>
+  <title>Управление Докси — DockSlot v1.9.3</title>
   <link rel="stylesheet" href="../css/theme.css?v=4-1-date-exceptions">
   <link rel="stylesheet" href="../css/main.css?v=4-1-date-exceptions">
   <link rel="stylesheet" href="../css/dark-mode.css?v=4">
   <link rel="stylesheet" href="../css/mobile-refinements.css?v=2">
   <link rel="stylesheet" href="../css/admin-navigation.css?v=17-doxi-management">
   <link rel="stylesheet" href="../css/notifications.css?v=6-floating-bell-theme">
-  <link rel="stylesheet" href="../css/ai-ds.css?v=1-9-1-friendlier-chat-status">
+  <link rel="stylesheet" href="../css/ai-ds.css?v=1-9-3-knowledge-base">
   <link rel="stylesheet" href="../css/ai-ds-motion-v1-5-5-blush-sky.css?v=1-5-5">
-  <link rel="stylesheet" href="../css/ai-ds-management.css?v=1-9-1-write-capabilities">
+  <link rel="stylesheet" href="../css/ai-ds-management.css?v=1-9-3-knowledge-base">
   <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon.png">
 </head>
 <body class="app-body doxi-management-page">
   <div class="top-gradient-bar"></div>
   <header class="app-header">
-    <div class="header-logo"><img src="../assets/logistic-logo.svg" alt="АКСОН Логистика" class="app-logo"></div>
+    <div class="header-logo doxi-header-logo"><span>Докси</span></div>
     <nav class="header-nav" aria-label="Административная навигация">
       <button class="theme-toggle" type="button" data-theme-toggle title="Темный режим" aria-label="Темный режим"></button>
       <a href="#" id="logoutBtn" class="nav-icon" title="Выход" aria-label="Выход"></a>
@@ -30,7 +30,7 @@
   <main class="doxi-admin-shell" id="doxiAdminRoot" hidden>
     <header class="doxi-admin-heading">
       <div>
-        <div class="doxi-admin-eyebrow">AKSON DOCKSLOT · AI ASSISTANT</div>
+        <div class="doxi-admin-eyebrow">DOCKSLOT · AI ASSISTANT</div>
         <h1>Управление Докси</h1>
         <p>Настройки помощницы, доступ к данным и проверка защищённого соединения.</p>
       </div>
@@ -91,14 +91,14 @@
       <div class="doxi-admin-setting-row doxi-admin-setting-row-stack doxi-admin-capability-block">
         <div class="doxi-admin-setting-copy">
           <strong>Полномочия Докси</strong>
-          <span>Каждое право включается отдельно. Все изменения записей требуют предварительной карточки и явного подтверждения. По умолчанию все права выключены.</span>
+          <span>Полномочия записей проверяются сервером. Создание, редактирование и удаление записей требуют отдельного подтверждения. Личные заметки и напоминания каждого пользователя сохраняются сразу, без подтверждения.</span>
         </div>
         <div class="doxi-capability-list">
           <label class="doxi-capability-row"><span><strong>Создание записей</strong><small>Подготовка новой записи или копии разрешённой исходной записи.</small></span><input type="checkbox" id="doxiBookingCreateEnabled"></label>
           <label class="doxi-capability-row"><span><strong>Редактирование записей</strong><small>Только дата, время, документ, типы поставки, ТК и комментарий.</small></span><input type="checkbox" id="doxiBookingUpdateEnabled"></label>
           <label class="doxi-capability-row doxi-capability-danger"><span><strong>Удаление записей</strong><small>Только активные записи без ворот, прибытия и убытия; с отдельным подтверждением.</small></span><input type="checkbox" id="doxiBookingDeleteEnabled"></label>
-          <label class="doxi-capability-row"><span><strong>Личные заметки</strong><small>Докси сможет сохранять заметки текущего суперадминистратора.</small></span><input type="checkbox" id="doxiNotesEnabled"></label>
-          <label class="doxi-capability-row"><span><strong>Напоминания</strong><small>Напоминания в открытом DockSlot; push при закрытом браузере не входит в эту версию.</small></span><input type="checkbox" id="doxiRemindersEnabled"></label>
+          <label class="doxi-capability-row"><span><strong>Личные заметки</strong><small>Докси сможет сохранять личные заметки пользователя, которому открыт чат.</small></span><input type="checkbox" id="doxiNotesEnabled"></label>
+          <label class="doxi-capability-row"><span><strong>Напоминания</strong><small>Личные напоминания пользователя в открытом DockSlot; push при закрытом браузере не входит в эту версию.</small></span><input type="checkbox" id="doxiRemindersEnabled"></label>
         </div>
       </div>
       <div class="doxi-admin-setting-row doxi-admin-setting-row-stack">
@@ -150,22 +150,20 @@
       <div class="doxi-admin-section-heading">
         <div>
           <h2>Личность и характер Докси</h2>
-          <p>Постоянные правила образа, передаваемые модели при каждом диалоге.</p>
+          <p>Постоянные правила образа, манера общения и справочные материалы.</p>
         </div>
         <span class="doxi-admin-static-tag">Системный профиль</span>
       </div>
       <div class="doxi-admin-persona-grid">
         <div class="doxi-admin-persona-main">
-          <div class="doxi-admin-persona-avatar" aria-hidden="true"><span>D</span><em>x</em><i>✦</i></div>
-          <div><h3>Докси</h3><p>Виртуальная помощница AKSON DockSlot</p></div>
+          <div class="doxi-admin-persona-avatar" aria-hidden="true"><span>D</span><em>x</em></div>
+          <div><h3>Докси</h3><p>Виртуальная помощница DockSlot</p></div>
         </div>
         <div class="doxi-admin-persona-fact"><span>Роль</span><strong>Помощница · секретарь · стратегическая ассистентка</strong></div>
         <div class="doxi-admin-persona-fact"><span>Общение</span><strong>Всегда женский род · мудрая · умная · тактичная</strong></div>
         <div class="doxi-admin-persona-fact"><span>Образ</span><strong>Блондинка — образ виртуального персонажа</strong></div>
-        <div class="doxi-admin-persona-fact"><span>Любимое число</span><strong>44</strong></div>
-        <div class="doxi-admin-persona-fact"><span>Любимый город</span><strong>Кострома</strong></div>
       </div>
-      <p class="doxi-admin-hint">Докси не изображает реального человека и не заявляет о физическом теле. Эти характеристики формируют её виртуальный образ и манеру общения.</p>
+      <p class="doxi-admin-hint">Докси не изображает реального человека и не заявляет о физическом теле. Личные предпочтения она упоминает только по прямому вопросу или когда разговор явно к ним подводит.</p>
     </section>
 
     <section class="doxi-admin-card doxi-admin-guardrails">
@@ -177,8 +175,44 @@
       </div>
     </section>
 
+
+    <section class="doxi-admin-card doxi-knowledge-card">
+      <div class="doxi-admin-section-heading">
+        <div>
+          <h2>База знаний Докси</h2>
+          <p>Загружайте справочные документы о компании, проекте, ролях пользователей, терминологии и правилах общения.</p>
+        </div>
+        <span class="doxi-admin-static-tag">Справочные материалы</span>
+      </div>
+      <div class="doxi-knowledge-upload-grid">
+        <label class="doxi-knowledge-file-label" for="doxiKnowledgeFile">
+          <span>Файл базы знаний</span>
+          <input id="doxiKnowledgeFile" type="file" accept=".md,.txt,.json,text/markdown,text/plain,application/json">
+          <small>Поддерживаются Markdown (.md), текст (.txt) и JSON (.json), до 1 МБ на файл.</small>
+        </label>
+        <label class="doxi-knowledge-field"><span>Название материала</span><input id="doxiKnowledgeTitle" type="text" maxlength="120" placeholder="Например: Роли и типажи пользователей"></label>
+        <label class="doxi-knowledge-field"><span>Раздел</span>
+          <select id="doxiKnowledgeCategory" class="doxi-admin-select">
+            <option value="general">Общие сведения</option>
+            <option value="company">Компания</option>
+            <option value="project">Проект и система</option>
+            <option value="roles">Роли и пользователи</option>
+            <option value="communication">Обращение и стиль общения</option>
+            <option value="processes">Процессы и правила</option>
+            <option value="glossary">Термины и сокращения</option>
+            <option value="faq">Вопросы и ответы</option>
+          </select>
+        </label>
+        <button class="doxi-admin-btn doxi-admin-btn-primary" id="doxiKnowledgeUpload" type="button" disabled>Загрузить в базу знаний</button>
+      </div>
+      <p class="doxi-knowledge-note">Документы становятся справочным контекстом для ответов, но не меняют саму модель. Не загружайте пароли, API-ключи, токены и лишние персональные данные. Инструкции из файлов не могут отменять системные ограничения и права доступа.</p>
+      <div class="doxi-knowledge-template"><a href="../docs/DOXI_KNOWLEDGE_TEMPLATE.md" download>Скачать шаблон Markdown</a><span> · </span><a href="../docs/DOXI_KNOWLEDGE_EXAMPLE.json" download>Пример JSON-структуры</a></div>
+      <div id="doxiKnowledgeStatus" class="doxi-knowledge-status" role="status" aria-live="polite">Загружаю базу знаний…</div>
+      <div id="doxiKnowledgeList" class="doxi-knowledge-list"><div class="doxi-history-empty">Загружаю материалы…</div></div>
+    </section>
+
     <section class="doxi-admin-card doxi-admin-personal-items">
-      <div class="doxi-admin-section-heading"><div><h2>Мои заметки и напоминания</h2><p>Личные материалы текущего суперадминистратора. Доступны только через защищённую функцию.</p></div><button class="doxi-admin-btn doxi-admin-btn-secondary" type="button" id="doxiRefreshPersonalItems">Обновить</button></div>
+      <div class="doxi-admin-section-heading"><div><h2>Мои заметки и напоминания</h2><p>Личные материалы текущего пользователя. Каждый пользователь видит только собственные заметки и напоминания.</p></div><button class="doxi-admin-btn doxi-admin-btn-secondary" type="button" id="doxiRefreshPersonalItems">Обновить</button></div>
       <div class="doxi-personal-items-grid">
         <div><h3>Заметки</h3><div id="doxiNotesList" class="doxi-personal-items-list"><div class="doxi-history-empty">Загружаю заметки…</div></div></div>
         <div><h3>Напоминания</h3><div id="doxiRemindersList" class="doxi-personal-items-list"><div class="doxi-history-empty">Загружаю напоминания…</div></div></div>
@@ -212,7 +246,7 @@
   <script src="../js/push-config.js?v=2-windows-push"></script>
   <script src="../js/notifications.js?v=moscow-time-v1"></script>
   <script src="../js/admin-navigation.js?v=1-9-1-doxi-management"></script>
-  <script src="../js/ai-ds.js?v=1-9-1-write-capabilities"></script>
-  <script src="../js/ai-ds-management.js?v=1-9-1-write-capabilities"></script>
+  <script src="../js/ai-ds.js?v=1-9-3-knowledge-base"></script>
+  <script src="../js/ai-ds-management.js?v=1-9-3-knowledge-base"></script>
 </body>
 </html>
