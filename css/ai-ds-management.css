@@ -1,4 +1,4 @@
-/* AKSON DockSlot — Doxi management page v1.7. Scoped styles only. */
+/* Doxi management page v1.9.2. Scoped styles only. */
 .doxi-admin-shell {
   width: min(1180px, calc(100% - 40px));
   margin: 28px auto 56px;
@@ -210,3 +210,36 @@ html[data-theme="dark"] .doxi-history-message.is-user { background:linear-gradie
 html[data-theme="dark"] .doxi-capability-row,html[data-theme="dark"] .doxi-personal-item { background:rgba(148,163,184,.045); }
 html[data-theme="dark"] .doxi-capability-row strong,html[data-theme="dark"] .doxi-personal-items-grid h3,html[data-theme="dark"] .doxi-personal-item strong,html[data-theme="dark"] .doxi-personal-item p { color:#e1e8f0; }
 @media(max-width:760px) { .doxi-capability-list,.doxi-personal-items-grid { grid-template-columns:1fr; } }
+
+
+/* Neutral project label on the Doxi-only management page. */
+.doxi-management-page .doxi-header-logo {
+  display: flex;
+  align-items: center;
+  min-width: 150px;
+  color: var(--color-text-main, #25344a);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -.035em;
+}
+
+
+/* v1.9.3 — compact reference knowledge uploader. */
+.doxi-knowledge-upload-grid { display:grid; grid-template-columns:minmax(220px,1.35fr) minmax(180px,1fr) minmax(170px,.8fr) auto; gap:10px; align-items:end; }
+.doxi-knowledge-file-label,.doxi-knowledge-field { display:flex; flex-direction:column; gap:6px; min-width:0; color:var(--color-text-main,#34445a); font-size:10px; font-weight:700; }
+.doxi-knowledge-file-label input,.doxi-knowledge-field input,.doxi-knowledge-field select { min-width:0; width:100%; min-height:38px; padding:8px 10px; border:1px solid var(--color-border,#dbe2ea); border-radius:9px; background:var(--color-surface,#fff); color:var(--color-text-main,#34445a); font:500 11px var(--font-main,Arial,sans-serif); }
+.doxi-knowledge-file-label small { color:var(--color-text-muted,#8794a5); font-size:9px; font-weight:500; line-height:1.4; }
+.doxi-knowledge-note { margin:12px 0 6px; color:var(--color-text-muted,#8794a5); font-size:10px; line-height:1.5; }
+.doxi-knowledge-template { margin:7px 0 11px; font-size:10px; }
+.doxi-knowledge-template a { color:#397bd1; text-decoration:none; font-weight:700; }
+.doxi-knowledge-template a:hover { text-decoration:underline; }
+.doxi-knowledge-status { margin:7px 0; color:var(--color-text-muted,#8794a5); font-size:10px; }
+.doxi-knowledge-list { display:grid; gap:7px; }
+.doxi-knowledge-item { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 11px; border:1px solid var(--color-border,#e2e8f0); border-radius:10px; background:rgba(100,116,139,.025); }
+.doxi-knowledge-item-main { min-width:0; }
+.doxi-knowledge-item strong { display:block; overflow-wrap:anywhere; color:var(--color-text-main,#34445a); font-size:11px; }
+.doxi-knowledge-item small { display:block; margin-top:3px; color:var(--color-text-muted,#8794a5); font-size:9px; }
+.doxi-knowledge-delete { flex:0 0 auto; padding:6px 9px; border:1px solid rgba(198,94,126,.24); border-radius:8px; background:rgba(198,94,126,.06); color:#ad5872; font:650 9px var(--font-main,Arial,sans-serif); cursor:pointer; }
+@media(max-width:900px) { .doxi-knowledge-upload-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:560px) { .doxi-knowledge-upload-grid { grid-template-columns:1fr; } .doxi-knowledge-item { align-items:flex-start; } }
+html[data-theme="dark"] .doxi-knowledge-item { background:rgba(148,163,184,.045); }
