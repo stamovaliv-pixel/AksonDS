@@ -1,28 +1,28 @@
 /* AI DS assistant — visual prototype, DockSlot theme-aware. */
 .ak-ai-ds-launcher {
-  position: fixed; right: max(26px, env(safe-area-inset-right));
-  bottom: max(98px, calc(env(safe-area-inset-bottom) + 98px)); z-index: 10042;
+  position: fixed; left: max(26px, env(safe-area-inset-left)); right: auto;
+  bottom: max(26px, env(safe-area-inset-bottom)); z-index: 10042;
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   min-width: 66px; height: 54px; padding: 0 13px;
-  border: 1px solid rgba(255,255,255,.72); border-radius: 28px;
-  background: linear-gradient(145deg,#253f72 0%,#172b50 100%); color: #fff;
+  border: 1px solid rgba(255,255,255,.9); border-radius: 28px;
+  background: linear-gradient(135deg,#edf4fb 0%,#e7edf6 52%,#f0edf5 100%); color: #2d3d52;
   font: 750 14px/1 var(--font-main,Arial,sans-serif); letter-spacing: .02em;
-  cursor: pointer; box-shadow: 0 8px 24px rgba(22,43,80,.28),0 3px 8px rgba(15,23,42,.14),inset 0 1px 0 rgba(255,255,255,.2);
+  cursor: pointer; box-shadow: 0 8px 22px rgba(83,112,145,.14),0 3px 8px rgba(15,23,42,.08),inset 0 1px 0 rgba(255,255,255,.88);
   transition: transform .18s ease,box-shadow .18s ease,filter .18s ease;
 }
-.ak-ai-ds-launcher:hover,.ak-ai-ds-launcher:focus-visible { transform: translateY(-3px); filter: brightness(1.1); box-shadow: 0 12px 30px rgba(22,43,80,.34); outline: none; }
-.ak-ai-ds-launcher.is-active { background: linear-gradient(145deg,#347edc,#245cae); }
-.ak-ai-ds-mark { display:grid; place-items:center; width:25px; height:25px; border-radius:50%; background:rgba(255,255,255,.16); font-size:10px; letter-spacing:-.05em; }
+.ak-ai-ds-launcher:hover,.ak-ai-ds-launcher:focus-visible { transform: translateY(-3px); filter: brightness(1.035); box-shadow: 0 11px 26px rgba(83,112,145,.19),0 3px 8px rgba(15,23,42,.08),inset 0 1px 0 rgba(255,255,255,.9); outline: none; }
+.ak-ai-ds-launcher.is-active { background: linear-gradient(135deg,#e3edf8 0%,#dce6f2 52%,#e9e3ef 100%); }
+.ak-ai-ds-mark { display:grid; place-items:center; width:25px; height:25px; border-radius:50%; background:rgba(255,255,255,.72); color:#5b6f87; font-size:10px; letter-spacing:-.05em; }
 .ak-ai-ds-overlay[hidden] { display:none!important; }
 .ak-ai-ds-overlay { position:fixed; inset:0; z-index:10041; background:transparent; }
 .ak-ai-ds-window {
-  position:fixed; right:max(26px,env(safe-area-inset-right)); bottom:165px;
+  position:fixed; left:max(26px,env(safe-area-inset-left)); right:auto; bottom:94px;
   display:flex; flex-direction:column; width:min(410px,calc(100vw - 28px));
-  height:min(590px,calc(100dvh - 205px)); min-height:390px; overflow:hidden;
+  height:min(590px,calc(100dvh - 130px)); min-height:390px; overflow:hidden;
   border:1px solid var(--color-border,rgba(148,163,184,.3)); border-radius:19px;
   background:var(--color-surface,#fff); color:var(--color-text-main,#1e293b);
   box-shadow:0 22px 70px rgba(15,23,42,.24);
-  opacity:0; transform:translateY(10px) scale(.985); transform-origin:bottom right;
+  opacity:0; transform:translateY(10px) scale(.985); transform-origin:bottom left;
   transition:opacity .16s ease,transform .16s ease;
 }
 .ak-ai-ds-overlay.is-open .ak-ai-ds-window { opacity:1; transform:translateY(0) scale(1); }
@@ -63,7 +63,7 @@
 .ak-ai-ds-composer button svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
 .ak-ai-ds-footnote { padding:8px 12px 10px; color:var(--color-text-muted,#94a3b8); text-align:center; font-size:9px; }
 @media(max-width:600px) {
-  .ak-ai-ds-launcher { right:16px; bottom:max(88px,calc(env(safe-area-inset-bottom) + 88px)); }
-  .ak-ai-ds-window { right:10px; bottom:150px; width:calc(100vw - 20px); height:min(590px,calc(100dvh - 180px)); }
+  .ak-ai-ds-launcher { left:16px; right:auto; bottom:max(18px,env(safe-area-inset-bottom)); }
+  .ak-ai-ds-window { left:10px; right:auto; bottom:84px; width:calc(100vw - 20px); height:min(590px,calc(100dvh - 112px)); }
 }
 @media(prefers-reduced-motion:reduce) { .ak-ai-ds-window,.ak-ai-ds-launcher { transition:none; } }
