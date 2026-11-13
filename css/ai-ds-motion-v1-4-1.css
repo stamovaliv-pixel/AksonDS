@@ -1,0 +1,51 @@
+/* Doksy launcher animated gradient — isolated override, v1.4.1 */
+@keyframes ak-ai-ds-gradient-flow-v141 {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Only the floating AI DS launcher is affected. */
+.ak-ai-ds-launcher {
+  isolation: isolate;
+  overflow: hidden;
+  background: transparent !important;
+  animation: none !important;
+}
+
+.ak-ai-ds-launcher::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: linear-gradient(
+    118deg,
+    #e2effb 0%,
+    #e9eafb 24%,
+    #f1e4f0 47%,
+    #f4dfe1 66%,
+    #e4edf9 84%,
+    #e2effb 100%
+  );
+  background-size: 320% 320%;
+  background-position: 0% 50%;
+  animation: ak-ai-ds-gradient-flow-v141 8s ease-in-out infinite;
+}
+
+.ak-ai-ds-launcher > * {
+  position: relative;
+  z-index: 1;
+}
+
+.ak-ai-ds-launcher.is-active::before {
+  filter: saturate(.94) brightness(.99);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ak-ai-ds-launcher::before {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}
