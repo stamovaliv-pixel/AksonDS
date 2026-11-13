@@ -1,4 +1,4 @@
-/* AKSON DockSlot — Doxi AI agent client v1.6.
+/* AKSON DockSlot — Doxi AI agent client v1.7.
    Calls only the authenticated Supabase Edge Function. No model URL or proxy secret in browser. */
 document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
@@ -54,11 +54,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="ak-ai-ds-welcome">
           <div class="ak-ai-ds-welcome-icon">✦</div>
           <h3>Привет! Я Докси 👋</h3>
-          <p>Помогаю с работой AKSON DockSlot. Пока у меня подключена языковая модель; доступ к живым данным записей добавим отдельными безопасными инструментами.</p>
+          <p>Я ваша помощница по AKSON DockSlot. Могу разбирать правила системы и получать актуальные сводки активных записей по датам. Изменять записи пока не могу.</p>
           <div class="ak-ai-ds-suggestions">
-            <button type="button" data-prompt="Объясни, как устроен календарь DockSlot и какие у него основные правила.">Как устроен календарь? <span>↗</span></button>
-            <button type="button" data-prompt="Помоги разобраться с типичным сценарием работы с записью поставщика в DockSlot.">Работа с записями <span>↗</span></button>
-            <button type="button" data-prompt="Какие данные и показатели стоит анализировать в DockSlot для контроля загрузки склада?">Анализ загрузки склада <span>↗</span></button>
+            <button type="button" data-prompt="Сколько активных записей сегодня? Покажи распределение по часам.">Сводка на сегодня <span>↗</span></button>
+            <button type="button" data-prompt="Какая загрузка по активным записям завтра? Покажи распределение по часам.">Загрузка на завтра <span>↗</span></button>
+            <button type="button" data-prompt="Объясни правила календаря и работы со слотами в DockSlot.">Правила календаря <span>↗</span></button>
           </div>
         </div>
       </div>
@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
         </button>
       </form>
-      <div class="ak-ai-ds-footnote">Докси пока не читает записи напрямую. Проверяйте важные решения по данным системы.</div>
+      <div class="ak-ai-ds-footnote">Докси читает только разрешённые данные DockSlot и не изменяет записи.</div>
     </section>`;
   document.body.append(launcher, overlay);
 
@@ -96,7 +96,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       'load_management.html': 'Управление загрузкой',
       'shift_board.html': 'Рабочая доска',
       'dashboard.html': 'Обзор',
-      'help.html': 'Помощь'
+      'help.html': 'Помощь',
+      'ai_ds_management.html': 'Управление Докси'
     };
     return labels[file] || 'Раздел AKSON DockSlot';
   };
@@ -137,11 +138,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="ak-ai-ds-welcome">
         <div class="ak-ai-ds-welcome-icon">✦</div>
         <h3>Привет! Я Докси 👋</h3>
-        <p>Помогаю с работой AKSON DockSlot. Пока у меня подключена языковая модель; доступ к живым данным записей добавим отдельными безопасными инструментами.</p>
+        <p>Я ваша помощница по AKSON DockSlot. Могу разбирать правила системы и получать актуальные сводки активных записей по датам. Изменять записи пока не могу.</p>
         <div class="ak-ai-ds-suggestions">
-          <button type="button" data-prompt="Объясни, как устроен календарь DockSlot и какие у него основные правила.">Как устроен календарь? <span>↗</span></button>
-          <button type="button" data-prompt="Помоги разобраться с типичным сценарием работы с записью поставщика в DockSlot.">Работа с записями <span>↗</span></button>
-          <button type="button" data-prompt="Какие данные и показатели стоит анализировать в DockSlot для контроля загрузки склада?">Анализ загрузки склада <span>↗</span></button>
+          <button type="button" data-prompt="Сколько активных записей сегодня? Покажи распределение по часам.">Сводка на сегодня <span>↗</span></button>
+          <button type="button" data-prompt="Какая загрузка по активным записям завтра? Покажи распределение по часам.">Загрузка на завтра <span>↗</span></button>
+          <button type="button" data-prompt="Объясни правила календаря и работы со слотами в DockSlot.">Правила календаря <span>↗</span></button>
         </div>
       </div>`;
   };
@@ -181,7 +182,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       conversation.push({ role: 'assistant', content: data.response.trim() });
       conversation = conversation.slice(-10);
       status.textContent = 'Qwen 3.5 9B · подключена';
-      note.textContent = 'Докси подключена к домашней модели Qwen 3.5 9B.';
+      note.textContent = data.live_data ? 'Ответ подготовлен с использованием разрешённых актуальных данных DockSlot.' : 'Докси подключена к домашней модели Qwen 3.5 9B.';
     } catch (error) {
       pending.remove();
       console.error('[Докси] Request failed:', error);
