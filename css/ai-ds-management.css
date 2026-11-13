@@ -185,3 +185,28 @@ html[data-theme="dark"] .doxi-history-message.is-user { background:linear-gradie
   .doxi-history-transcript { padding:12px; }
   .doxi-history-transcript-heading { top:-12px; margin:-12px -12px 12px; padding:12px; }
 }
+
+
+/* v1.9.1 — explicit granular assistant capabilities and personal work lists. */
+.doxi-capability-block { align-items:stretch; }
+.doxi-capability-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; width:100%; }
+.doxi-capability-row { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:62px; padding:11px 13px; border:1px solid var(--color-border,#e2e8f0); border-radius:12px; background:rgba(100,116,139,.025); cursor:pointer; }
+.doxi-capability-row span { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.doxi-capability-row strong { color:var(--color-text-main,#34445a); font-size:11px; }
+.doxi-capability-row small { color:var(--color-text-muted,#8090a3); font-size:9px; line-height:1.4; }
+.doxi-capability-row input { flex:0 0 auto; width:17px; height:17px; accent-color:#b66f89; }
+.doxi-capability-danger { border-color:rgba(205,91,105,.22); }
+.doxi-personal-items-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.doxi-personal-items-grid h3 { margin:0 0 9px; color:var(--color-text-main,#34445a); font-size:12px; }
+.doxi-personal-items-list { display:flex; flex-direction:column; gap:8px; max-height:380px; overflow:auto; }
+.doxi-personal-item { padding:11px 12px; border:1px solid var(--color-border,#e2e8f0); border-radius:11px; background:rgba(100,116,139,.025); }
+.doxi-personal-item strong { display:block; color:var(--color-text-main,#34445a); font-size:11px; }
+.doxi-personal-item p { margin:5px 0; color:var(--color-text-main,#43546b); font-size:10px; line-height:1.45; white-space:pre-wrap; overflow-wrap:anywhere; }
+.doxi-personal-item small { display:block; color:var(--color-text-muted,#8492a5); font-size:9px; }
+.doxi-personal-item-actions { display:flex; gap:7px; margin-top:8px; }
+.doxi-personal-item-remove,.doxi-personal-item-done { min-height:27px; padding:0 9px; border:1px solid var(--color-border,#dbe2ea); border-radius:8px; background:var(--color-surface,#fff); color:var(--color-text-muted,#65758a); font:650 9px var(--font-main,Arial,sans-serif); cursor:pointer; }
+.doxi-personal-item-done { border-color:rgba(34,165,107,.25); color:#27845d; }
+.doxi-personal-item-remove { color:#aa667d; }
+html[data-theme="dark"] .doxi-capability-row,html[data-theme="dark"] .doxi-personal-item { background:rgba(148,163,184,.045); }
+html[data-theme="dark"] .doxi-capability-row strong,html[data-theme="dark"] .doxi-personal-items-grid h3,html[data-theme="dark"] .doxi-personal-item strong,html[data-theme="dark"] .doxi-personal-item p { color:#e1e8f0; }
+@media(max-width:760px) { .doxi-capability-list,.doxi-personal-items-grid { grid-template-columns:1fr; } }

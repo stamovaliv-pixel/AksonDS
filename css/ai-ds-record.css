@@ -1,0 +1,28 @@
+.doxi-record-shell { width:min(880px,calc(100% - 32px)); margin:28px auto 64px; }
+.doxi-record-back { display:inline-block; margin:0 0 16px; color:var(--color-text-muted,#738298); text-decoration:none; font-size:12px; font-weight:650; }
+.doxi-record-back:hover { color:#b66f89; }
+.doxi-record-card { padding:clamp(18px,3vw,30px); border:1px solid var(--color-border,rgba(148,163,184,.28)); border-radius:18px; background:var(--color-surface,#fff); box-shadow:0 12px 40px rgba(26,45,68,.08); }
+.doxi-record-brand { display:flex; align-items:center; gap:14px; }
+.doxi-record-brand h1 { margin:0; color:var(--color-text-main,#293a52); font-size:20px; font-weight:800; }
+.doxi-record-brand p { margin:5px 0 0; color:var(--color-text-muted,#7d8ba0); font-size:11px; }
+.doxi-record-mark { position:relative; display:inline-flex; align-items:baseline; padding:11px 13px; border-radius:14px; background:linear-gradient(115deg,#fff0f1,#fff8f8 35%,#f2f7fc 70%,#e9f6ff); color:#263a55; font:800 25px/1 var(--font-main,Arial,sans-serif); }
+.doxi-record-mark span { color:#c65e7e; font-size:.8em; transform:skewX(-5deg); }
+.doxi-record-mark i { position:absolute; right:5px; top:4px; color:#db8fa7; font-size:9px; font-style:normal; }
+.doxi-record-status { margin:24px 0 16px; padding:11px 13px; border-radius:10px; background:rgba(100,116,139,.07); color:var(--color-text-main,#34445a); font-size:12px; line-height:1.5; }
+.doxi-record-status.is-ok { background:linear-gradient(110deg,rgba(255,236,240,.85),rgba(240,246,253,.9),rgba(231,245,253,.82)); }
+.doxi-record-status.is-error { background:rgba(220,70,80,.09); color:#b42332; }
+.doxi-record-details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; margin:16px 0 20px; }
+.doxi-record-detail { padding:11px 12px; border:1px solid var(--color-border,#e2e8f0); border-radius:10px; min-width:0; }
+.doxi-record-detail small { display:block; margin-bottom:5px; color:var(--color-text-muted,#8592a4); font-size:9px; }
+.doxi-record-detail strong { display:block; color:var(--color-text-main,#34445a); font-size:12px; overflow-wrap:anywhere; }
+.doxi-registry-form { display:flex; flex-direction:column; gap:9px; padding:16px; border:1px dashed rgba(164,115,139,.4); border-radius:13px; background:rgba(249,242,247,.35); }
+.doxi-registry-form label { color:var(--color-text-main,#34445a); font-size:12px; font-weight:750; }
+.doxi-registry-form input { padding:9px; max-width:100%; color:var(--color-text-main,#34445a); font-size:11px; }
+.doxi-registry-form small { color:var(--color-text-muted,#8592a4); font-size:10px; }
+.doxi-registry-form button { align-self:flex-start; min-height:38px; padding:0 16px; border:0; border-radius:10px; background:linear-gradient(110deg,#eab7c6,#dceafa); color:#30435b; font-size:11px; font-weight:800; cursor:pointer; }
+.doxi-registry-form button:disabled { opacity:.6; cursor:wait; }
+html[data-theme="dark"] .doxi-record-card,html[data-theme="dark"] .doxi-record-detail { background:#202c39; border-color:#3d4a5a; }
+html[data-theme="dark"] .doxi-record-brand h1,html[data-theme="dark"] .doxi-record-detail strong { color:#e1e8f0; }
+html[data-theme="dark"] .doxi-record-status.is-ok { background:linear-gradient(110deg,rgba(117,72,89,.24),rgba(77,111,145,.22)); color:#e1e8f0; }
+html[data-theme="dark"] .doxi-registry-form { background:rgba(148,163,184,.05); }
+@media(max-width:600px) { .doxi-record-details { grid-template-columns:1fr; } .doxi-registry-form button { width:100%; } }

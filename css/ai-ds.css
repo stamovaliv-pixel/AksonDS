@@ -98,3 +98,16 @@
 
 /* Static brand mark inside the chat header — intentionally not animated. */
 .ak-ai-ds-avatar .ak-ai-ds-monogram { font-size: 23px; }
+
+
+/* v1.9.1 — clear live connection state and a friendlier Doxi reply surface. */
+.ak-ai-ds-subtitle i.is-online,.ak-ai-ds-context-dot.is-online { background:#22a56b !important; box-shadow:0 0 0 3px rgba(34,165,107,.14) !important; }
+.ak-ai-ds-subtitle i.is-offline,.ak-ai-ds-context-dot.is-offline { background:#e34f58 !important; box-shadow:0 0 0 3px rgba(227,79,88,.12) !important; }
+.ak-ai-ds-message-assistant .ak-ai-ds-bubble {
+  background:linear-gradient(118deg,rgba(255,235,239,.92) 0%,rgba(255,246,248,.96) 33%,rgba(241,246,253,.97) 68%,rgba(229,243,252,.94) 100%);
+  border-color:rgba(206,218,232,.82);
+}
+html[data-theme="dark"] .ak-ai-ds-message-assistant .ak-ai-ds-bubble {
+  background:linear-gradient(118deg,rgba(112,67,82,.28),rgba(75,88,112,.32),rgba(58,100,129,.28));
+  border-color:rgba(148,163,184,.2);
+}
