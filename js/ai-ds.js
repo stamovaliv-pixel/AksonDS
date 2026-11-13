@@ -1,22 +1,21 @@
-/* AKSON DockSlot — AI DS floating assistant UI prototype.
-   UI only: no network calls, no secrets, and no fake model responses. */
+/* AKSON DockSlot — Doxi AI agent client v1.6.
+   Calls only the authenticated Supabase Edge Function. No model URL or proxy secret in browser. */
 document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
-  if (!sb?.auth || typeof window.dockslotGetAuthProfile !== 'function') return;
+  if (!sb?.auth || !sb?.functions || typeof window.dockslotGetAuthProfile !== 'function') return;
 
-  let profile;
+  let auth;
   try {
-    const auth = await window.dockslotGetAuthProfile();
-    if (!auth?.user || auth.error || !auth.profile || auth.profile.is_blocked) return;
-    profile = auth.profile;
+    auth = await window.dockslotGetAuthProfile();
   } catch (error) {
-    console.warn('[AI DS] Could not validate profile:', error);
+    console.warn('[Докси] Не удалось проверить профиль.', error);
     return;
   }
-
-  // First rollout is intentionally limited to Super Admin.
-  if (String(profile.role || '').toLowerCase() !== 'super_admin') return;
+  if (!auth?.user || auth.error || !auth.profile || auth.profile.is_blocked) return;
+  if (String(auth.profile.role || '').toLowerCase() !== 'super_admin') return;
   if (document.getElementById('akAiDsLauncher')) return;
+
+  const mark = '<span class="ak-ai-ds-monogram" aria-label="Dx"><span>D</span><span class="ak-ai-ds-monogram-x">x</span></span>';
 
   const launcher = document.createElement('button');
   launcher.type = 'button';
@@ -25,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   launcher.setAttribute('aria-label', 'Открыть Докси');
   launcher.setAttribute('aria-haspopup', 'dialog');
   launcher.setAttribute('aria-expanded', 'false');
-  launcher.innerHTML = '<span class="ak-ai-ds-monogram" aria-hidden="true"><span>D</span><span class="ak-ai-ds-monogram-x">x</span></span>'; 
+  launcher.innerHTML = mark;
 
   const overlay = document.createElement('div');
   overlay.className = 'ak-ai-ds-overlay';
@@ -35,7 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     <section class="ak-ai-ds-window" role="dialog" aria-modal="false" aria-labelledby="akAiDsTitle">
       <header class="ak-ai-ds-header">
         <div class="ak-ai-ds-brand">
-          <div class="ak-ai-ds-avatar" aria-hidden="true"><span class="ak-ai-ds-monogram"><span>D</span><span class="ak-ai-ds-monogram-x">x</span></span></div>
+          <div class="ak-ai-ds-avatar" aria-hidden="true">${mark}</div>
           <div class="ak-ai-ds-title-wrap">
             <h2 id="akAiDsTitle">Докси</h2>
             <span class="ak-ai-ds-subtitle"><i></i> AI-помощник Akson DockSlot</span>
@@ -50,35 +49,57 @@ document.addEventListener('DOMContentLoaded', async () => {
           </button>
         </div>
       </header>
-      <div class="ak-ai-ds-context"><span class="ak-ai-ds-context-dot"></span> Контекст: текущая страница DockSlot</div>
+      <div class="ak-ai-ds-context"><span class="ak-ai-ds-context-dot"></span><span id="akAiDsStatus">Модель Qwen 3.5 9B · защищённое соединение</span></div>
       <div class="ak-ai-ds-messages" id="akAiDsMessages" aria-live="polite">
         <div class="ak-ai-ds-welcome">
           <div class="ak-ai-ds-welcome-icon">✦</div>
           <h3>Привет! Я Докси 👋</h3>
-          <p>Помогу разобраться с записями, загрузкой склада, поставщиками и работой DockSlot.</p>
+          <p>Помогаю с работой AKSON DockSlot. Пока у меня подключена языковая модель; доступ к живым данным записей добавим отдельными безопасными инструментами.</p>
           <div class="ak-ai-ds-suggestions">
-            <button type="button" data-prompt="Покажи текущую загрузку склада и объясни, где есть риски.">Анализ загрузки склада <span>↗</span></button>
-            <button type="button" data-prompt="Какие записи на сегодня требуют внимания?">Записи, требующие внимания <span>↗</span></button>
-            <button type="button" data-prompt="Помоги разобраться с проблемой в работе DockSlot.">Помощь по DockSlot <span>↗</span></button>
+            <button type="button" data-prompt="Объясни, как устроен календарь DockSlot и какие у него основные правила.">Как устроен календарь? <span>↗</span></button>
+            <button type="button" data-prompt="Помоги разобраться с типичным сценарием работы с записью поставщика в DockSlot.">Работа с записями <span>↗</span></button>
+            <button type="button" data-prompt="Какие данные и показатели стоит анализировать в DockSlot для контроля загрузки склада?">Анализ загрузки склада <span>↗</span></button>
           </div>
         </div>
       </div>
-      <div class="ak-ai-ds-connection-note" id="akAiDsConnectionNote">
-        <span aria-hidden="true">ⓘ</span> Подключение к локальной модели пока не настроено. Сейчас можно проверить интерфейс.
-      </div>
+      <div class="ak-ai-ds-connection-note" id="akAiDsConnectionNote" role="status"></div>
       <form class="ak-ai-ds-composer" id="akAiDsForm">
-        <textarea id="akAiDsInput" rows="1" maxlength="4000" placeholder="Напишите сообщение..." aria-label="Сообщение для AI DS"></textarea>
+        <textarea id="akAiDsInput" rows="1" maxlength="4000" placeholder="Напишите сообщение..." aria-label="Сообщение для Докси"></textarea>
         <button type="submit" id="akAiDsSend" aria-label="Отправить сообщение" title="Отправить">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
         </button>
       </form>
-      <div class="ak-ai-ds-footnote">AI может ошибаться. Проверяйте важные решения по данным системы.</div>
+      <div class="ak-ai-ds-footnote">Докси пока не читает записи напрямую. Проверяйте важные решения по данным системы.</div>
     </section>`;
   document.body.append(launcher, overlay);
 
   const $ = (id) => document.getElementById(id);
   const input = $('akAiDsInput');
   const messages = $('akAiDsMessages');
+  const sendButton = $('akAiDsSend');
+  const status = $('akAiDsStatus');
+  const note = $('akAiDsConnectionNote');
+  let conversation = [];
+  let isSending = false;
+
+  const pageContext = () => {
+    const file = (window.location.pathname.split('/').pop() || '').toLowerCase();
+    const labels = {
+      'admin_overview.html': 'Рабочий стол администратора',
+      'calendar.html': 'Календарь поставщика',
+      'admin_calendar.html': 'Календарь администратора',
+      'day.html': 'Страница дня поставщика',
+      'admin_day.html': 'Страница дня администратора',
+      'suppliers.html': 'Поставщики',
+      'analytics.html': 'Аналитика',
+      'settings.html': 'Настройки',
+      'load_management.html': 'Управление загрузкой',
+      'shift_board.html': 'Рабочая доска',
+      'dashboard.html': 'Обзор',
+      'help.html': 'Помощь'
+    };
+    return labels[file] || 'Раздел AKSON DockSlot';
+  };
 
   const open = () => {
     overlay.hidden = false;
@@ -93,25 +114,84 @@ document.addEventListener('DOMContentLoaded', async () => {
     launcher.classList.remove('is-active');
     launcher.setAttribute('aria-expanded', 'false');
   };
-  const addMessage = (text, type) => {
+  const addMessage = (text, type, extraClass = '') => {
     const node = document.createElement('div');
-    node.className = `ak-ai-ds-message ak-ai-ds-message-${type}`;
+    node.className = `ak-ai-ds-message ak-ai-ds-message-${type}${extraClass ? ` ${extraClass}` : ''}`;
     const bubble = document.createElement('div');
     bubble.className = 'ak-ai-ds-bubble';
     bubble.textContent = text;
     node.appendChild(bubble);
     messages.appendChild(node);
     messages.scrollTop = messages.scrollHeight;
+    return node;
   };
-  const send = (value) => {
+  const setBusy = (busy) => {
+    isSending = busy;
+    input.disabled = busy;
+    sendButton.disabled = busy;
+    sendButton.setAttribute('aria-busy', String(busy));
+    sendButton.style.opacity = busy ? '.55' : '';
+  };
+  const restoreWelcome = () => {
+    messages.innerHTML = `
+      <div class="ak-ai-ds-welcome">
+        <div class="ak-ai-ds-welcome-icon">✦</div>
+        <h3>Привет! Я Докси 👋</h3>
+        <p>Помогаю с работой AKSON DockSlot. Пока у меня подключена языковая модель; доступ к живым данным записей добавим отдельными безопасными инструментами.</p>
+        <div class="ak-ai-ds-suggestions">
+          <button type="button" data-prompt="Объясни, как устроен календарь DockSlot и какие у него основные правила.">Как устроен календарь? <span>↗</span></button>
+          <button type="button" data-prompt="Помоги разобраться с типичным сценарием работы с записью поставщика в DockSlot.">Работа с записями <span>↗</span></button>
+          <button type="button" data-prompt="Какие данные и показатели стоит анализировать в DockSlot для контроля загрузки склада?">Анализ загрузки склада <span>↗</span></button>
+        </div>
+      </div>`;
+  };
+
+  const send = async (value) => {
     const text = String(value || '').trim();
-    if (!text) return;
+    if (!text || isSending) return;
     const welcome = messages.querySelector('.ak-ai-ds-welcome');
     if (welcome) welcome.remove();
     addMessage(text, 'user');
-    $('akAiDsConnectionNote').classList.add('is-visible');
+    conversation.push({ role: 'user', content: text });
+    conversation = conversation.slice(-10);
     input.value = '';
     input.style.height = 'auto';
+    setBusy(true);
+    status.textContent = 'Докси формирует ответ…';
+    note.textContent = 'Связь с домашней моделью активна. Ответ может занять несколько секунд.';
+    note.classList.add('is-visible');
+    const pending = addMessage('Докси думает…', 'assistant', 'ak-ai-ds-pending');
+
+    try {
+      const { data, error } = await sb.functions.invoke('doxi-chat', {
+        body: {
+          messages: conversation,
+          page: pageContext()
+        }
+      });
+      if (error) {
+        console.error('[Докси] Edge Function error:', error);
+        throw new Error('Не удалось получить ответ от Докси. Проверьте подключение и настройки сервера.');
+      }
+      if (!data || typeof data.response !== 'string' || !data.response.trim()) {
+        throw new Error('Сервер Докси вернул пустой ответ. Повторите запрос.');
+      }
+      pending.remove();
+      addMessage(data.response.trim(), 'assistant');
+      conversation.push({ role: 'assistant', content: data.response.trim() });
+      conversation = conversation.slice(-10);
+      status.textContent = 'Qwen 3.5 9B · подключена';
+      note.textContent = 'Докси подключена к домашней модели Qwen 3.5 9B.';
+    } catch (error) {
+      pending.remove();
+      console.error('[Докси] Request failed:', error);
+      addMessage(error?.message || 'Не удалось получить ответ. Попробуйте ещё раз.', 'assistant');
+      status.textContent = 'Проблема соединения';
+      note.textContent = 'Не удалось получить ответ. Проверьте, что домашний компьютер и Cloudflare Tunnel включены.';
+    } finally {
+      setBusy(false);
+      input.focus();
+    }
   };
 
   launcher.addEventListener('click', () => overlay.hidden ? open() : close());
@@ -121,24 +201,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (event.key === 'Escape' && !overlay.hidden) close();
   });
   $('akAiDsNew').addEventListener('click', () => {
-    messages.innerHTML = '';
-    const welcome = document.createElement('div');
-    welcome.className = 'ak-ai-ds-welcome';
-    welcome.innerHTML = '<div class="ak-ai-ds-welcome-icon">✦</div><h3>Привет! Я Докси 👋</h3><p>Задайте вопрос по работе DockSlot или выберите пример запроса.</p><div class="ak-ai-ds-suggestions"><button type="button" data-prompt="Покажи текущую загрузку склада и объясни, где есть риски.">Анализ загрузки склада <span>↗</span></button><button type="button" data-prompt="Какие записи на сегодня требуют внимания?">Записи, требующие внимания <span>↗</span></button><button type="button" data-prompt="Помоги разобраться с проблемой в работе DockSlot.">Помощь по DockSlot <span>↗</span></button></div>';
-    messages.appendChild(welcome);
-    $('akAiDsConnectionNote').classList.remove('is-visible');
+    if (isSending) return;
+    conversation = [];
+    restoreWelcome();
+    note.classList.remove('is-visible');
+    status.textContent = 'Qwen 3.5 9B · защищённое соединение';
     input.value = '';
     input.focus();
   });
   messages.addEventListener('click', (event) => {
     const button = event.target.closest('[data-prompt]');
-    if (!button) return;
+    if (!button || isSending) return;
     input.value = button.dataset.prompt || '';
     input.focus();
   });
   $('akAiDsForm').addEventListener('submit', (event) => {
     event.preventDefault();
-    send(input.value);
+    void send(input.value);
   });
   input.addEventListener('input', () => {
     input.style.height = 'auto';
