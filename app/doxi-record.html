@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f7f9">
+  <title>Подготовленная запись — Докси</title>
+  <link rel="stylesheet" href="../css/theme.css?v=4-1-date-exceptions">
+  <link rel="stylesheet" href="../css/main.css?v=4-1-date-exceptions">
+  <link rel="stylesheet" href="../css/dark-mode.css?v=4">
+  <link rel="stylesheet" href="../css/mobile-refinements.css?v=2">
+  <link rel="stylesheet" href="../css/admin-navigation.css?v=17-doxi-management">
+  <link rel="stylesheet" href="../css/ai-ds.css?v=1-9-1-friendlier-chat-status">
+  <link rel="stylesheet" href="../css/ai-ds-motion-v1-5-5-blush-sky.css?v=1-5-5">
+  <link rel="stylesheet" href="../css/ai-ds-record.css?v=1-9-1">
+  <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
+  <link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon.png">
+</head>
+<body class="app-body doxi-record-page">
+  <div class="top-gradient-bar"></div>
+  <header class="app-header">
+    <div class="header-logo"><img src="../assets/logistic-logo.svg" alt="АКСОН Логистика" class="app-logo"></div>
+    <nav class="header-nav" aria-label="Административная навигация">
+      <button class="theme-toggle" type="button" data-theme-toggle title="Темный режим" aria-label="Темный режим"></button>
+      <a href="#" id="logoutBtn" class="nav-icon" title="Выход" aria-label="Выход"></a>
+    </nav>
+  </header>
+  <main class="doxi-record-shell">
+    <a class="doxi-record-back" href="admin_overview.html">← Вернуться в DockSlot</a>
+    <section class="doxi-record-card">
+      <div class="doxi-record-brand"><span class="doxi-record-mark">D<span>x</span><i>✦</i></span><div><h1>Подготовленная запись</h1><p>Докси создала запись. Проверь данные и загрузи актуальный реестр.</p></div></div>
+      <div id="doxiRecordStatus" class="doxi-record-status" role="status" aria-live="polite">Проверяю доступ и запись…</div>
+      <div id="doxiRecordDetails" class="doxi-record-details" hidden></div>
+      <form id="doxiRegistryForm" class="doxi-registry-form" hidden>
+        <label for="doxiRegistryFile">Файл реестра (CSV, XLS или XLSX)</label>
+        <input id="doxiRegistryFile" type="file" accept=".csv,.xls,.xlsx" required>
+        <small>Максимальный размер — 10 МБ. Реестр исходной записи не копируется.</small>
+        <button id="doxiRegistryUpload" type="submit">Загрузить реестр</button>
+      </form>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supabase-client.js?v=security-20261023"></script>
+  <script src="../js/auth-profile.js?v=2-dashboard-profile"></script>
+  <script src="../js/admin-navigation.js?v=1-9-1-doxi-record"></script>
+  <script src="../js/ai-ds.js?v=1-9-1-write-capabilities"></script>
+  <script src="../js/doxi-record.js?v=1-9-1"></script>
+</body>
+</html>

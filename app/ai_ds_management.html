@@ -11,9 +11,9 @@
   <link rel="stylesheet" href="../css/mobile-refinements.css?v=2">
   <link rel="stylesheet" href="../css/admin-navigation.css?v=17-doxi-management">
   <link rel="stylesheet" href="../css/notifications.css?v=6-floating-bell-theme">
-  <link rel="stylesheet" href="../css/ai-ds.css?v=1-8-1-chat-size-history-style">
+  <link rel="stylesheet" href="../css/ai-ds.css?v=1-9-1-friendlier-chat-status">
   <link rel="stylesheet" href="../css/ai-ds-motion-v1-5-5-blush-sky.css?v=1-5-5">
-  <link rel="stylesheet" href="../css/ai-ds-management.css?v=1-8-history-style-permissions">
+  <link rel="stylesheet" href="../css/ai-ds-management.css?v=1-9-1-write-capabilities">
   <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon.png">
 </head>
@@ -88,6 +88,19 @@
         </div>
         <label class="doxi-admin-switch"><input type="checkbox" id="doxiBookingDetailsEnabled"><span></span></label>
       </div>
+      <div class="doxi-admin-setting-row doxi-admin-setting-row-stack doxi-admin-capability-block">
+        <div class="doxi-admin-setting-copy">
+          <strong>Полномочия Докси</strong>
+          <span>Каждое право включается отдельно. Все изменения записей требуют предварительной карточки и явного подтверждения. По умолчанию все права выключены.</span>
+        </div>
+        <div class="doxi-capability-list">
+          <label class="doxi-capability-row"><span><strong>Создание записей</strong><small>Подготовка новой записи или копии разрешённой исходной записи.</small></span><input type="checkbox" id="doxiBookingCreateEnabled"></label>
+          <label class="doxi-capability-row"><span><strong>Редактирование записей</strong><small>Только дата, время, документ, типы поставки, ТК и комментарий.</small></span><input type="checkbox" id="doxiBookingUpdateEnabled"></label>
+          <label class="doxi-capability-row doxi-capability-danger"><span><strong>Удаление записей</strong><small>Только активные записи без ворот, прибытия и убытия; с отдельным подтверждением.</small></span><input type="checkbox" id="doxiBookingDeleteEnabled"></label>
+          <label class="doxi-capability-row"><span><strong>Личные заметки</strong><small>Докси сможет сохранять заметки текущего суперадминистратора.</small></span><input type="checkbox" id="doxiNotesEnabled"></label>
+          <label class="doxi-capability-row"><span><strong>Напоминания</strong><small>Напоминания в открытом DockSlot; push при закрытом браузере не входит в эту версию.</small></span><input type="checkbox" id="doxiRemindersEnabled"></label>
+        </div>
+      </div>
       <div class="doxi-admin-setting-row doxi-admin-setting-row-stack">
         <div class="doxi-admin-setting-copy">
           <strong>Манера общения Докси</strong>
@@ -159,8 +172,16 @@
       <div class="doxi-admin-section-heading"><div><h2>Границы полномочий</h2><p>Безопасность работы с данными DockSlot.</p></div></div>
       <div class="doxi-admin-guardrail-grid">
         <div><span class="doxi-guardrail-ok">✓</span><strong>Настраиваемое чтение</strong><p>Сводки по датам и, по отдельному разрешению, ограниченные списки записей.</p></div>
-        <div><span class="doxi-guardrail-no">—</span><strong>Изменение данных закрыто</strong><p>Создание, перенос, редактирование и отмена записей недоступны. Этот запрет нельзя снять переключателем.</p></div>
-        <div><span class="doxi-guardrail-lock">⌑</span><strong>Неизменяемая защита</strong><p>Серверная проверка JWT и роли; нет произвольного SQL, доступа к секретам и управления пользователями.</p></div>
+        <div><span class="doxi-guardrail-ok">✓</span><strong>Настраиваемые действия</strong><p>Создание, редактирование и удаление включаются отдельно суперадминистратором и всегда требуют проверки карточки и подтверждения.</p></div>
+        <div><span class="doxi-guardrail-lock">⌑</span><strong>Неизменяемая защита</strong><p>Запрещены произвольный SQL, смена владельца записи, статуса, ворот, прибытия/убытия, управление пользователями и доступ к секретам.</p></div>
+      </div>
+    </section>
+
+    <section class="doxi-admin-card doxi-admin-personal-items">
+      <div class="doxi-admin-section-heading"><div><h2>Мои заметки и напоминания</h2><p>Личные материалы текущего суперадминистратора. Доступны только через защищённую функцию.</p></div><button class="doxi-admin-btn doxi-admin-btn-secondary" type="button" id="doxiRefreshPersonalItems">Обновить</button></div>
+      <div class="doxi-personal-items-grid">
+        <div><h3>Заметки</h3><div id="doxiNotesList" class="doxi-personal-items-list"><div class="doxi-history-empty">Загружаю заметки…</div></div></div>
+        <div><h3>Напоминания</h3><div id="doxiRemindersList" class="doxi-personal-items-list"><div class="doxi-history-empty">Загружаю напоминания…</div></div></div>
       </div>
     </section>
 
@@ -190,8 +211,8 @@
   <script src="../js/auth-profile.js?v=2-dashboard-profile"></script>
   <script src="../js/push-config.js?v=2-windows-push"></script>
   <script src="../js/notifications.js?v=moscow-time-v1"></script>
-  <script src="../js/admin-navigation.js?v=17-doxi-management"></script>
-  <script src="../js/ai-ds.js?v=1-8-history-style-permissions"></script>
-  <script src="../js/ai-ds-management.js?v=1-8-history-style-permissions"></script>
+  <script src="../js/admin-navigation.js?v=1-9-1-doxi-management"></script>
+  <script src="../js/ai-ds.js?v=1-9-1-write-capabilities"></script>
+  <script src="../js/ai-ds-management.js?v=1-9-1-write-capabilities"></script>
 </body>
 </html>
