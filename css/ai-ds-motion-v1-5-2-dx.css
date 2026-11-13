@@ -1,0 +1,39 @@
+/* Doksi Dx launcher — lighter, airy pastel gradient flow. Only the floating button moves. */
+@keyframes ak-ai-ds-gradient-flow-v152 {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.ak-ai-ds-launcher {
+  isolation: isolate;
+  overflow: hidden;
+  background: transparent !important;
+  animation: none !important;
+}
+.ak-ai-ds-launcher::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: linear-gradient(118deg,
+    #eef8ff 0%,
+    #f0f1ff 20%,
+    #fbf0fb 40%,
+    #fff1f6 58%,
+    #f7f1fc 76%,
+    #eef8ff 100%
+  );
+  background-size: 300% 300%;
+  background-position: 0% 50%;
+  animation: ak-ai-ds-gradient-flow-v152 6.2s ease-in-out infinite;
+}
+.ak-ai-ds-launcher > * { position: relative; z-index: 1; }
+.ak-ai-ds-launcher.is-active::before { filter: saturate(1.01) brightness(.997); }
+@media (prefers-reduced-motion: reduce) {
+  .ak-ai-ds-launcher::before {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}

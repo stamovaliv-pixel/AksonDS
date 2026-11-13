@@ -5,22 +5,41 @@
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   min-width: 66px; height: 54px; padding: 0 13px;
   border: 1px solid rgba(255,255,255,.9); border-radius: 28px;
-  background: linear-gradient(125deg,#edf4fb 0%,#e9edf5 38%,#f1e8ee 72%,#f6e9e8 100%); color: #39475d;
+  background: linear-gradient(125deg,#f7fbff 0%,#f7f7ff 38%,#fff7fc 72%,#fff9fb 100%); color: #39475d;
   font: 750 14px/1 var(--font-main,Arial,sans-serif); letter-spacing: .02em;
   cursor: pointer; box-shadow: 0 8px 22px rgba(83,112,145,.13),0 3px 8px rgba(15,23,42,.07),0 2px 10px rgba(190,105,125,.055),inset 0 1px 0 rgba(255,255,255,.9);
   transition: transform .18s ease,box-shadow .18s ease,filter .18s ease;
 }
 .ak-ai-ds-launcher:hover,.ak-ai-ds-launcher:focus-visible { transform: translateY(-3px); filter: brightness(1.035); box-shadow: 0 11px 26px rgba(83,112,145,.19),0 3px 8px rgba(15,23,42,.08),inset 0 1px 0 rgba(255,255,255,.9); outline: none; }
-.ak-ai-ds-launcher.is-active { background: linear-gradient(125deg,#e5edf7 0%,#e4e8f1 38%,#ecdee8 72%,#f2e1e2 100%); }
-/* One restrained Dx monogram shared by the launcher and chat avatar. */
+.ak-ai-ds-launcher.is-active { background: linear-gradient(125deg,#f2f8ff 0%,#f2f2fc 38%,#fbf0f8 72%,#fff3f6 100%); }
+/* Selected Dx brand — variant 2: clean upright D and a restrained slanted x. */
 .ak-ai-ds-monogram {
+  position: relative;
   display: inline-flex; align-items: baseline; justify-content: center;
-  color: #30435d; font-family: Georgia, "Times New Roman", serif;
-  font-size: 25px; font-style: italic; font-weight: 700;
-  line-height: 1; letter-spacing: -.105em; white-space: nowrap;
-  text-shadow: 0 .35px 0 rgba(48,67,93,.12);
+  color: #263a55; font-family: var(--font-main, Inter, Arial, sans-serif);
+  font-size: 25px; font-style: normal; font-weight: 800;
+  line-height: 1; letter-spacing: -.085em; white-space: nowrap;
+  text-shadow: 0 .35px 0 rgba(38,58,85,.10);
 }
-.ak-ai-ds-monogram-x { color: #bb647c; font-size: .96em; font-weight: 700; }
+.ak-ai-ds-monogram > span:first-child { font-style: normal; }
+.ak-ai-ds-monogram-x {
+  color: #c65e7e; font-size: .96em; font-weight: 800;
+  font-style: italic; transform: skewX(-4deg); transform-origin: center;
+}
+
+/* Small Akson-style sparkle at the upper-right of the x. Static in both marks. */
+.ak-ai-ds-monogram::after {
+  content: "";
+  position: absolute;
+  top: -.20em;
+  right: -.34em;
+  width: .38em;
+  height: .38em;
+  background: linear-gradient(145deg, #e58ba6 0%, #c65e7e 100%);
+  clip-path: polygon(50% 0%, 61% 38%, 100% 50%, 61% 62%, 50% 100%, 39% 62%, 0% 50%, 39% 38%);
+  filter: drop-shadow(0 1px 1px rgba(198,94,126,.18));
+  pointer-events: none;
+}
 .ak-ai-ds-overlay[hidden] { display:none!important; }
 .ak-ai-ds-overlay { position:fixed; inset:0; z-index:10041; background:transparent; }
 .ak-ai-ds-window {
@@ -36,7 +55,7 @@
 .ak-ai-ds-overlay.is-open .ak-ai-ds-window { opacity:1; transform:translateY(0) scale(1); }
 .ak-ai-ds-header { display:flex; align-items:center; justify-content:space-between; padding:15px 16px 13px; border-bottom:1px solid var(--color-border,#e2e8f0); }
 .ak-ai-ds-brand { display:flex; align-items:center; gap:10px; min-width:0; }
-.ak-ai-ds-avatar { display:grid; place-items:center; width:39px; height:39px; border-radius:13px; background:linear-gradient(145deg,#e5effa,#eee5f0); color:#30435d;
+.ak-ai-ds-avatar { display:grid; place-items:center; width:39px; height:39px; border-radius:13px; background:linear-gradient(145deg,#f5faff 0%,#f7f5fc 58%,#fff7fb 100%); color:#263a55;
   box-shadow:0 4px 12px rgba(86,105,142,.16),inset 0 1px 0 rgba(255,255,255,.92); }
 .ak-ai-ds-title-wrap h2 { margin:0; font-size:16px; line-height:1.2; font-weight:800; letter-spacing:-.02em; }
 .ak-ai-ds-subtitle { display:flex; align-items:center; gap:6px; margin-top:4px; color:var(--color-text-muted,#64748b); font-size:10px; }
