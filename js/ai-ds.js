@@ -1,4 +1,4 @@
-/* Doxi client v1.9.3.
+/* Doxi client v1.9.4.
    All data access and every mutation are authorized by the Supabase Edge Function. */
 document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
@@ -297,7 +297,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => toast.remove(), 20_000);
   };
   const pollReminders = async () => {
-    if (reminderPollBusy || auth.profile.role !== 'super_admin') return;
+    if (reminderPollBusy || !auth.profile?.role) return;
     reminderPollBusy = true;
     try {
       const result = await invoke({ action: 'due_reminders' });
