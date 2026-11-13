@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   launcher.setAttribute('aria-label', 'Открыть AI DS');
   launcher.setAttribute('aria-haspopup', 'dialog');
   launcher.setAttribute('aria-expanded', 'false');
-  launcher.innerHTML = '<span class="ak-ai-ds-mark" aria-hidden="true">AI</span><span>DS</span>';
+  launcher.innerHTML = '<span class="ak-ai-ds-mark" aria-hidden="true">AI</span><span class="ak-ai-ds-wordmark">DS</span>';
 
   const overlay = document.createElement('div');
   overlay.className = 'ak-ai-ds-overlay';
