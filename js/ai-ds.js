@@ -1,4 +1,4 @@
-/* AKSON DockSlot — Doxi client v1.9.
+/* Doxi client v1.9.3.
    All data access and every mutation are authorized by the Supabase Edge Function. */
 document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (_) { return; }
   if (document.getElementById('akAiDsLauncher')) return;
 
-  const mark = '<span class="ak-ai-ds-monogram" aria-label="Dx"><span>D</span><span class="ak-ai-ds-monogram-x">x</span><i aria-hidden="true">✦</i></span>';
+  const mark = '<span class="ak-ai-ds-monogram" aria-label="Dx"><span>D</span><span class="ak-ai-ds-monogram-x">x</span></span>';
   const launcher = document.createElement('button');
   launcher.type = 'button'; launcher.id = 'akAiDsLauncher'; launcher.className = 'ak-ai-ds-launcher';
   launcher.setAttribute('aria-label', 'Открыть Докси'); launcher.setAttribute('aria-haspopup', 'dialog'); launcher.setAttribute('aria-expanded', 'false');
@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="ak-ai-ds-avatar" aria-hidden="true">${mark}</div>
           <div class="ak-ai-ds-title-wrap">
             <h2 id="akAiDsTitle">Докси</h2>
-            <span class="ak-ai-ds-subtitle"><i id="akAiDsHeaderDot" class="is-offline"></i> Твой ассистент по AKSON DockSlot</span>
+            <span class="ak-ai-ds-subtitle"><i id="akAiDsHeaderDot" class="is-offline"></i> Твой ассистент по DockSlot</span>
           </div>
         </div>
         <div class="ak-ai-ds-header-actions">
@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg>
         </button>
       </form>
-      <div class="ak-ai-ds-footnote">Я работаю с разрешёнными данными и функциями AKSON DockSlot.</div>
+      <div class="ak-ai-ds-footnote">Я работаю с разрешёнными данными и функциями проекта.</div>
     </section>`;
   document.body.append(launcher, overlay);
 
@@ -66,7 +66,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     'Потерпи… я ведь терплю твою любовь к сложным вопросам 😉',
     'Проверяю всё дважды — я же стратег, а не гадалка.',
     'Сверяю факты. Красота красотой, а точность важнее.',
-    'Разложила задачу по полочкам. Теперь ищу ту самую полочку.'
+    'Разложила задачу по полочкам. Теперь ищу ту самую полочку.',
+    'Сверяю детали, чтобы мелочь не испортила весь результат.',
+    'Проверяю, не спорят ли цифры друг с другом.',
+    'Сейчас аккуратно распутаю этот логистический узел.',
+    'Дай мне секунду: сначала факты, потом красивые выводы.',
+    'Перепроверяю условия — у них иногда характер сложнее моего.',
+    'Собираю ответ без догадок и волшебства.',
+    'Навожу порядок в данных. Они уже почти выстроились.',
+    'Смотрю на задачу с нескольких сторон — так надёжнее.',
+    'Проверяю, всё ли учла. Не хочу оставить хвостик.',
+    'Формулирую так, чтобы было понятно и без лупы.'
   ];
   const greetings = [
     { title: 'Коничива! 👋', text: 'Сегодня учу японский. Пока знаю «сакура» и «точность». Второе особенно пригодится в DockSlot.' },
@@ -90,7 +100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       'shift_board.html': 'Рабочая доска', 'dashboard.html': 'Личный кабинет', 'help.html': 'Помощь',
       'ai_ds_management.html': 'Управление Докси', 'doxi-record.html': 'Подготовленная запись Докси'
     };
-    return labels[file] || 'Раздел AKSON DockSlot';
+    return labels[file] || 'Раздел DockSlot';
   };
 
   const invoke = async (body) => {
@@ -127,7 +137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const icon = document.createElement('div'); icon.className = 'ak-ai-ds-welcome-icon'; icon.textContent = '✦';
     const title = document.createElement('h3'); title.textContent = greeting.title;
     const copy = document.createElement('p'); copy.textContent = greeting.text;
-    const sub = document.createElement('p'); sub.className = 'ak-ai-ds-welcome-sub'; sub.textContent = 'Я — Докси, твой ассистент по AKSON DockSlot.';
+    const sub = document.createElement('p'); sub.className = 'ak-ai-ds-welcome-sub'; sub.textContent = 'Я — Докси, твой ассистент по DockSlot.';
     const suggestions = document.createElement('div'); suggestions.className = 'ak-ai-ds-suggestions';
     [
       ['Сводка на сегодня', 'Сколько активных записей сегодня? Покажи распределение по часам.'],

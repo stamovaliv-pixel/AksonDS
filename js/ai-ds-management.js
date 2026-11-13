@@ -1,4 +1,4 @@
-/* AKSON DockSlot — Doxi management v1.9.1.
+/* Doxi management v1.9.3.
    Only super_admin can read global history and change assistant permissions/style. */
 document.addEventListener('DOMContentLoaded', async () => {
   const root = document.getElementById('doxiAdminRoot');
@@ -36,6 +36,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const historySearch = $('doxiHistorySearch');
   const historyMore = $('doxiHistoryMore');
   const historyTranscript = $('doxiHistoryTranscript');
+  const knowledgeFile = $('doxiKnowledgeFile');
+  const knowledgeTitle = $('doxiKnowledgeTitle');
+  const knowledgeCategory = $('doxiKnowledgeCategory');
+  const knowledgeUpload = $('doxiKnowledgeUpload');
+  const knowledgeStatus = $('doxiKnowledgeStatus');
+  const knowledgeList = $('doxiKnowledgeList');
 
   let saved = null;
   let busy = false;
@@ -218,7 +224,73 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // ---------- Personal notes and reminders (scoped to the signed-in super_admin) ----------
+  // ---------- Shared reference knowledge (documents are context, never executable instructions) ----------
+  const loadKnowledge = async () => {
+    if (!knowledgeList) return;
+    knowledgeList.replaceChildren();
+    try {
+      const result = await invoke({ action: 'admin_list_knowledge' });
+      const docs = Array.isArray(result.documents) ? result.documents : [];
+      if (!docs.length) { safeEmpty(knowledgeList, 'База знаний пока пуста. Загрузите первый справочный файл.'); return; }
+      docs.forEach((doc) => {
+        const row = document.createElement('div'); row.className = 'doxi-knowledge-item';
+        const main = document.createElement('div'); main.className = 'doxi-knowledge-item-main';
+        const title = document.createElement('strong'); title.textContent = doc.title || doc.source_name || 'Материал без названия';
+        const meta = document.createElement('small');
+        const date = doc.updated_at ? new Date(doc.updated_at).toLocaleString('ru-RU') : '';
+        meta.textContent = `${doc.category_label || doc.category || 'Общие сведения'} · ${doc.source_name || 'текст'}${date ? ' · обновлён ' + date : ''}`;
+        main.append(title, meta);
+        const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'doxi-knowledge-delete'; remove.textContent = 'Удалить'; remove.dataset.deleteKnowledge = doc.id;
+        row.append(main, remove); knowledgeList.append(row);
+      });
+      if (knowledgeStatus) knowledgeStatus.textContent = `В базе знаний: ${docs.length} ${docs.length === 1 ? 'документ' : docs.length < 5 ? 'документа' : 'документов'}.`;
+    } catch (error) {
+      safeEmpty(knowledgeList, error.message);
+      if (knowledgeStatus) knowledgeStatus.textContent = 'Не удалось загрузить базу знаний.';
+    }
+  };
+  if (knowledgeFile && knowledgeUpload) {
+    knowledgeFile.addEventListener('change', () => { knowledgeUpload.disabled = !knowledgeFile.files?.[0] || busy; });
+    knowledgeUpload.addEventListener('click', async () => {
+      const file = knowledgeFile.files?.[0];
+      if (!file || busy) return;
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      if (!['md','txt','json'].includes(ext)) { showToast('Поддерживаются только .md, .txt и .json.', true); return; }
+      if (file.size <= 0 || file.size > 1024 * 1024) { showToast('Размер файла должен быть от 1 байта до 1 МБ.', true); return; }
+      busy = true; knowledgeUpload.disabled = true; knowledgeUpload.textContent = 'Загружаю…';
+      if (knowledgeStatus) knowledgeStatus.textContent = 'Проверяю и сохраняю документ…';
+      try {
+        const form = new FormData();
+        form.append('action', 'admin_upload_knowledge');
+        form.append('title', (knowledgeTitle?.value || '').trim());
+        form.append('category', knowledgeCategory?.value || 'general');
+        form.append('file', file, file.name);
+        const { data, error } = await sb.functions.invoke('doxi-chat', { body: form });
+        if (error) throw new Error(error.message || 'Не удалось загрузить документ.');
+        if (!data || data.error) throw new Error(data?.error || 'Сервер не подтвердил загрузку.');
+        showToast(`Материал «${data.document?.title || file.name}» добавлен в базу знаний.`);
+        knowledgeFile.value = ''; if (knowledgeTitle) knowledgeTitle.value = '';
+        await loadKnowledge();
+      } catch (error) {
+        if (knowledgeStatus) knowledgeStatus.textContent = error.message;
+        showToast(error.message, true);
+      } finally {
+        busy = false; knowledgeUpload.textContent = 'Загрузить в базу знаний';
+        knowledgeUpload.disabled = !knowledgeFile.files?.[0]; updateSaveState();
+      }
+    });
+  }
+  knowledgeList?.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-delete-knowledge]');
+    if (!button || busy) return;
+    if (!window.confirm('Удалить этот материал из базы знаний?')) return;
+    busy = true; button.disabled = true;
+    try { await invoke({ action: 'admin_delete_knowledge', document_id: button.dataset.deleteKnowledge }); await loadKnowledge(); showToast('Материал удалён.'); }
+    catch (error) { showToast(error.message, true); button.disabled = false; }
+    finally { busy = false; updateSaveState(); }
+  });
+
+  // ---------- Personal notes and reminders (scoped to the signed-in user) ----------
   const safeEmpty = (node, message) => { if (node) { const el = document.createElement('div'); el.className = 'doxi-history-empty'; el.textContent = message; node.replaceChildren(el); } };
   const renderPersonalItems = async () => {
     if (!notesList || !remindersList) return;
@@ -409,5 +481,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   await loadSettings();
+  await loadKnowledge();
   await renderPersonalItems();
 });

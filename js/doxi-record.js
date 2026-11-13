@@ -1,4 +1,4 @@
-/* AKSON DockSlot — secure prepared-booking registry upload for Doxi. */
+/* Secure prepared-booking registry upload for the current Doxi user. */
 document.addEventListener('DOMContentLoaded', async () => {
   const $ = (id) => document.getElementById(id);
   const status = $('doxiRecordStatus');
@@ -31,11 +31,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     const auth = await window.dockslotGetAuthProfile();
-    if (!auth?.user || auth.error || !auth.profile || auth.profile.is_blocked || String(auth.profile.role || '').toLowerCase() !== 'super_admin') {
+    if (!auth?.user || auth.error || !auth.profile || auth.profile.is_blocked || !['super_admin','admin','operator','supplier'].includes(String(auth.profile.role || '').toLowerCase())) {
       window.location.replace('../index.html'); return;
     }
     if (!uuid.test(bookingId)) throw new Error('Некорректная ссылка на подготовленную запись. Вернись в чат Докси и открой ссылку ещё раз.');
     const result = await invoke({ action: 'admin_get_created_booking', booking_id: bookingId });
+    const role = String(auth.profile.role || '').toLowerCase();
+    const back = document.querySelector('.doxi-record-back');
+    if (back) back.href = role === 'supplier' ? 'calendar.html' : (role === 'admin' || role === 'operator' ? 'admin_calendar.html' : 'admin_overview.html');
     const booking = result.booking;
     if (!booking) throw new Error('Подготовленная запись не найдена или больше недоступна.');
     details.replaceChildren();
