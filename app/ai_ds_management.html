@@ -11,9 +11,9 @@
   <link rel="stylesheet" href="../css/mobile-refinements.css?v=2">
   <link rel="stylesheet" href="../css/admin-navigation.css?v=17-doxi-management">
   <link rel="stylesheet" href="../css/notifications.css?v=6-floating-bell-theme">
-  <link rel="stylesheet" href="../css/ai-ds.css?v=1-7-chat-width">
+  <link rel="stylesheet" href="../css/ai-ds.css?v=1-8-1-chat-size-history-style">
   <link rel="stylesheet" href="../css/ai-ds-motion-v1-5-5-blush-sky.css?v=1-5-5">
-  <link rel="stylesheet" href="../css/ai-ds-management.css?v=1-7">
+  <link rel="stylesheet" href="../css/ai-ds-management.css?v=1-8-history-style-permissions">
   <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon.png">
 </head>
@@ -32,9 +32,12 @@
       <div>
         <div class="doxi-admin-eyebrow">AKSON DOCKSLOT · AI ASSISTANT</div>
         <h1>Управление Докси</h1>
-        <p>Настройки помощницы, доступ к данным и проверка соединения с домашней моделью.</p>
+        <p>Настройки помощницы, доступ к данным и проверка защищённого соединения.</p>
       </div>
-      <div class="doxi-admin-role-chip"><span></span> Только Super Admin</div>
+      <div class="doxi-admin-heading-actions">
+        <button class="doxi-history-subtle-btn" type="button" id="doxiHistoryOpen">Вопросы</button>
+        <div class="doxi-admin-role-chip"><span></span> Только Super Admin</div>
+      </div>
     </header>
 
     <section class="doxi-admin-status-grid" aria-label="Состояние Докси">
@@ -45,8 +48,8 @@
       </article>
       <article class="doxi-admin-card">
         <div class="doxi-admin-card-label">Подключённая модель</div>
-        <div class="doxi-admin-model-name">Qwen 3.5 9B</div>
-        <p>Ollama · домашний компьютер · Cloudflare Tunnel</p>
+        <div class="doxi-admin-model-name" id="doxiModelName">Технические сведения загружаются после проверки прав</div>
+        <p id="doxiModelDetails">Подробности подключения доступны только суперадминистратору.</p>
       </article>
       <article class="doxi-admin-card">
         <div class="doxi-admin-card-label">Уровень доступа</div>
@@ -74,9 +77,41 @@
       <div class="doxi-admin-setting-row">
         <div class="doxi-admin-setting-copy">
           <strong>Чтение актуальных данных</strong>
-          <span>Разрешить серверу получать сводки активных записей по датам и ограниченный список записей по запросу.</span>
+          <span>Разрешить серверу получать сводки активных записей по датам.</span>
         </div>
         <label class="doxi-admin-switch"><input type="checkbox" id="doxiLiveDataEnabled"><span></span></label>
+      </div>
+      <div class="doxi-admin-setting-row">
+        <div class="doxi-admin-setting-copy">
+          <strong>Подробные списки записей</strong>
+          <span>Разрешить вывод ограниченного списка записей. Сервер допускает подробности только для Super Admin.</span>
+        </div>
+        <label class="doxi-admin-switch"><input type="checkbox" id="doxiBookingDetailsEnabled"><span></span></label>
+      </div>
+      <div class="doxi-admin-setting-row doxi-admin-setting-row-stack">
+        <div class="doxi-admin-setting-copy">
+          <strong>Манера общения Докси</strong>
+          <span>Выбирает стиль формулировок, не меняя факты, права и правила безопасности.</span>
+        </div>
+        <select id="doxiAssistantStyle" class="doxi-admin-select">
+          <option value="delicate">Деликатная</option>
+          <option value="direct">Прямая</option>
+          <option value="playful">Шутливая</option>
+          <option value="street">Быдло — нарочито грубоватая</option>
+        </select>
+      </div>
+      <div class="doxi-admin-setting-row doxi-admin-setting-row-stack">
+        <div class="doxi-admin-setting-copy">
+          <strong>Кому доступен чат Докси</strong>
+          <span>По умолчанию доступна только Super Admin. Можно открыть чат выбранным ролям; страницу управления и историю видит только Super Admin.</span>
+        </div>
+        <div class="doxi-role-permissions" id="doxiAllowedRoles">
+          <label><input type="checkbox" value="super_admin" checked disabled> Super Admin <small>обязательно</small></label>
+          <label><input type="checkbox" value="admin"> Admin</label>
+          <label><input type="checkbox" value="operator"> Operator</label>
+          <label><input type="checkbox" value="viewer"> Viewer</label>
+          <label><input type="checkbox" value="supplier"> Supplier</label>
+        </div>
       </div>
       <div class="doxi-admin-actions">
         <span class="doxi-admin-save-meta" id="doxiSaveMeta" aria-live="polite">Загрузка настроек…</span>
@@ -88,7 +123,7 @@
       <div class="doxi-admin-section-heading">
         <div>
           <h2>Проверка соединения</h2>
-          <p>Отправляет короткий тестовый запрос через Edge Function, Cloudflare Tunnel и Ollama.</p>
+          <p>Отправляет короткий тестовый запрос через защищённый серверный канал.</p>
         </div>
         <button class="doxi-admin-btn doxi-admin-btn-secondary" id="doxiTestBtn" type="button" disabled>Проверить соединение</button>
       </div>
@@ -123,12 +158,30 @@
     <section class="doxi-admin-card doxi-admin-guardrails">
       <div class="doxi-admin-section-heading"><div><h2>Границы полномочий</h2><p>Безопасность работы с данными DockSlot.</p></div></div>
       <div class="doxi-admin-guardrail-grid">
-        <div><span class="doxi-guardrail-ok">✓</span><strong>Разрешено</strong><p>Читать сводки активных записей по дате, распределение по часам и ограниченный список записей.</p></div>
-        <div><span class="doxi-guardrail-no">—</span><strong>Не разрешено</strong><p>Создавать, переносить, редактировать или отменять записи; выполнять произвольный SQL.</p></div>
-        <div><span class="doxi-guardrail-lock">⌑</span><strong>Защита</strong><p>Проверка JWT и роли Super Admin на сервере; секреты и адрес домашней модели не передаются в браузер.</p></div>
+        <div><span class="doxi-guardrail-ok">✓</span><strong>Настраиваемое чтение</strong><p>Сводки по датам и, по отдельному разрешению, ограниченные списки записей.</p></div>
+        <div><span class="doxi-guardrail-no">—</span><strong>Изменение данных закрыто</strong><p>Создание, перенос, редактирование и отмена записей недоступны. Этот запрет нельзя снять переключателем.</p></div>
+        <div><span class="doxi-guardrail-lock">⌑</span><strong>Неизменяемая защита</strong><p>Серверная проверка JWT и роли; нет произвольного SQL, доступа к секретам и управления пользователями.</p></div>
       </div>
     </section>
 
+    <div class="doxi-history-overlay" id="doxiHistoryOverlay" hidden>
+      <section class="doxi-history-dialog" role="dialog" aria-modal="true" aria-labelledby="doxiHistoryTitle">
+        <header class="doxi-history-header">
+          <div><h2 id="doxiHistoryTitle">Вопросы Докси</h2><p>История диалогов всех пользователей, которым разрешён чат.</p></div>
+          <button class="doxi-history-close" type="button" id="doxiHistoryClose" aria-label="Закрыть">×</button>
+        </header>
+        <div class="doxi-history-body">
+          <aside class="doxi-history-sidebar">
+            <input class="doxi-history-search" id="doxiHistorySearch" type="search" placeholder="Поиск по имени или вопросу…" aria-label="Поиск по истории">
+            <div class="doxi-history-list" id="doxiHistoryList"><div class="doxi-history-empty">Загружаю историю…</div></div>
+            <button class="doxi-history-more" id="doxiHistoryMore" type="button" hidden>Загрузить ещё</button>
+          </aside>
+          <main class="doxi-history-transcript" id="doxiHistoryTranscript">
+            <div class="doxi-history-empty doxi-history-placeholder">Выберите диалог слева, чтобы просмотреть переписку.</div>
+          </main>
+        </div>
+      </section>
+    </div>
     <div class="doxi-admin-toast" id="doxiToast" role="status" aria-live="polite"></div>
   </main>
 
@@ -138,7 +191,7 @@
   <script src="../js/push-config.js?v=2-windows-push"></script>
   <script src="../js/notifications.js?v=moscow-time-v1"></script>
   <script src="../js/admin-navigation.js?v=17-doxi-management"></script>
-  <script src="../js/ai-ds.js?v=1-7-live-data-and-persona"></script>
-  <script src="../js/ai-ds-management.js?v=1-7"></script>
+  <script src="../js/ai-ds.js?v=1-8-history-style-permissions"></script>
+  <script src="../js/ai-ds-management.js?v=1-8-history-style-permissions"></script>
 </body>
 </html>
