@@ -20,7 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
     profile: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="7" r="4"></circle><path d="M20 21v-2a8 8 0 0 0-16 0v2"></path></svg>',
     analytics: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3v18h18M3 17l6-6 4 4 8-8"></path></svg>',
     load: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 3v18h18"></path><path d="M7 14l4-4 3 3 6-7"></path><path d="M16 6h4v4"></path></svg>',
-    doxi: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 2 1.7 6.3L20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7L12 2Z"></path><path d="m19 16 .8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16Z"></path></svg>',
     settings: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"></circle><path d="m19.4 15 .06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33 1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1 1.65 1.65 0 0 0 0 1.74Z"></path></svg>',
     help: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M9.6 9a2.5 2.5 0 1 1 4.4 1.6c-.9 1-2 1.2-2 2.9M12 17.2v.1"></path></svg>',
     sun: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>',
@@ -136,15 +135,12 @@ document.addEventListener('DOMContentLoaded', () => {
       { href: 'suppliers.html', label: 'Пользователи', detail: 'Учётные записи и поставщики', icon: 'users' },
       { href: 'analytics.html', label: 'Аналитика', detail: 'Показатели и качество поставок', icon: 'analytics' },
       { href: 'load_management.html', label: 'Управление нагрузкой', detail: 'Прогноз загруженности и визуальные рекомендации', icon: 'load' },
-      { href: 'ai_ds_management.html', label: 'Докси — управление', detail: 'Доступ, состояние, соединение и возможности AI-помощницы', icon: 'doxi' },
+      { href: 'ai_ds_management.html', label: 'Докси — управление', detail: 'Полномочия, заметки, напоминания и история вопросов', icon: 'settings', superAdminOnly: true },
       { href: 'settings.html', label: 'Настройки', detail: 'Слоты, расписание и параметры', icon: 'settings' },
       { type: 'theme', label: 'Темный режим', detail: 'Переключить оформление приложения' },
       { href: 'help.html', label: 'Помощь', detail: 'Инструкции по работе с ДокСлотом', icon: 'help' }
     ];
-    const visibleItems = items.filter((item) => {
-      if (['load_management.html', 'ai_ds_management.html'].includes(item.href)) return role === 'super_admin';
-      return true;
-    });
+    const visibleItems = items.filter((item) => (item.href !== 'load_management.html' && !item.superAdminOnly) || (item.href !== 'load_management.html' && item.superAdminOnly && role === 'super_admin') || (item.href === 'load_management.html' && role === 'super_admin'));
     visibleItems.forEach((item, index) => {
       const isThemeItem = item.type === 'theme';
       const link = create(isThemeItem ? 'button' : 'a', `admin-tools-item${isThemeItem ? ' admin-tools-theme-item' : ''}`);
