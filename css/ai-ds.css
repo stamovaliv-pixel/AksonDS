@@ -12,8 +12,17 @@
 }
 .ak-ai-ds-launcher:hover,.ak-ai-ds-launcher:focus-visible { transform: translateY(-3px); filter: brightness(1.035); box-shadow: 0 11px 26px rgba(83,112,145,.19),0 3px 8px rgba(15,23,42,.08),inset 0 1px 0 rgba(255,255,255,.9); outline: none; }
 .ak-ai-ds-launcher.is-active { background: linear-gradient(125deg,#e5edf7 0%,#e4e8f1 38%,#ecdee8 72%,#f2e1e2 100%); }
-.ak-ai-ds-mark { display:grid; place-items:center; width:25px; height:25px; border-radius:50%; background:rgba(255,255,255,.76); color:#61738b; font-size:10px; letter-spacing:-.05em; }
-.ak-ai-ds-wordmark { display:inline-block; margin-left:1px; color:#68586d; font-family:"Segoe Script","Lobster Two","URW Chancery L",cursive; font-size:19px; font-style:italic; font-weight:600; line-height:1; letter-spacing:-.08em; transform:translateY(-1px); text-shadow:0 .25px 0 rgba(104,88,109,.12); }
+/* One restrained Dx monogram shared by the launcher and chat avatar. */
+.ak-ai-ds-monogram {
+  display: inline-flex; align-items: baseline; justify-content: center;
+  color: #30435d; font-family: Georgia, "Times New Roman", serif;
+  font-size: 25px; font-style: italic; font-weight: 700;
+  line-height: 1; letter-spacing: -.105em; white-space: nowrap;
+  text-shadow: 0 .35px 0 rgba(48,67,93,.12);
+}
+/* Keep the capital D upright; only the x carries the subtle italic accent. */
+.ak-ai-ds-monogram > span:first-child { font-style: normal; }
+.ak-ai-ds-monogram-x { color: #bb647c; font-size: .96em; font-weight: 700; font-style: italic; }
 .ak-ai-ds-overlay[hidden] { display:none!important; }
 .ak-ai-ds-overlay { position:fixed; inset:0; z-index:10041; background:transparent; }
 .ak-ai-ds-window {
@@ -29,7 +38,8 @@
 .ak-ai-ds-overlay.is-open .ak-ai-ds-window { opacity:1; transform:translateY(0) scale(1); }
 .ak-ai-ds-header { display:flex; align-items:center; justify-content:space-between; padding:15px 16px 13px; border-bottom:1px solid var(--color-border,#e2e8f0); }
 .ak-ai-ds-brand { display:flex; align-items:center; gap:10px; min-width:0; }
-.ak-ai-ds-avatar { display:grid; place-items:center; width:39px; height:39px; border-radius:13px; background:linear-gradient(145deg,#347edc,#203c6d); color:#fff; font-size:13px; font-weight:800; box-shadow:0 4px 12px rgba(37,99,190,.22); }
+.ak-ai-ds-avatar { display:grid; place-items:center; width:39px; height:39px; border-radius:13px; background:linear-gradient(145deg,#e5effa,#eee5f0); color:#30435d;
+  box-shadow:0 4px 12px rgba(86,105,142,.16),inset 0 1px 0 rgba(255,255,255,.92); }
 .ak-ai-ds-title-wrap h2 { margin:0; font-size:16px; line-height:1.2; font-weight:800; letter-spacing:-.02em; }
 .ak-ai-ds-subtitle { display:flex; align-items:center; gap:6px; margin-top:4px; color:var(--color-text-muted,#64748b); font-size:10px; }
 .ak-ai-ds-subtitle i,.ak-ai-ds-context-dot { width:6px; height:6px; border-radius:50%; background:#94a3b8; }
@@ -68,3 +78,6 @@
   .ak-ai-ds-window { left:10px; right:auto; bottom:84px; width:calc(100vw - 20px); height:min(590px,calc(100dvh - 112px)); }
 }
 @media(prefers-reduced-motion:reduce) { .ak-ai-ds-window,.ak-ai-ds-launcher { transition:none; } }
+
+/* Static brand mark inside the chat header — intentionally not animated. */
+.ak-ai-ds-avatar .ak-ai-ds-monogram { font-size: 23px; }
