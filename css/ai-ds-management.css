@@ -94,3 +94,94 @@ html[data-theme="dark"] .doxi-admin-test-result { background:rgba(148,163,184,.0
   .doxi-admin-guardrail-grid { grid-template-columns:1fr; }
 }
 @media(prefers-reduced-motion:reduce) { .doxi-admin-btn,.doxi-admin-toast,.doxi-admin-switch > span,.doxi-admin-switch > span::before { transition:none; } }
+
+/* v1.8 — subtle all-user conversation history and editable safe boundaries. */
+.doxi-admin-heading-actions { display:flex; align-items:center; gap:12px; }
+.doxi-history-subtle-btn {
+  border:0; padding:5px 2px; background:transparent; color:var(--color-text-muted,#8492a5);
+  font:600 11px/1.2 var(--font-main,Arial,sans-serif); text-decoration:underline; text-decoration-color:rgba(132,146,165,.38);
+  text-underline-offset:3px; cursor:pointer; transition:color .16s ease,text-decoration-color .16s ease;
+}
+.doxi-history-subtle-btn:hover { color:#b56c83; text-decoration-color:#b56c83; }
+.doxi-admin-setting-row-stack { align-items:stretch; flex-direction:column; gap:11px; }
+.doxi-admin-select {
+  width:min(100%,360px); min-height:39px; padding:0 12px; border:1px solid var(--color-border,#dbe2ea);
+  border-radius:10px; background:var(--color-surface,#fff); color:var(--color-text-main,#26364b);
+  font:600 12px var(--font-main,Arial,sans-serif);
+}
+.doxi-admin-select:focus-visible { outline:3px solid rgba(105,151,205,.18); border-color:#82a9d2; }
+.doxi-role-permissions { display:flex; flex-wrap:wrap; gap:8px; }
+.doxi-role-permissions label {
+  display:inline-flex; align-items:center; gap:6px; padding:8px 10px; border:1px solid var(--color-border,rgba(148,163,184,.25));
+  border-radius:9px; background:rgba(100,116,139,.035); color:var(--color-text-main,#35445a); font-size:11px; font-weight:650;
+}
+.doxi-role-permissions input { accent-color:#b36e88; }
+.doxi-role-permissions small { color:var(--color-text-muted,#8794a5); font-size:9px; font-weight:500; }
+.doxi-history-open { overflow:hidden; }
+.doxi-history-overlay[hidden] { display:none !important; }
+.doxi-history-overlay {
+  position:fixed; inset:0; z-index:10080; display:grid; place-items:center; padding:22px;
+  background:rgba(19,31,48,.44); backdrop-filter:blur(5px);
+}
+.doxi-history-dialog {
+  display:flex; flex-direction:column; width:min(1120px,calc(100vw - 36px)); height:min(790px,calc(100dvh - 44px));
+  overflow:hidden; border:1px solid var(--color-border,rgba(148,163,184,.28)); border-radius:20px;
+  background:var(--color-surface,#fff); color:var(--color-text-main,#26364b); box-shadow:0 28px 90px rgba(12,24,40,.28);
+}
+.doxi-history-header { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:19px 22px 16px; border-bottom:1px solid var(--color-border,#e2e8f0); }
+.doxi-history-header h2 { margin:0; font-size:18px; font-weight:800; letter-spacing:-.025em; }
+.doxi-history-header p { margin:5px 0 0; color:var(--color-text-muted,#78869a); font-size:11px; line-height:1.45; }
+.doxi-history-close { display:grid; place-items:center; width:32px; height:32px; border:0; border-radius:9px; background:rgba(100,116,139,.07); color:var(--color-text-muted,#66758a); font-size:23px; line-height:1; cursor:pointer; }
+.doxi-history-body { display:grid; grid-template-columns:minmax(270px,350px) minmax(0,1fr); flex:1; min-height:0; }
+.doxi-history-sidebar { display:flex; flex-direction:column; min-height:0; padding:14px; border-right:1px solid var(--color-border,#e2e8f0); background:rgba(100,116,139,.025); }
+.doxi-history-search { width:100%; min-height:39px; flex:0 0 auto; padding:0 12px; border:1px solid var(--color-border,#dbe2ea); border-radius:10px; outline:0; background:var(--color-surface,#fff); color:var(--color-text-main,#26364b); font:11px var(--font-main,Arial,sans-serif); }
+.doxi-history-search:focus { border-color:#8cabc9; box-shadow:0 0 0 3px rgba(116,157,204,.1); }
+.doxi-history-list { flex:1; min-height:0; overflow:auto; padding:10px 2px 2px; }
+.doxi-history-item { display:flex; flex-direction:column; width:100%; margin-bottom:7px; padding:11px; border:1px solid transparent; border-radius:11px; background:var(--color-surface,#fff); text-align:left; cursor:pointer; transition:border-color .14s ease,background .14s ease; }
+.doxi-history-item:hover { border-color:rgba(184,125,148,.28); background:rgba(245,235,241,.38); }
+.doxi-history-item.is-active { border-color:rgba(180,111,137,.45); background:linear-gradient(110deg,rgba(255,239,243,.72),rgba(239,246,253,.72)); }
+.doxi-history-item-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.doxi-history-item-top strong { min-width:0; overflow:hidden; color:var(--color-text-main,#304056); font-size:11px; font-weight:760; text-overflow:ellipsis; white-space:nowrap; }
+.doxi-history-item-top time { flex:0 0 auto; color:var(--color-text-muted,#8a97a8); font-size:9px; }
+.doxi-history-item-title { margin-top:7px; overflow:hidden; color:var(--color-text-main,#35445a); font-size:10px; font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
+.doxi-history-item-preview { display:-webkit-box; margin-top:4px; overflow:hidden; color:var(--color-text-muted,#7b899c); font-size:10px; line-height:1.4; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.doxi-history-item-meta { align-self:flex-end; margin-top:6px; color:#a06d82; font-size:9px; }
+.doxi-history-more,.doxi-history-older-btn { flex:0 0 auto; min-height:34px; padding:0 10px; border:1px solid var(--color-border,#dbe2ea); border-radius:9px; background:var(--color-surface,#fff); color:var(--color-text-muted,#68788e); font:650 10px var(--font-main,Arial,sans-serif); cursor:pointer; }
+.doxi-history-more[hidden] { display:none; }
+.doxi-history-more:hover,.doxi-history-older-btn:hover { border-color:#c68da2; color:#a45e79; }
+.doxi-history-transcript { display:flex; flex-direction:column; min-height:0; overflow:auto; padding:18px 22px 22px; }
+.doxi-history-transcript-heading { position:sticky; top:-18px; z-index:1; margin:-18px -22px 15px; padding:17px 22px 13px; border-bottom:1px solid var(--color-border,#e2e8f0); background:var(--color-surface,#fff); }
+.doxi-history-transcript-heading h3 { margin:0; color:var(--color-text-main,#304056); font-size:14px; font-weight:800; }
+.doxi-history-transcript-heading p { margin:5px 0 0; color:var(--color-text-muted,#7e8da0); font-size:10px; }
+.doxi-history-message { max-width:min(760px,94%); margin:0 0 10px; padding:11px 13px; border:1px solid var(--color-border,rgba(148,163,184,.22)); border-radius:12px; background:rgba(100,116,139,.055); }
+.doxi-history-message.is-user { align-self:flex-end; border-bottom-right-radius:4px; background:linear-gradient(120deg,rgba(230,241,251,.8),rgba(247,238,244,.65)); }
+.doxi-history-message.is-assistant { align-self:flex-start; border-bottom-left-radius:4px; }
+.doxi-history-message-top { display:flex; justify-content:space-between; gap:12px; margin-bottom:6px; }
+.doxi-history-message-top strong { color:var(--color-text-main,#43546b); font-size:10px; }
+.doxi-history-message-top time { color:var(--color-text-muted,#8895a6); font-size:9px; }
+.doxi-history-message p { margin:0; color:var(--color-text-main,#34445b); font-size:11px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
+.doxi-history-message small { display:block; margin-top:7px; color:var(--color-text-muted,#8793a3); font-size:9px; }
+.doxi-history-empty { display:grid; place-items:center; min-height:80px; padding:16px; color:var(--color-text-muted,#8a97a8); text-align:center; font-size:11px; line-height:1.5; }
+.doxi-history-placeholder { flex:1; }
+.doxi-history-older-btn { align-self:center; margin:0 0 12px; }
+html[data-theme="dark"] .doxi-role-permissions label { background:rgba(148,163,184,.07); color:#d9e2ed; }
+html[data-theme="dark"] .doxi-history-sidebar { background:rgba(148,163,184,.035); }
+html[data-theme="dark"] .doxi-history-item { background:#202c39; }
+html[data-theme="dark"] .doxi-history-item.is-active { background:linear-gradient(110deg,rgba(117,72,89,.28),rgba(77,111,145,.2)); }
+html[data-theme="dark"] .doxi-history-item-top strong,html[data-theme="dark"] .doxi-history-item-title,
+html[data-theme="dark"] .doxi-history-transcript-heading h3,html[data-theme="dark"] .doxi-history-message p,
+html[data-theme="dark"] .doxi-history-message-top strong { color:#e2e8f0; }
+html[data-theme="dark"] .doxi-history-message.is-user { background:linear-gradient(120deg,rgba(69,102,137,.3),rgba(111,76,101,.25)); }
+@media(max-width:760px) {
+  .doxi-admin-heading-actions { width:100%; justify-content:space-between; }
+  .doxi-role-permissions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .doxi-history-overlay { padding:8px; }
+  .doxi-history-dialog { width:calc(100vw - 16px); height:calc(100dvh - 16px); border-radius:15px; }
+  .doxi-history-body { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(180px,38%) minmax(0,1fr); }
+  .doxi-history-sidebar { border-right:0; border-bottom:1px solid var(--color-border,#e2e8f0); padding:10px; }
+  .doxi-history-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; }
+  .doxi-history-item { min-width:0; margin:0; padding:8px; }
+  .doxi-history-item-top { flex-direction:column; align-items:flex-start; gap:3px; }
+  .doxi-history-transcript { padding:12px; }
+  .doxi-history-transcript-heading { top:-12px; margin:-12px -12px 12px; padding:12px; }
+}
