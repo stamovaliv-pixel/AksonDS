@@ -20,9 +20,7 @@
   line-height: 1; letter-spacing: -.105em; white-space: nowrap;
   text-shadow: 0 .35px 0 rgba(48,67,93,.12);
 }
-/* Keep the capital D upright; only the x carries the subtle italic accent. */
-.ak-ai-ds-monogram > span:first-child { font-style: normal; }
-.ak-ai-ds-monogram-x { color: #bb647c; font-size: .96em; font-weight: 700; font-style: italic; }
+.ak-ai-ds-monogram-x { color: #bb647c; font-size: .96em; font-weight: 700; }
 .ak-ai-ds-overlay[hidden] { display:none!important; }
 .ak-ai-ds-overlay { position:fixed; inset:0; z-index:10041; background:transparent; }
 .ak-ai-ds-window {
