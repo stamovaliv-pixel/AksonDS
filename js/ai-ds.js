@@ -22,10 +22,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   launcher.type = 'button';
   launcher.id = 'akAiDsLauncher';
   launcher.className = 'ak-ai-ds-launcher';
-  launcher.setAttribute('aria-label', 'Открыть AI DS');
+  launcher.setAttribute('aria-label', 'Открыть Докси');
   launcher.setAttribute('aria-haspopup', 'dialog');
   launcher.setAttribute('aria-expanded', 'false');
-  launcher.innerHTML = '<span class="ak-ai-ds-mark" aria-hidden="true">AI</span><span class="ak-ai-ds-wordmark">DS</span>';
+  launcher.innerHTML = '<span class="ak-ai-ds-monogram" aria-hidden="true"><span>D</span><span class="ak-ai-ds-monogram-x">x</span></span>'; 
 
   const overlay = document.createElement('div');
   overlay.className = 'ak-ai-ds-overlay';
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     <section class="ak-ai-ds-window" role="dialog" aria-modal="false" aria-labelledby="akAiDsTitle">
       <header class="ak-ai-ds-header">
         <div class="ak-ai-ds-brand">
-          <div class="ak-ai-ds-avatar" aria-hidden="true">AI</div>
+          <div class="ak-ai-ds-avatar" aria-hidden="true"><span class="ak-ai-ds-monogram"><span>D</span><span class="ak-ai-ds-monogram-x">x</span></span></div>
           <div class="ak-ai-ds-title-wrap">
             <h2 id="akAiDsTitle">Докси</h2>
             <span class="ak-ai-ds-subtitle"><i></i> AI-помощник Akson DockSlot</span>
