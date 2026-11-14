@@ -1,4 +1,4 @@
-/* Doxi client v2.0.0.
+/* Doxi client v3.4.0.
    All data access and every mutation are authorized by the Supabase Edge Function. */
 document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
@@ -60,6 +60,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.body.append(launcher, overlay);
 
   const $ = (id) => document.getElementById(id);
+  if (String(auth.profile.role || '').toLowerCase() === 'super_admin') {
+    const footnote = overlay.querySelector('.ak-ai-ds-footnote');
+    if (footnote) footnote.textContent = 'Интернет-поиск: /интернет запрос или «найди в интернете …». Передавайте только публичные фразы, не включайте внутренние данные DockSlot.';
+  }
   const input = $('akAiDsInput'); const messages = $('akAiDsMessages'); const sendButton = $('akAiDsSend');
   const attachButton = $('akAiDsAttach'); const fileInput = $('akAiDsFileInput'); const attachment = $('akAiDsAttachment'); const attachmentName = $('akAiDsAttachmentName'); const attachmentRemove = $('akAiDsAttachmentRemove');
   const status = $('akAiDsStatus'); const note = $('akAiDsConnectionNote');
@@ -242,11 +246,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const copy = document.createElement('p'); copy.textContent = greeting.text;
     const sub = document.createElement('p'); sub.className = 'ak-ai-ds-welcome-sub'; sub.textContent = 'К вашим задачам готова!';
     const suggestions = document.createElement('div'); suggestions.className = 'ak-ai-ds-suggestions';
-    [
+    const suggestionItems = [
       ['Сводка на сегодня', 'Сколько активных записей сегодня? Покажи распределение по часам.'],
       ['Загрузка на завтра', 'Какая загрузка по активным записям завтра? Покажи распределение по часам.'],
       ['Правила календаря', 'Объясни правила календаря и работы со слотами в DockSlot.']
-    ].forEach(([label, prompt]) => {
+    ];
+    if (String(auth.profile.role || '').toLowerCase() === 'super_admin') {
+      suggestionItems.push(['Поиск в интернете', '/интернет актуальная документация Supabase Edge Functions']);
+    }
+    suggestionItems.forEach(([label, prompt]) => {
       const button = document.createElement('button'); button.type = 'button'; button.dataset.prompt = prompt;
       const span = document.createElement('span'); span.textContent = '↗';
       button.append(document.createTextNode(label), span); suggestions.append(button);
@@ -272,6 +280,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     node.className = `ak-ai-ds-message ak-ai-ds-message-${type}${extraClass ? ` ${extraClass}` : ''}`;
     const bubble = document.createElement('div'); bubble.className = 'ak-ai-ds-bubble'; bubble.textContent = text;
     node.appendChild(bubble); messages.appendChild(node); scrollToBottom(); return node;
+  };
+
+  const addWebSources = (sources) => {
+    if (!Array.isArray(sources) || !sources.length) return;
+    const box = document.createElement('div'); box.className = 'ak-ai-ds-web-sources';
+    const heading = document.createElement('div'); heading.className = 'ak-ai-ds-web-sources-heading'; heading.textContent = 'Источники';
+    box.appendChild(heading);
+    sources.slice(0, 6).forEach((source, index) => {
+      try {
+        const url = new URL(String(source.url || ''));
+        if (url.protocol !== 'https:') return;
+        const item = document.createElement('div'); item.className = 'ak-ai-ds-web-source';
+        const link = document.createElement('a'); link.href = url.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
+        link.textContent = `[${index + 1}] ${String(source.title || url.hostname).slice(0, 180)}`;
+        const domain = document.createElement('span'); domain.className = 'ak-ai-ds-web-source-domain'; domain.textContent = String(source.domain || url.hostname).slice(0, 120);
+        const snippet = document.createElement('p'); snippet.textContent = String(source.snippet || '').slice(0, 420);
+        item.append(link, domain);
+        if (snippet.textContent) item.appendChild(snippet);
+        box.appendChild(item);
+      } catch (_) { /* Ignore an invalid source URL. */ }
+    });
+    if (box.children.length > 1) { messages.appendChild(box); scrollToBottom(); }
   };
   const addBookingLink = (url) => {
     try {
@@ -447,9 +477,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (attachment) attachment.hidden = false;
   };
 
+  const sendWebSearch = async (displayText, query) => {
+    if (String(auth.profile.role || '').toLowerCase() !== 'super_admin') {
+      addMessage(displayText, 'user'); addMessage('Интернет-поиск доступен только суперадминистратору.', 'assistant');
+      input.value = ''; input.style.height = 'auto'; return;
+    }
+    if (selectedRegistryFile) {
+      addMessage('Сначала уберите прикреплённый файл. Веб-поиск не принимает вложения и не отправляет их во внешнюю поисковую систему.', 'assistant');
+      return;
+    }
+    if (!query || query.length > 400) {
+      addMessage('Формат: /интернет ваш публичный поисковый запрос. Максимум 400 символов.', 'assistant'); return;
+    }
+    await Promise.all([thinkingLoadPromise, restoreTodayConversation()]);
+    if (isSending) return;
+    const welcome = messages.querySelector('.ak-ai-ds-welcome'); if (welcome) welcome.remove();
+    addMessage(displayText, 'user'); input.value = ''; input.style.height = 'auto'; setBusy(true);
+    note.textContent = 'В Brave отправляется только отдельная поисковая фраза. История, вложения и данные DockSlot не передаются.';
+    note.classList.add('is-visible');
+    const pending = addMessage('Ищу публичные источники…', 'assistant', 'ak-ai-ds-pending'); startThinking(pending);
+    try {
+      const result = await invoke({ action: 'web_search', query });
+      stopThinking(); pending.remove();
+      if (!result || typeof result.response !== 'string' || !result.response.trim()) throw new Error(result?.error || 'Не удалось получить ответ по результатам поиска.');
+      revealAnswer(result.response.trim());
+      addWebSources(result.sources);
+      setConnection(true);
+      note.textContent = 'Поиск выполнен. Источники показаны отдельно; запрос и результат не сохраняются в истории Докси.';
+    } catch (error) {
+      stopThinking(); pending.remove();
+      addMessage(error?.message || 'Не удалось выполнить интернет-поиск.', 'assistant');
+      setConnection(false); note.textContent = 'Поиск не выполнен. Проверьте серверный ключ Brave Search API.';
+    } finally { stopThinking(); setBusy(false); input.focus(); }
+  };
+
   const send = async (value) => {
     const text = String(value || '').trim() || (selectedRegistryFile ? 'Проанализируй, пожалуйста, вложенный файл и подготовь основные выводы.' : '');
     if (!text || isSending) return;
+    const webMatch = text.match(/^\/интернет(?:\s+([\s\S]+))?$/iu)
+      || text.match(/^(?:найди|поищи|проверь)\s+(?:мне\s+)?(?:информацию\s+)?в\s+(?:интернете|сети|вебе)\s*[:—-]?\s*([\s\S]+)$/iu)
+      || text.match(/^([\s\S]+?)\s+в\s+(?:интернете|сети|вебе)[.!? ]*$/iu);
+    if (webMatch) { await sendWebSearch(text, String(webMatch[1] || '').trim()); return; }
     await Promise.all([thinkingLoadPromise, restoreTodayConversation()]);
     if (isSending) return;
     const wantsRegistryUpload = Boolean(selectedRegistryFile && lastCreatedBookingId) &&

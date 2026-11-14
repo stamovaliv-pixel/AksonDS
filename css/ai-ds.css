@@ -141,3 +141,14 @@ html[data-theme="dark"] .ak-ai-ds-action-card small { color:#b6c2d1; }
 html[data-theme="dark"] .ak-ai-ds-card-btn { background:#243244; border-color:#40536a; color:#e2e8f0; }
 html[data-theme="dark"] .ak-ai-ds-card-btn.is-primary { background:#286bc4; border-color:#286bc4; color:#fff; }
 @media(max-width:600px) { .ak-ai-ds-composer { margin:0 10px; gap:5px; } .ak-ai-ds-composer .ak-ai-ds-attach-btn { flex-basis:30px; width:30px; } .ak-ai-ds-composer #akAiDsSend { flex-basis:32px; width:32px; } }
+
+
+/* Doxi 3.4 — citations returned by the isolated web-search action. */
+.ak-ai-ds-web-sources { display:grid; gap:7px; max-width:88%; margin:0 0 13px 10%; }
+.ak-ai-ds-web-sources-heading { color:var(--color-text-muted,#64748b); font-size:10px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:0 2px; }
+.ak-ai-ds-web-source { display:grid; gap:3px; padding:8px 10px; border:1px solid var(--color-border,#dbe2ea); border-radius:10px; background:var(--color-surface,#fff); }
+.ak-ai-ds-web-source a { color:var(--color-primary,#286bc4); font-size:11px; font-weight:650; line-height:1.35; text-decoration:none; overflow-wrap:anywhere; }
+.ak-ai-ds-web-source a:hover { text-decoration:underline; }
+.ak-ai-ds-web-source-domain { color:var(--color-text-muted,#94a3b8); font-size:9px; }
+.ak-ai-ds-web-source p { margin:2px 0 0; color:var(--color-text-main,#475569); font-size:10px; line-height:1.4; }
+html[data-theme="dark"] .ak-ai-ds-web-source { background:rgba(15,23,42,.32); }
