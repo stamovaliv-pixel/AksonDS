@@ -1,24 +1,6 @@
-c10289b7d8118934744dd953ea231e97dbaf54ab320f7fb6e8750ba9ee329b82  CHANGELOG_DOXI_3_4_RU.md  (1653 bytes)
-f85371ae8300050719239bbe3cc66e27196230e878b2bc1082b7011a4eda6834  DOXI_3_4_FEATURE_MATRIX_RU.md  (2570 bytes)
-09a62ea1e41c546b8c9dbca56326ef8874e1a7465a5846438ff55028511d1d4c  README_DOXI_3_4_RU.md  (12702 bytes)
-2800baa2ec9d92798005a776d1319e7eb0f1ab64cfb663bd58940c2dda5d0c2f  SETUP_BRAVE_SEARCH_RU.md  (2755 bytes)
-68a827f970bfa963b968c7c0d743398b67dd119a2b84df8e0a4ba6f54c5358aa  app/admin_calendar.html  (28971 bytes)
-5eaae4a42d035902fac65461eb0908dcefff29da52a5786c034715efbb4ea59f  app/admin_day.html  (30204 bytes)
-18d44309ef09b1d20baacf918a982c4a550d4faf9d1cdac6fb9cae49c070db65  app/admin_overview.html  (20020 bytes)
-94e4aa5b4d70dfc259d62ed46487f97da97c2ffe96571e163a949ea7b7586062  app/ai_ds_management.html  (23367 bytes)
-137828b4f49c376b37b93b16d8b22d4d70e08ca60be256f8a0057d92844e0e6e  app/analytics.html  (10235 bytes)
-6877fa06c19cbc1d1ed5555a7432f20a95ac2a545edb8ffd60ce9a85a410a9f4  app/calendar.html  (13248 bytes)
-44f89a2588d393829206719b76431133bd395e02edf83736195c2ca5f4668d63  app/dashboard.html  (13478 bytes)
-08cdfd446ab849222a69d629d4f95c52da71b89c0d42029f1c4fa34e2db98977  app/day.html  (25832 bytes)
-36939507ece57d794182b00d768d8201fcf2980f84d377eabc925b6c1afa4661  app/doxi-record.html  (3310 bytes)
-1f412a977ffb23725a2704c4161f3d7ecd1963a31280f64c79a47f9598c47789  app/help.html  (5847 bytes)
-3cf4b528a0cf8d4a548475eedbdf92f13fa2044e185b1ce3fca66f4f307944a9  app/load_management.html  (13525 bytes)
-22fc14383751e4c0ad82193a0f996dc1d5af3cc63732431c8c119432ac0f5045  app/settings.html  (26155 bytes)
-84207c389f370d0f4fbd22fa9e97cbfb4cef82d7cae0c9d79742599b0e071cae  app/shift_board.html  (8877 bytes)
-241af2c937c030b41269d892cf7126e744a4f67d517db7cb0a1cac3302741eb0  app/suppliers.html  (7343 bytes)
-0a1f6f791ef4454251efb70f33a41de091029be377c9777aac6d04864402e5f1  css/ai-ds.css  (14055 bytes)
-fd0a85a48421c47c1a62c878f58484743708e5ba2e7ebe444b09878d87035f86  diagnostics/DOXI_3_4_ACCEPTANCE_RU.md  (5378 bytes)
-caeb45e7ce1360a3bbe473ace777ea9d24262d235aed2a4067d1b6b984672c48  diagnostics/DOXI_3_4_STATIC_TEST_REPORT_RU.md  (3220 bytes)
-bab3947548c49525bf4f9bcd8466653501588995f15fddc855ae8ff85927e229  js/ai-ds.js  (46453 bytes)
-14679e6af2224bf26aa754daa9d8699649d83da994ef34f82b3f9ee5699f742c  ollama/ollama-proxy-6workers-v34.ps1  (14674 bytes)
-839d7b2878f434946f03fe2a396c80e42266b99d37fa302f448d66f427a44410  supabase/functions/doxi-chat/index.ts  (232888 bytes)
+1513d90405f9ed69e8f682987e1001fa30597f98a8c17072409356e28edafc36  ./CHANGELOG_DOXI_3_4_1_RU.md
+d8bd139f01ad344e9cd2f79adbb5e0c5afa4c80887db418613f4ee035d6bf540  ./PATCH_NOTES_RU.md
+d5f8e8126d67da6c43d43e50f0e09ffad680662ca97f8f951f353c9da1973085  ./README_DOXI_3_4_1_RU.md
+36137a983f0bc51972336ab67103a4da4ef5752eeac3f4c911b69c60bda4c1e0  ./VALIDATION_REPORT_RU.md
+0aec0cffed8dc4aa4a5ce87858ab11ff4000e2323a271de4e2ad4ab9cd5da39d  ./ollama/ollama-proxy-6workers-v34.1.ps1
+1229411ce4aa9a6cf95be3e7825d00c0a638606f6c18efabbaed6a9105999c7d  ./supabase/functions/doxi-chat/index.ts
