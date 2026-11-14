@@ -856,6 +856,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     processDueReminders();
   };
 
+  // Докси записывает личные заметки и напоминания в эти же таблицы рабочего стола.
+  // После успешного сохранения Докси обновляем штатные виджеты, не создавая дублей.
+  window.addEventListener('doxi:workspace-items-changed', async (event) => {
+    const changed = event.detail || {};
+    try {
+      const tasks = [];
+      if (changed.notes) tasks.push(loadNotes());
+      if (changed.reminders) tasks.push(loadReminders());
+      if (tasks.length) await Promise.all(tasks);
+    } catch (error) {
+      console.error('Не удалось обновить блоки рабочего стола после действия Докси:', error);
+      toast('Докси сохранила данные, но список не обновился. Перезагрузите страницу.', true);
+    }
+  });
+
   const renderReminders = () => {
     const list = $('remindersList');
     list.replaceChildren();

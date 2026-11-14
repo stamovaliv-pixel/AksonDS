@@ -16,11 +16,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const createInput = $('doxiBookingCreateEnabled');
   const updateInput = $('doxiBookingUpdateEnabled');
   const deleteInput = $('doxiBookingDeleteEnabled');
-  const notesInput = $('doxiNotesEnabled');
-  const remindersInput = $('doxiRemindersEnabled');
-  const notesList = $('doxiNotesList');
-  const remindersList = $('doxiRemindersList');
-  const refreshPersonalItems = $('doxiRefreshPersonalItems');
   const roleInputs = [...document.querySelectorAll('#doxiAllowedRoles input[type="checkbox"]')];
   const saveButton = $('doxiSaveBtn');
   const testButton = $('doxiTestBtn');
@@ -97,8 +92,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     booking_create_enabled: createInput.checked,
     booking_update_enabled: updateInput.checked,
     booking_delete_enabled: deleteInput.checked,
-    notes_enabled: notesInput.checked,
-    reminders_enabled: remindersInput.checked,
     assistant_style: styleInput.value,
     allowed_roles: selectedRoles().sort(),
   });
@@ -112,8 +105,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       || current.booking_create_enabled !== Boolean(saved.booking_create_enabled)
       || current.booking_update_enabled !== Boolean(saved.booking_update_enabled)
       || current.booking_delete_enabled !== Boolean(saved.booking_delete_enabled)
-      || current.notes_enabled !== Boolean(saved.notes_enabled)
-      || current.reminders_enabled !== Boolean(saved.reminders_enabled)
       || current.assistant_style !== (saved.assistant_style || 'delicate')
       || JSON.stringify(current.allowed_roles) !== JSON.stringify(normalizedRoles(saved.allowed_roles));
   };
@@ -132,8 +123,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     createInput.checked = Boolean(saved.booking_create_enabled);
     updateInput.checked = Boolean(saved.booking_update_enabled);
     deleteInput.checked = Boolean(saved.booking_delete_enabled);
-    notesInput.checked = Boolean(saved.notes_enabled);
-    remindersInput.checked = Boolean(saved.reminders_enabled);
     styleInput.value = saved.assistant_style || 'delicate';
     applyRoles(saved.allowed_roles || ['super_admin']);
     if (modelName) modelName.textContent = saved.model || 'Модель подключена';
@@ -179,7 +168,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  [enabledInput, liveDataInput, detailsInput, createInput, updateInput, deleteInput, notesInput, remindersInput, styleInput, ...roleInputs].forEach((control) => {
+  [enabledInput, liveDataInput, detailsInput, createInput, updateInput, deleteInput, styleInput, ...roleInputs].forEach((control) => {
     control.addEventListener('change', updateSaveState);
   });
 
@@ -297,54 +286,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     catch (error) { showToast(error.message, true); button.disabled = false; }
     finally { busy = false; updateSaveState(); }
   });
-
-  // ---------- Personal notes and reminders (scoped to the signed-in user) ----------
-  const safeEmpty = (node, message) => { if (node) { const el = document.createElement('div'); el.className = 'doxi-history-empty'; el.textContent = message; node.replaceChildren(el); } };
-  const renderPersonalItems = async () => {
-    if (!notesList || !remindersList) return;
-    safeEmpty(notesList, 'Загружаю заметки…'); safeEmpty(remindersList, 'Загружаю напоминания…');
-    try {
-      const [notesResult, remindersResult] = await Promise.all([
-        invoke({ action: 'admin_list_notes' }), invoke({ action: 'admin_list_reminders' })
-      ]);
-      notesList.replaceChildren();
-      if (!(notesResult.notes || []).length) safeEmpty(notesList, 'Заметок пока нет. Создать её можно в чате: «Докси, создай заметку…»');
-      (notesResult.notes || []).forEach((item) => {
-        const row = document.createElement('article'); row.className = 'doxi-personal-item';
-        const title = document.createElement('strong'); title.textContent = item.title || 'Заметка';
-        const text = document.createElement('p'); text.textContent = item.content || '';
-        const meta = document.createElement('small'); meta.textContent = formatDate(item.created_at);
-        const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'doxi-personal-item-remove'; remove.textContent = 'Удалить'; remove.dataset.deleteNote = item.id;
-        row.append(title, text, meta, remove); notesList.append(row);
-      });
-      remindersList.replaceChildren();
-      if (!(remindersResult.reminders || []).length) safeEmpty(remindersList, 'Напоминаний пока нет. Например: «Докси, напомни проверить реестр завтра в 10:30».');
-      (remindersResult.reminders || []).forEach((item) => {
-        const row = document.createElement('article'); row.className = 'doxi-personal-item';
-        const title = document.createElement('strong'); title.textContent = item.title || 'Напоминание';
-        const when = document.createElement('p'); when.textContent = new Date(item.remind_at).toLocaleString('ru-RU',{timeZone:'Europe/Moscow',dateStyle:'medium',timeStyle:'short'}) + ' МСК';
-        const meta = document.createElement('small'); meta.textContent = item.status === 'completed' ? 'Выполнено' : (item.delivered_at ? 'Уведомлено в DockSlot' : 'Ожидает');
-        const actions = document.createElement('div'); actions.className = 'doxi-personal-item-actions';
-        if (item.status === 'pending') { const done = document.createElement('button'); done.type = 'button'; done.className = 'doxi-personal-item-done'; done.textContent = 'Выполнено'; done.dataset.completeReminder = item.id; actions.append(done); }
-        const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'doxi-personal-item-remove'; remove.textContent = 'Удалить'; remove.dataset.deleteReminder = item.id; actions.append(remove);
-        row.append(title, when, meta, actions); remindersList.append(row);
-      });
-    } catch (error) { safeEmpty(notesList, error.message); safeEmpty(remindersList, error.message); }
-  };
-  const handlePersonalItemClick = async (event) => {
-    const button = event.target.closest('[data-delete-note],[data-delete-reminder],[data-complete-reminder]');
-    if (!button) return;
-    button.disabled = true;
-    try {
-      if (button.dataset.deleteNote) await invoke({action:'admin_delete_note',item_id:button.dataset.deleteNote});
-      else if (button.dataset.deleteReminder) await invoke({action:'admin_delete_reminder',item_id:button.dataset.deleteReminder});
-      else if (button.dataset.completeReminder) await invoke({action:'admin_complete_reminder',reminder_id:button.dataset.completeReminder});
-      await renderPersonalItems(); showToast('Список заметок и напоминаний обновлён.');
-    } catch (error) { button.disabled = false; showToast(error.message,true); }
-  };
-  notesList?.addEventListener('click',handlePersonalItemClick);
-  remindersList?.addEventListener('click',handlePersonalItemClick);
-  refreshPersonalItems?.addEventListener('click',()=>void renderPersonalItems());
 
   // ---------- Personal long-term memory. The server always scopes every action to auth.uid(). ----------
   const memoryCategoryLabels = { preference:'Предпочтения', profile:'Рабочий контекст', agreement:'Договорённости', open_task:'Незавершённые задачи', other:'Другое' };
@@ -565,6 +506,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadSettings();
   await loadKnowledge();
-  await renderPersonalItems();
   await loadMemory();
 });

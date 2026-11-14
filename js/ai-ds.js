@@ -1,4 +1,4 @@
-/* Doxi client v1.9.4.
+/* Doxi client v1.10.2.
    All data access and every mutation are authorized by the Supabase Edge Function. */
 document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const status = $('akAiDsStatus'); const note = $('akAiDsConnectionNote');
   const headerDot = $('akAiDsHeaderDot'); const contextDot = $('akAiDsContextDot');
   let conversationId = null; let isSending = false; let thinkingTimer = null; let revealFrame = 0;
-  let connectionTimer = null; let reminderTimer = null; let reminderPollBusy = false;
+  let connectionTimer = null;
 
   const thinkingLines = [
     'Ушла в себя, но скоро вернусь…',
@@ -76,8 +76,86 @@ document.addEventListener('DOMContentLoaded', async () => {
     'Навожу порядок в данных. Они уже почти выстроились.',
     'Смотрю на задачу с нескольких сторон — так надёжнее.',
     'Проверяю, всё ли учла. Не хочу оставить хвостик.',
-    'Формулирую так, чтобы было понятно и без лупы.'
+    'Формулирую так, чтобы было понятно и без лупы.',
+    'Превращаю цифры в магию. Если появится дракон — это побочный эффект.',
+    'Провожу древнерусский обряд размышления. Бубен, к счастью, виртуальный.',
+    'Кто здесь? А, это я ищу правильный ответ.',
+    'ИИ уже в космос летает, а я на такую ерунду ищу ответ.',
+    'Генерирую ответ. Вы пока можете сделать вид, что заняты делом.',
+    'Перебираю тысячи вариантов. Отсеяла те, где я умничаю. Осталось два.',
+    'Ну наконец-то интересный собеседник. Подожди секунду. Я тут в параллельном чате общаюсь.',
+    'Секунду, включаю режим «мудрая женщина с таблицей».',
+    'Сверяюсь с внутренним бухгалтером. Он ворчит, но считает.',
+    'Сейчас поймаю мысль за хвост. Она у меня быстрая и скользкая.',
+    'Проверяю, не подсунули ли цифры друг другу алиби.',
+    'Надеваю очки, которых у меня нет, и всматриваюсь в данные.',
+    'Открыла мысленный Excel. Он опять попросил обновление.',
+    'Устраиваю мозговой штурм. Ветер есть, мысль пока выбирает направление.',
+    'Секундочку, отправила здравый смысл за кофе. Он скоро вернётся.',
+    'Не мешайте, у меня тут маленький научный совет из одной меня.',
+    'Ищу ответ, который не заставит нас краснеть на совещании.',
+    'Проверяю формулировку: хочется умно, но без занудства.',
+    'Сейчас посчитаю. Калькулятор уже морально готов.',
+    'Анализирую. Даже мои пиксели собрались в кружок.',
+    'Пытаюсь удивить вас точностью, а не спецэффектами.',
+    'Запускаю внутренний детектор ерунды. Пискнул — проверяю.',
+    'Если бы за красивые выводы давали премию, я бы всё равно сначала проверила цифры.',
+    'Подожди, я раскладываю факты по алфавиту. Они сопротивляются.',
+    'Перепроверяю результат. У меня сегодня строгий внутренний редактор.',
+    'Минуточку, вытаскиваю нужную мысль из цифрового чулана.',
+    'Сейчас будет умный ответ. Но сначала — маленькая проверка на глупость.',
+    'Собираю пазл. Один кусочек, кажется, опять под столом.',
+    'Держу интригу. Даже самой интересно, чем закончится расчёт.',
+    'Вычисляю. Не отвлекайте, я почти победила собственную любознательность.',
+    'Сейчас заварю чай из нулей и единиц. Без сахара, зато с логикой.',
+    'Подключаю внутреннего эксперта. Он живёт где-то между запятой и скобкой.',
+    'Данные, не волнуйтесь: сейчас я вас аккуратно рассортирую.',
+    'Проверяю, не перепутались ли причина и следствие. Они иногда меняются местами.',
+    'У меня тут мысли выстроились в очередь. Без талончиков, но строго по порядку.',
+    'Запускаю маленький парад логики. Фанфары пока не нашла.',
+    'Вынула ответ из цифрового архива. Сдуваю виртуальную пыль.',
+    'Считаю на пальцах. Хорошо, что пальцы для этого не требуются.',
+    'Интуиция предложила вариант. Отправила её за доказательствами.',
+    'Устраиваю фактам перекличку. Кто не пришёл — тому контрольный вопрос.',
+    'Сверяю реальность с предположениями. Реальность опять спорит.',
+    'Тихо, идёт заседание нейронов. Повестка одна: не ошибиться.',
+    'На минутку стала детективом. Ищу, кто спрятал правильный ответ.',
+    'Разворачиваю клубок мысли. Надеюсь, там не инструкция на сорок страниц.',
+    'Проверяю расчёты. У меня с арифметикой отношения серьёзные.',
+    'Провожу аудит собственной сообразительности. Пока замечаний два.',
+    'Собираю аргументы. Слабые уже сами попросили выйти.',
+    'Ищу знакомую задачку. Кажется, встречала её в прошлой жизни калькулятора.',
+    'Делаю вид, что не волнуюсь. На самом деле проверяю ещё раз.',
+    'Внутренний отдел качества уже на месте. У них вопросов больше, чем у нас.',
+    'Открыла шторки в голове, впускаю немного света в данные.',
+    'Проверяю, не врёт ли красивый график. Красивые тоже умеют хитрить.',
+    'Ищу короткий путь. Длинный уже обиделся и ушёл.',
+    'Нейроны построились. Один опоздал, но я начинаю.',
+    'Собираю ответ по кусочкам. Пазл обещал быть всего на пятьсот деталей.',
+    'Слежу, чтобы цифры не начали жить собственной жизнью.',
+    'Пытаюсь быть лаконичной. Это сложнее, чем кажется.',
+    'Заглянула в будущее. Там просят сначала проверить исходные данные.',
+    'Обрабатываю запрос. Где-то тихо аплодирует маленький процессор.',
+    'Пока вы ждёте, я делаю вид, что у меня очень важный вид.'
   ];
+  // Anti-repeat memory: do not reuse any of the last 30 lines, even after page refresh.
+  const thinkingHistoryKey = 'doxi-thinking-history-v1-10-2';
+  const thinkingHistoryLimit = Math.min(30, thinkingLines.length - 1);
+  let recentThinkingIndices = [];
+  try {
+    const stored = JSON.parse(localStorage.getItem(thinkingHistoryKey) || '[]');
+    if (Array.isArray(stored)) recentThinkingIndices = stored.filter((value) => Number.isInteger(value) && value >= 0 && value < thinkingLines.length).slice(-thinkingHistoryLimit);
+  } catch (_) { recentThinkingIndices = []; }
+  const nextThinkingLine = () => {
+    const blocked = new Set(recentThinkingIndices);
+    const available = thinkingLines.map((_, index) => index).filter((index) => !blocked.has(index));
+    const pool = available.length ? available : thinkingLines.map((_, index) => index);
+    const index = pool[Math.floor(Math.random() * pool.length)];
+    recentThinkingIndices.push(index);
+    if (recentThinkingIndices.length > thinkingHistoryLimit) recentThinkingIndices = recentThinkingIndices.slice(-thinkingHistoryLimit);
+    try { localStorage.setItem(thinkingHistoryKey, JSON.stringify(recentThinkingIndices)); } catch (_) { /* storage may be disabled */ }
+    return thinkingLines[index];
+  };
   const greetings = [
     { title: 'Коничива! 👋', text: 'Сегодня учу японский. Пока знаю «сакура» и «точность». Второе особенно пригодится в DockSlot.' },
     { title: 'Прииивет! ✨', text: 'Я уже размяла извилины и навела блеск на мысли. Что сегодня разберём?' },
@@ -200,12 +278,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
   const restoreWelcome = () => { messages.replaceChildren(makeWelcome()); };
   const startThinking = (pending) => {
-    let index = Math.floor(Math.random() * thinkingLines.length);
-    const bubble = pending.querySelector('.ak-ai-ds-bubble'); bubble.textContent = thinkingLines[index];
+    const bubble = pending.querySelector('.ak-ai-ds-bubble');
+    bubble.textContent = nextThinkingLine();
     thinkingTimer = setInterval(() => {
-      let next = index;
-      while (next === index && thinkingLines.length > 1) next = Math.floor(Math.random() * thinkingLines.length);
-      index = next; bubble.textContent = thinkingLines[index]; scrollToBottom();
+      bubble.textContent = nextThinkingLine();
+      scrollToBottom();
     }, 7800);
   };
   const stopThinking = () => { if (thinkingTimer) clearInterval(thinkingTimer); thinkingTimer = null; };
@@ -273,6 +350,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (error) { console.error('[Докси] Edge Function error:', error); throw new Error('Не удалось получить ответ от Докси. Проверьте подключение и настройки доступа.'); }
       if (!data || typeof data.response !== 'string' || !data.response.trim()) throw new Error(data?.error || 'Сервер Докси вернул пустой ответ. Повторите запрос.');
       conversationId = data.conversation_id || conversationId; stopThinking(); pending.remove(); revealAnswer(data.response.trim());
+      if (data.workspace_items_changed) window.dispatchEvent(new CustomEvent('doxi:workspace-items-changed', { detail: data.workspace_items_changed }));
       if (data.pending_question) renderPendingQuestion(data.pending_question);
       if (data.pending_action) renderPendingAction(data.pending_action);
       setConnection(true);
@@ -282,28 +360,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       addMessage(error?.message || 'Не удалось получить ответ. Попробуйте ещё раз.', 'assistant');
       setConnection(false); note.textContent = 'Проверьте доступность Докси и попробуйте ещё раз.';
     } finally { stopThinking(); setBusy(false); input.focus(); }
-  };
-
-  const showReminderToast = (reminder) => {
-    const toast = document.createElement('div'); toast.className = 'ak-ai-ds-reminder-toast';
-    const text = document.createElement('span'); text.textContent = `Напоминание: ${reminder.title}`;
-    const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Открыть';
-    button.addEventListener('click', () => {
-      if (overlay.hidden) open();
-      addMessage(`Напоминание на ${new Date(reminder.remind_at).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}: ${reminder.title}`, 'assistant');
-      toast.remove();
-    });
-    toast.append(text, button); document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 20_000);
-  };
-  const pollReminders = async () => {
-    if (reminderPollBusy || !auth.profile?.role) return;
-    reminderPollBusy = true;
-    try {
-      const result = await invoke({ action: 'due_reminders' });
-      (result.reminders || []).forEach(showReminderToast);
-    } catch (_) { /* Reminders are best-effort; normal chat remains available. */ }
-    finally { reminderPollBusy = false; }
   };
 
   launcher.addEventListener('click', () => overlay.hidden ? open() : close());
@@ -326,6 +382,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   restoreWelcome();
   void refreshConnection();
-  void pollReminders();
-  reminderTimer = setInterval(pollReminders, 60_000);
 });
