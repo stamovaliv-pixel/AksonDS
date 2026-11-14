@@ -1,4 +1,4 @@
-/* Doxi management v1.10.3.
+/* Doxi management v2.0.0.
    Only super_admin can read global history and change assistant permissions/style. */
 document.addEventListener('DOMContentLoaded', async () => {
   const root = document.getElementById('doxiAdminRoot');
@@ -16,6 +16,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const createInput = $('doxiBookingCreateEnabled');
   const updateInput = $('doxiBookingUpdateEnabled');
   const deleteInput = $('doxiBookingDeleteEnabled');
+  const notesInput = $('doxiNotesEnabled');
+  const remindersInput = $('doxiRemindersEnabled');
+  const roleControls = {
+    admin: $('doxiRoleAdmin'), operator: $('doxiRoleOperator'),
+    viewer: $('doxiRoleViewer'), supplier: $('doxiRoleSupplier'),
+  };
+  const roleLabels = { super_admin: 'Super Admin', admin: 'Администратор', operator: 'Оператор', viewer: 'Наблюдатель', supplier: 'Поставщик' };
   const saveButton = $('doxiSaveBtn');
   const testButton = $('doxiTestBtn');
   const saveMeta = $('doxiSaveMeta');
@@ -89,6 +96,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     booking_create_enabled: createInput.checked,
     booking_update_enabled: updateInput.checked,
     booking_delete_enabled: deleteInput.checked,
+    notes_enabled: notesInput.checked,
+    reminders_enabled: remindersInput.checked,
+    allowed_roles: ['super_admin', ...Object.entries(roleControls).filter(([, control]) => control.checked).map(([role]) => role)],
     assistant_style: styleInput.value,
   });
   const hasChanges = () => {
@@ -100,6 +110,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       || current.booking_create_enabled !== Boolean(saved.booking_create_enabled)
       || current.booking_update_enabled !== Boolean(saved.booking_update_enabled)
       || current.booking_delete_enabled !== Boolean(saved.booking_delete_enabled)
+      || current.notes_enabled !== Boolean(saved.notes_enabled)
+      || current.reminders_enabled !== Boolean(saved.reminders_enabled)
+      || current.allowed_roles.slice().sort().join('|') !== (Array.isArray(saved.allowed_roles) ? saved.allowed_roles.slice().sort().join('|') : 'super_admin')
       || current.assistant_style !== (saved.assistant_style || 'delicate');
   };
   const updateSaveState = () => {
@@ -117,12 +130,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     createInput.checked = Boolean(saved.booking_create_enabled);
     updateInput.checked = Boolean(saved.booking_update_enabled);
     deleteInput.checked = Boolean(saved.booking_delete_enabled);
+    notesInput.checked = Boolean(saved.notes_enabled);
+    remindersInput.checked = Boolean(saved.reminders_enabled);
+    const allowedRoles = new Set(Array.isArray(saved.allowed_roles) ? saved.allowed_roles : ['super_admin']);
+    Object.entries(roleControls).forEach(([role, control]) => { control.checked = allowedRoles.has(role); });
     styleInput.value = saved.assistant_style || 'delicate';
     if (modelName) modelName.textContent = saved.model || 'Модель подключена';
     if (modelDetails) modelDetails.textContent = saved.deployment || 'Технические сведения доступны только Super Admin.';
     const active = Boolean(saved.enabled);
     setStatus(active ? 'online' : 'offline', active ? 'Докси активна' : 'Докси отключена', active
-      ? 'Чат доступен только Super Admin. Чтение данных: ' + (saved.live_data_enabled ? 'включено.' : 'выключено.')
+      ? 'Чат доступен ролям: ' + (Array.isArray(saved.allowed_roles) ? saved.allowed_roles.map((role) => roleLabels[role] || role).join(', ') : 'Super Admin') + '. Чтение данных: ' + (saved.live_data_enabled ? 'включено.' : 'выключено.')
       : 'Глобальный переключатель отключает ответы помощницы.');
     saveMeta.textContent = 'Настройки загружены.';
     saveButton.disabled = true;
@@ -161,7 +178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  [enabledInput, liveDataInput, detailsInput, createInput, updateInput, deleteInput, styleInput].forEach((control) => {
+  [enabledInput, liveDataInput, detailsInput, createInput, updateInput, deleteInput, notesInput, remindersInput, ...Object.values(roleControls), styleInput].forEach((control) => {
     control.addEventListener('change', updateSaveState);
   });
 

@@ -1,4 +1,4 @@
-/* Doxi client v1.10.3.
+/* Doxi client v2.0.0.
    All data access and every mutation are authorized by the Supabase Edge Function. */
 document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="ak-ai-ds-avatar" aria-hidden="true">${mark}</div>
           <div class="ak-ai-ds-title-wrap">
             <h2 id="akAiDsTitle">Докси</h2>
-            <span class="ak-ai-ds-subtitle"><i id="akAiDsHeaderDot" class="is-offline"></i> Твой ассистент по DockSlot</span>
+            <span class="ak-ai-ds-subtitle"><i id="akAiDsHeaderDot" class="is-offline"></i> Ваш ассистент по DockSlot</span>
           </div>
         </div>
         <div class="ak-ai-ds-header-actions">
@@ -238,7 +238,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const greeting = greetings[Math.floor(Math.random() * greetings.length)];
     const wrap = document.createElement('div'); wrap.className = 'ak-ai-ds-welcome';
     const icon = document.createElement('div'); icon.className = 'ak-ai-ds-welcome-icon'; icon.textContent = '✦';
-    const title = document.createElement('h3'); title.textContent = 'Привет! Я - Докси, твой ассистент по DockSlot.';
+    const title = document.createElement('h3'); title.textContent = 'Здравствуйте! Я — Докси, ваш ассистент по DockSlot.';
     const copy = document.createElement('p'); copy.textContent = greeting.text;
     const sub = document.createElement('p'); sub.className = 'ak-ai-ds-welcome-sub'; sub.textContent = 'К вашим задачам готова!';
     const suggestions = document.createElement('div'); suggestions.className = 'ak-ai-ds-suggestions';
@@ -343,7 +343,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ? 'Удаление окончательное. Нажми «Подтвердить», только если действительно хочешь удалить эту запись.'
       : pending.action_type === 'booking_create' && selectedRegistryFile
         ? 'После подтверждения запись будет создана, а выбранный файл реестра автоматически прикрепится к ней.'
-        : 'Пока ты не нажмёшь «Подтвердить», запись в DockSlot не изменится.';
+        : 'Пока вы не нажмёте «Подтвердить», запись в DockSlot не изменится.';
     const actions = document.createElement('div'); actions.className = 'ak-ai-ds-card-actions';
     const confirm = document.createElement('button'); confirm.type = 'button'; confirm.className = 'ak-ai-ds-card-btn is-primary';
     confirm.textContent = 'Подтвердить';
