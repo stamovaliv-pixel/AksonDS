@@ -1,4 +1,4 @@
-/* Doxi client v1.10.3.
+/* Doxi client v2.0.0.
    All data access and every mutation are authorized by the Supabase Edge Function. */
 document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="ak-ai-ds-avatar" aria-hidden="true">${mark}</div>
           <div class="ak-ai-ds-title-wrap">
             <h2 id="akAiDsTitle">Докси</h2>
-            <span class="ak-ai-ds-subtitle"><i id="akAiDsHeaderDot" class="is-offline"></i> Твой ассистент по DockSlot</span>
+            <span class="ak-ai-ds-subtitle"><i id="akAiDsHeaderDot" class="is-offline"></i> Ваш ассистент по DockSlot</span>
           </div>
         </div>
         <div class="ak-ai-ds-header-actions">
@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <button type="button" id="akAiDsAttachmentRemove" aria-label="Убрать файл">×</button>
       </div>
       <form class="ak-ai-ds-composer" id="akAiDsForm">
-        <button type="button" class="ak-ai-ds-attach-btn" id="akAiDsAttach" aria-label="Прикрепить реестр" title="Прикрепить реестр CSV, XLS или XLSX">
+        <button type="button" class="ak-ai-ds-attach-btn" id="akAiDsAttach" aria-label="Прикрепить файл" title="Прикрепить CSV, XLS или XLSX для анализа или последующего прикрепления к записи">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12.5 14.8 5.7a3.2 3.2 0 0 1 4.5 4.5l-8.1 8.1a5 5 0 0 1-7.1-7.1l8-8"/></svg>
         </button>
         <input type="file" id="akAiDsFileInput" accept=".csv,.xls,.xlsx" hidden>
@@ -238,7 +238,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const greeting = greetings[Math.floor(Math.random() * greetings.length)];
     const wrap = document.createElement('div'); wrap.className = 'ak-ai-ds-welcome';
     const icon = document.createElement('div'); icon.className = 'ak-ai-ds-welcome-icon'; icon.textContent = '✦';
-    const title = document.createElement('h3'); title.textContent = 'Привет! Я - Докси, твой ассистент по DockSlot.';
+    const title = document.createElement('h3'); title.textContent = 'Здравствуйте! Я — Докси, ваш ассистент по DockSlot.';
     const copy = document.createElement('p'); copy.textContent = greeting.text;
     const sub = document.createElement('p'); sub.className = 'ak-ai-ds-welcome-sub'; sub.textContent = 'К вашим задачам готова!';
     const suggestions = document.createElement('div'); suggestions.className = 'ak-ai-ds-suggestions';
@@ -333,8 +333,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   const renderPendingAction = (pending) => {
-    // A refreshed confirmation token invalidates the previous card. Keep only the newest live card.
-    messages.querySelectorAll('.ak-ai-ds-action-card').forEach((existing) => existing.remove());
     if (!pending?.id || !pending?.token) { addMessage('Я не смогла сформировать защищённое подтверждение. Запись не создана и не изменена. Повтори запрос позже.', 'assistant'); return; }
     const card = document.createElement('div'); card.className = `ak-ai-ds-action-card ${pending.action_type === 'booking_delete' ? 'is-danger' : ''}`;
     const label = document.createElement('strong');
@@ -345,7 +343,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       ? 'Удаление окончательное. Нажми «Подтвердить», только если действительно хочешь удалить эту запись.'
       : pending.action_type === 'booking_create' && selectedRegistryFile
         ? 'После подтверждения запись будет создана, а выбранный файл реестра автоматически прикрепится к ней.'
-        : 'Пока ты не нажмёшь «Подтвердить», запись в DockSlot не изменится.';
+        : 'Пока вы не нажмёте «Подтвердить», запись в DockSlot не изменится.';
     const actions = document.createElement('div'); actions.className = 'ak-ai-ds-card-actions';
     const confirm = document.createElement('button'); confirm.type = 'button'; confirm.className = 'ak-ai-ds-card-btn is-primary';
     confirm.textContent = 'Подтвердить';
@@ -355,13 +353,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       confirm.disabled = true; cancel.disabled = true; confirm.textContent = 'Выполняю…'; setBusy(true);
       try {
         const result = await invoke({ action: 'commit_action', draft_id: pending.id, confirmation_token: pending.token, conversation_id: conversationId });
-        if (result.ok !== true || !result.result || result.result.action !== pending.action_type) {
-          throw new Error('Сервер не подтвердил выполнение действия. Запись не считаю созданной или изменённой. Обновите диалог и проверьте состояние записи.');
-        }
-        if (pending.action_type === 'booking_create' && !result.result.booking_id) {
-          throw new Error('Сервер не вернул ID созданной записи. Не считаю операцию подтверждённой; проверьте календарь DockSlot.');
-        }
-        card.remove(); revealAnswer(result.response || 'Сервер подтвердил выполнение действия.');
+        card.remove(); revealAnswer(result.response || 'Действие выполнено.');
         if (result.booking_url) addBookingLink(result.booking_url);
         if (pending.action_type === 'booking_create' && result.result?.booking_id) {
           lastCreatedBookingId = result.result.booking_id; saveLastCreatedBookingId();
@@ -451,26 +443,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!['csv','xls','xlsx'].includes(ext)) { addMessage('Можно прикрепить только CSV, XLS или XLSX.', 'assistant'); clearSelectedFile(); return; }
     if (file.size <= 0 || file.size > 10 * 1024 * 1024) { addMessage('Размер файла должен быть от 1 байта до 10 МБ.', 'assistant'); clearSelectedFile(); return; }
     selectedRegistryFile = file;
-    if (attachmentName) attachmentName.textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} МБ · реестр к записи`;
+    if (attachmentName) attachmentName.textContent = `${file.name} · ${(file.size / 1024 / 1024).toFixed(2)} МБ · готово к отправке`;
     if (attachment) attachment.hidden = false;
-    if (lastCreatedBookingId) {
-      addMessage(`Загружаю «${file.name}» в последнюю созданную через Докси запись…`, 'assistant');
-      setBusy(true);
-      try { await uploadSelectedRegistry(lastCreatedBookingId); }
-      finally { setBusy(false); input.focus(); }
-    }
   };
 
   const send = async (value) => {
-    const text = String(value || '').trim(); if (!text || isSending) return;
+    const text = String(value || '').trim() || (selectedRegistryFile ? 'Проанализируй, пожалуйста, вложенный файл и подготовь основные выводы.' : '');
+    if (!text || isSending) return;
     await Promise.all([thinkingLoadPromise, restoreTodayConversation()]);
     if (isSending) return;
+    const wantsRegistryUpload = Boolean(selectedRegistryFile && lastCreatedBookingId) &&
+      /(?:прикрепи|загрузи|добавь)\s+(?:этот\s+)?(?:файл|реестр)|(?:файл|реестр)[\s\S]{0,50}(?:к\s+последней|к\s+созданной|в\s+последнюю)\s+записи/iu.test(text);
+    if (wantsRegistryUpload) {
+      const welcome = messages.querySelector('.ak-ai-ds-welcome'); if (welcome) welcome.remove();
+      addMessage(text, 'user'); input.value = ''; input.style.height = 'auto'; setBusy(true);
+      try { await uploadSelectedRegistry(lastCreatedBookingId); }
+      finally { setBusy(false); input.focus(); }
+      return;
+    }
     const welcome = messages.querySelector('.ak-ai-ds-welcome'); if (welcome) welcome.remove();
     addMessage(text, 'user'); input.value = ''; input.style.height = 'auto'; setBusy(true);
     note.textContent = 'Собираю факты и готовлю ответ.'; note.classList.add('is-visible');
     const pending = addMessage('Секундочку…', 'assistant', 'ak-ai-ds-pending'); startThinking(pending);
     try {
-      const { data, error } = await sb.functions.invoke('doxi-chat', { body: { message: text, conversation_id: conversationId, page: pageContext() } });
+      let requestBody = { message: text, conversation_id: conversationId, page: pageContext() };
+      if (selectedRegistryFile) {
+        const formData = new FormData();
+        formData.append('action', 'chat');
+        formData.append('message', text);
+        formData.append('conversation_id', conversationId || '');
+        formData.append('page', pageContext());
+        formData.append('file', selectedRegistryFile, selectedRegistryFile.name);
+        requestBody = formData;
+      }
+      const { data, error } = await sb.functions.invoke('doxi-chat', { body: requestBody });
       if (error) { console.error('[Докси] Edge Function error:', error); throw new Error('Не удалось получить ответ от Докси. Проверьте подключение и настройки доступа.'); }
       if (!data || typeof data.response !== 'string' || !data.response.trim()) throw new Error(data?.error || 'Сервер Докси вернул пустой ответ. Повторите запрос.');
       conversationId = data.conversation_id || conversationId; saveConversationId(); stopThinking(); pending.remove();
@@ -480,6 +486,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         addMessage(text, 'user');
       }
       revealAnswer(data.response.trim());
+      if (data.attachment_analysis) clearSelectedFile();
       if (data.workspace_items_changed) window.dispatchEvent(new CustomEvent('doxi:workspace-items-changed', { detail: data.workspace_items_changed }));
       if (data.pending_question) renderPendingQuestion(data.pending_question);
       if (data.pending_action) renderPendingAction(data.pending_action);
