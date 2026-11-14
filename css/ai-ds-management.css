@@ -245,24 +245,21 @@ html[data-theme="dark"] .doxi-capability-row strong,html[data-theme="dark"] .dox
 html[data-theme="dark"] .doxi-knowledge-item { background:rgba(148,163,184,.045); }
 
 
-/* v1.10 — personal long-term memory manager. */
-.doxi-memory-form { display:grid; grid-template-columns:minmax(220px,1fr) minmax(170px,.55fr); gap:10px; padding:14px; border:1px solid var(--color-border,#e2e8f0); border-radius:13px; background:rgba(100,116,139,.025); }
-.doxi-memory-form label { display:flex; flex-direction:column; gap:6px; min-width:0; color:var(--color-text-main,#34445a); font-size:10px; font-weight:700; }
-.doxi-memory-form input,.doxi-memory-form select,.doxi-memory-form textarea { width:100%; min-width:0; padding:9px 11px; border:1px solid var(--color-border,#dbe2ea); border-radius:9px; outline:0; background:var(--color-surface,#fff); color:var(--color-text-main,#34445a); font:500 11px var(--font-main,Arial,sans-serif); }
-.doxi-memory-form textarea { resize:vertical; line-height:1.45; }
-.doxi-memory-form input:focus,.doxi-memory-form select:focus,.doxi-memory-form textarea:focus { border-color:#b77d96; box-shadow:0 0 0 3px rgba(183,125,150,.1); }
-.doxi-memory-content { grid-column:1/-1; }
-.doxi-memory-form-actions { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
-.doxi-memory-form-actions > div { display:flex; gap:8px; }
-.doxi-memory-form-hint,.doxi-memory-status { color:var(--color-text-muted,#8794a5); font-size:9px; line-height:1.5; }
-.doxi-memory-list { display:grid; gap:8px; margin-top:10px; }
-.doxi-memory-item { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:11px 12px; border:1px solid var(--color-border,#e2e8f0); border-radius:11px; background:rgba(100,116,139,.025); }
-.doxi-memory-item-main { min-width:0; }
-.doxi-memory-item strong { display:block; color:var(--color-text-main,#34445a); font-size:11px; overflow-wrap:anywhere; }
-.doxi-memory-item p { margin:5px 0; color:var(--color-text-main,#43546b); font-size:10px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; }
-.doxi-memory-item small { display:block; color:var(--color-text-muted,#8794a5); font-size:9px; }
-.doxi-memory-item-actions { display:flex; flex:0 0 auto; gap:6px; }
-.doxi-memory-edit { padding:6px 9px; border:1px solid var(--color-border,#dbe2ea); border-radius:8px; background:var(--color-surface,#fff); color:var(--color-text-muted,#65758a); font:650 9px var(--font-main,Arial,sans-serif); cursor:pointer; }
-html[data-theme="dark"] .doxi-memory-form,html[data-theme="dark"] .doxi-memory-item { background:rgba(148,163,184,.045); }
-html[data-theme="dark"] .doxi-memory-item strong,html[data-theme="dark"] .doxi-memory-item p { color:#e1e8f0; }
-@media(max-width:760px) { .doxi-memory-form { grid-template-columns:1fr; } .doxi-memory-content,.doxi-memory-form-actions { grid-column:1; } .doxi-memory-form-actions { align-items:flex-start; flex-direction:column; } .doxi-memory-item { flex-direction:column; } }
+/* v1.10.3 — editable thinking comments. */
+.doxi-thinking-form { display:grid; gap:10px; padding:14px; border:1px solid var(--color-border,#dbe2ea); border-radius:12px; background:rgba(100,116,139,.025); }
+.doxi-thinking-form label { display:grid; gap:6px; color:var(--color-text-muted,#718096); font-size:10px; font-weight:700; }
+.doxi-thinking-form textarea { width:100%; min-height:64px; padding:10px 11px; border:1px solid var(--color-border,#dbe2ea); border-radius:9px; background:var(--color-surface,#fff); color:var(--color-text-main,#26364b); font:12px/1.5 var(--font-main,Arial,sans-serif); resize:vertical; }
+.doxi-thinking-form-actions { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.doxi-thinking-form-actions small { color:var(--color-text-muted,#8793a3); font-size:10px; }
+.doxi-thinking-form-actions > div { display:flex; gap:7px; }
+.doxi-thinking-list { display:grid; gap:8px; margin-top:12px; }
+.doxi-thinking-item { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border:1px solid var(--color-border,rgba(148,163,184,.2)); border-radius:10px; background:var(--color-surface,#fff); }
+.doxi-thinking-item-copy { min-width:0; }
+.doxi-thinking-item-copy p { margin:0; color:var(--color-text-main,#36465d); font-size:11px; line-height:1.5; }
+.doxi-thinking-item-copy small { display:block; margin-top:4px; color:var(--color-text-muted,#8a97a8); font-size:9px; }
+.doxi-thinking-item-actions { display:flex; align-items:center; justify-content:flex-end; gap:6px; flex:0 0 auto; }
+.doxi-thinking-item-actions .doxi-admin-btn { min-height:30px; padding:0 8px; font-size:9px; }
+html[data-theme="dark"] .doxi-thinking-form { background:rgba(148,163,184,.05); }
+html[data-theme="dark"] .doxi-thinking-form textarea,html[data-theme="dark"] .doxi-thinking-item { background:#202c39; color:#e2e8f0; }
+html[data-theme="dark"] .doxi-thinking-item-copy p { color:#e2e8f0; }
+@media(max-width:760px) { .doxi-thinking-item { align-items:flex-start; flex-direction:column; } .doxi-thinking-item-actions { width:100%; justify-content:flex-start; flex-wrap:wrap; } .doxi-thinking-form-actions { align-items:stretch; flex-direction:column; } .doxi-thinking-form-actions > div { justify-content:flex-end; } }
