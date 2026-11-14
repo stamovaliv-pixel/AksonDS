@@ -1,4 +1,4 @@
-/* Doxi management v1.10.
+/* Doxi management v1.10.3.
    Only super_admin can read global history and change assistant permissions/style. */
 document.addEventListener('DOMContentLoaded', async () => {
   const root = document.getElementById('doxiAdminRoot');
@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const createInput = $('doxiBookingCreateEnabled');
   const updateInput = $('doxiBookingUpdateEnabled');
   const deleteInput = $('doxiBookingDeleteEnabled');
-  const roleInputs = [...document.querySelectorAll('#doxiAllowedRoles input[type="checkbox"]')];
   const saveButton = $('doxiSaveBtn');
   const testButton = $('doxiTestBtn');
   const saveMeta = $('doxiSaveMeta');
@@ -44,6 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const memoryCancel = $('doxiMemoryCancel');
   const memoryStatus = $('doxiMemoryStatus');
   const memoryList = $('doxiMemoryList');
+  const thinkingText = $('doxiThinkingText'); const thinkingSave = $('doxiThinkingSave'); const thinkingCancel = $('doxiThinkingCancel'); const thinkingStatus = $('doxiThinkingStatus'); const thinkingList = $('doxiThinkingList');
 
   let saved = null;
   let busy = false;
@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let messageHasMore = false;
   let historyQuery = '';
   let editingMemoryId = null;
+  let editingThinkingId = null;
 
   const showToast = (message, isError = false) => {
     toast.textContent = message;
@@ -81,10 +82,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     return data;
   };
 
-  const selectedRoles = () => roleInputs.filter((input) => input.checked).map((input) => input.value);
-  const applyRoles = (roles) => roleInputs.forEach((input) => {
-    input.checked = input.value === 'super_admin' || roles.includes(input.value);
-  });
   const captureSettings = () => ({
     enabled: enabledInput.checked,
     live_data_enabled: liveDataInput.checked,
@@ -93,9 +90,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     booking_update_enabled: updateInput.checked,
     booking_delete_enabled: deleteInput.checked,
     assistant_style: styleInput.value,
-    allowed_roles: selectedRoles().sort(),
   });
-  const normalizedRoles = (roles) => [...(roles || [])].sort();
   const hasChanges = () => {
     if (!saved) return false;
     const current = captureSettings();
@@ -105,8 +100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       || current.booking_create_enabled !== Boolean(saved.booking_create_enabled)
       || current.booking_update_enabled !== Boolean(saved.booking_update_enabled)
       || current.booking_delete_enabled !== Boolean(saved.booking_delete_enabled)
-      || current.assistant_style !== (saved.assistant_style || 'delicate')
-      || JSON.stringify(current.allowed_roles) !== JSON.stringify(normalizedRoles(saved.allowed_roles));
+      || current.assistant_style !== (saved.assistant_style || 'delicate');
   };
   const updateSaveState = () => {
     if (!saved || busy) { saveButton.disabled = true; return; }
@@ -124,12 +118,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateInput.checked = Boolean(saved.booking_update_enabled);
     deleteInput.checked = Boolean(saved.booking_delete_enabled);
     styleInput.value = saved.assistant_style || 'delicate';
-    applyRoles(saved.allowed_roles || ['super_admin']);
     if (modelName) modelName.textContent = saved.model || 'Модель подключена';
     if (modelDetails) modelDetails.textContent = saved.deployment || 'Технические сведения доступны только Super Admin.';
     const active = Boolean(saved.enabled);
     setStatus(active ? 'online' : 'offline', active ? 'Докси активна' : 'Докси отключена', active
-      ? 'Чат доступен выбранным ролям. Чтение данных: ' + (saved.live_data_enabled ? 'включено.' : 'выключено.')
+      ? 'Чат доступен только Super Admin. Чтение данных: ' + (saved.live_data_enabled ? 'включено.' : 'выключено.')
       : 'Глобальный переключатель отключает ответы помощницы.');
     saveMeta.textContent = 'Настройки загружены.';
     saveButton.disabled = true;
@@ -168,7 +161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  [enabledInput, liveDataInput, detailsInput, createInput, updateInput, deleteInput, styleInput, ...roleInputs].forEach((control) => {
+  [enabledInput, liveDataInput, detailsInput, createInput, updateInput, deleteInput, styleInput].forEach((control) => {
     control.addEventListener('change', updateSaveState);
   });
 
@@ -362,6 +355,58 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // ---------- Thinking comments: global, curated by Super Admin ----------
+  const renderThinkingComments = async () => {
+    if (!thinkingList) return;
+    thinkingList.replaceChildren(createEmpty('Загружаю комментарии…'));
+    try {
+      const result = await invoke({ action:'admin_list_thinking_comments' });
+      const rows = Array.isArray(result.comments) ? result.comments : [];
+      thinkingList.replaceChildren();
+      if (!rows.length) thinkingList.append(createEmpty('Пока нет комментариев. Добавьте первую реплику.'));
+      rows.forEach((item) => {
+        const row = document.createElement('article'); row.className = 'doxi-thinking-item';
+        const text = document.createElement('p'); text.textContent = item.text;
+        const meta = document.createElement('small'); meta.textContent = item.is_active ? 'Используется в чате' : 'Отключён';
+        const copy = document.createElement('div'); copy.className = 'doxi-thinking-item-copy'; copy.append(text,meta);
+        const actions = document.createElement('div'); actions.className = 'doxi-thinking-item-actions';
+        const toggle = document.createElement('button'); toggle.type='button'; toggle.className='doxi-admin-btn doxi-admin-btn-secondary'; toggle.textContent=item.is_active?'Отключить':'Включить'; toggle.dataset.toggleThinking=item.id; toggle.dataset.active=String(item.is_active);
+        const edit = document.createElement('button'); edit.type='button'; edit.className='doxi-admin-btn doxi-admin-btn-secondary'; edit.textContent='Изменить'; edit.dataset.editThinking=item.id;
+        const remove = document.createElement('button'); remove.type='button'; remove.className='doxi-knowledge-delete'; remove.textContent='Удалить'; remove.dataset.deleteThinking=item.id;
+        actions.append(toggle,edit,remove); row.append(copy,actions); thinkingList.append(row);
+      });
+      if (thinkingStatus) thinkingStatus.textContent = `Всего реплик: ${rows.length}; активных: ${rows.filter((row)=>row.is_active).length}.`;
+    } catch (error) { thinkingList.replaceChildren(createEmpty(error.message)); if (thinkingStatus) thinkingStatus.textContent='Не удалось загрузить реплики.'; }
+  };
+  const resetThinkingForm = () => { editingThinkingId=null; thinkingText.value=''; thinkingSave.textContent='Добавить комментарий'; thinkingCancel.hidden=true; thinkingSave.disabled=true; };
+  thinkingText?.addEventListener('input', () => { thinkingSave.disabled = thinkingText.value.trim().length < 3 || thinkingText.value.trim().length > 260; });
+  thinkingCancel?.addEventListener('click', resetThinkingForm);
+  thinkingSave?.addEventListener('click', async () => {
+    const text=(thinkingText.value||'').trim(); if (text.length<3 || text.length>260 || busy) return;
+    busy=true; thinkingSave.disabled=true; thinkingSave.textContent='Сохраняю…';
+    try {
+      await invoke({ action:editingThinkingId?'admin_update_thinking_comment':'admin_create_thinking_comment', comment_id:editingThinkingId, text });
+      resetThinkingForm(); await renderThinkingComments(); showToast('Комментарий сохранён.');
+    } catch(error) { showToast(error.message,true); }
+    finally { busy=false; thinkingSave.textContent=editingThinkingId?'Сохранить изменения':'Добавить комментарий'; thinkingSave.disabled=thinkingText.value.trim().length<3; }
+  });
+  thinkingList?.addEventListener('click', async (event) => {
+    const edit=event.target.closest('[data-edit-thinking]'); const remove=event.target.closest('[data-delete-thinking]'); const toggle=event.target.closest('[data-toggle-thinking]');
+    try {
+      if(edit) {
+        const result=await invoke({ action:'admin_list_thinking_comments' });
+        const item=(result.comments||[]).find((row)=>row.id===edit.dataset.editThinking); if(!item) throw new Error('Комментарий не найден.');
+        editingThinkingId=item.id; thinkingText.value=item.text; thinkingSave.textContent='Сохранить изменения'; thinkingCancel.hidden=false; thinkingSave.disabled=false; thinkingText.focus(); thinkingText.scrollIntoView({behavior:'smooth',block:'center'});
+      } else if(remove) {
+        if(!window.confirm('Удалить этот комментарий?')) return;
+        remove.disabled=true; await invoke({ action:'admin_delete_thinking_comment', comment_id:remove.dataset.deleteThinking });
+        if(editingThinkingId===remove.dataset.deleteThinking) resetThinkingForm(); await renderThinkingComments(); showToast('Комментарий удалён.');
+      } else if(toggle) {
+        toggle.disabled=true; await invoke({ action:'admin_update_thinking_comment', comment_id:toggle.dataset.toggleThinking, is_active:toggle.dataset.active!=='true' }); await renderThinkingComments(); showToast('Статус комментария изменён.');
+      }
+    } catch(error) { showToast(error.message,true); if(remove)remove.disabled=false; if(toggle)toggle.disabled=false; }
+  });
+
   // ---------- Global conversation history (server verifies super_admin again) ----------
   const formatDate = (value) => {
     if (!value) return 'Дата не указана';
@@ -507,4 +552,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadSettings();
   await loadKnowledge();
   await loadMemory();
+  await renderThinkingComments();
 });
