@@ -419,6 +419,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     el.textContent = text;
     return el;
   };
+
+  // Shared empty-state helper used by knowledge, memory and history lists.
+  const safeEmpty = (container, text) => {
+    if (!container) return;
+    container.replaceChildren(createEmpty(text));
+  };
   const filteredHistory = () => {
     const query = historyQuery.trim().toLocaleLowerCase('ru-RU');
     if (!query) return historyItems;

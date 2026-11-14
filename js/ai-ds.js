@@ -178,7 +178,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       thinkingLines = lines; // An explicitly empty server list means the administrator disabled every comment.
     } catch (error) { console.warn('[Докси] Не удалось получить список комментариев ожидания; использую встроенный список.', error); }
   };
-  const thinkingLoadPromise = loadThinkingLines();
   const greetings = [
     { title: 'Коничива! 👋', text: 'Сегодня учу японский. Пока знаю «сакура» и «точность». Второе особенно пригодится в DockSlot.' },
     { title: 'Прииивет! ✨', text: 'Я уже размяла извилины и навела блеск на мысли. Что сегодня разберём?' },
@@ -211,6 +210,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (data.error) throw new Error(data.error);
     return data;
   };
+
+  // Start the async load only after invoke has been initialized (const temporal dead zone).
+  const thinkingLoadPromise = loadThinkingLines();
 
   const setConnection = (online, message) => {
     [headerDot, contextDot].forEach((dot) => {
