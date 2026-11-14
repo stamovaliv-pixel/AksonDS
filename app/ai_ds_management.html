@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="../css/notifications.css?v=6-floating-bell-theme">
   <link rel="stylesheet" href="../css/ai-ds.css?v=1-9-3-knowledge-base">
   <link rel="stylesheet" href="../css/ai-ds-motion-v1-5-5-blush-sky.css?v=1-5-5">
-  <link rel="stylesheet" href="../css/ai-ds-management.css?v=1-10-memory">
+  <link rel="stylesheet" href="../css/ai-ds-management.css?v=1-10-2-no-personal-items">
   <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon.png">
 </head>
@@ -91,14 +91,12 @@
       <div class="doxi-admin-setting-row doxi-admin-setting-row-stack doxi-admin-capability-block">
         <div class="doxi-admin-setting-copy">
           <strong>Полномочия Докси</strong>
-          <span>Полномочия записей проверяются сервером. Создание, редактирование и удаление записей требуют отдельного подтверждения. Личные заметки и напоминания каждого пользователя сохраняются сразу, без подтверждения.</span>
+          <span>Полномочия записей проверяются сервером. Создание, редактирование и удаление записей требуют отдельного подтверждения. Заметки и напоминания Докси сразу добавляет в соответствующие блоки страницы «Рабочий стол» — без повторного подтверждения.</span>
         </div>
         <div class="doxi-capability-list">
           <label class="doxi-capability-row"><span><strong>Создание записей</strong><small>Подготовка новой записи или копии разрешённой исходной записи.</small></span><input type="checkbox" id="doxiBookingCreateEnabled"></label>
           <label class="doxi-capability-row"><span><strong>Редактирование записей</strong><small>Только дата, время, документ, типы поставки, ТК и комментарий.</small></span><input type="checkbox" id="doxiBookingUpdateEnabled"></label>
           <label class="doxi-capability-row doxi-capability-danger"><span><strong>Удаление записей</strong><small>Только активные записи без ворот, прибытия и убытия; с отдельным подтверждением.</small></span><input type="checkbox" id="doxiBookingDeleteEnabled"></label>
-          <label class="doxi-capability-row"><span><strong>Личные заметки</strong><small>Докси сможет сохранять личные заметки пользователя, которому открыт чат.</small></span><input type="checkbox" id="doxiNotesEnabled"></label>
-          <label class="doxi-capability-row"><span><strong>Напоминания</strong><small>Личные напоминания пользователя в открытом DockSlot; push при закрытом браузере не входит в эту версию.</small></span><input type="checkbox" id="doxiRemindersEnabled"></label>
         </div>
       </div>
       <div class="doxi-admin-setting-row doxi-admin-setting-row-stack">
@@ -210,15 +208,6 @@
       <div id="doxiKnowledgeStatus" class="doxi-knowledge-status" role="status" aria-live="polite">Загружаю базу знаний…</div>
       <div id="doxiKnowledgeList" class="doxi-knowledge-list"><div class="doxi-history-empty">Загружаю материалы…</div></div>
     </section>
-
-    <section class="doxi-admin-card doxi-admin-personal-items">
-      <div class="doxi-admin-section-heading"><div><h2>Мои заметки и напоминания</h2><p>Личные материалы текущего пользователя. Каждый пользователь видит только собственные заметки и напоминания.</p></div><button class="doxi-admin-btn doxi-admin-btn-secondary" type="button" id="doxiRefreshPersonalItems">Обновить</button></div>
-      <div class="doxi-personal-items-grid">
-        <div><h3>Заметки</h3><div id="doxiNotesList" class="doxi-personal-items-list"><div class="doxi-history-empty">Загружаю заметки…</div></div></div>
-        <div><h3>Напоминания</h3><div id="doxiRemindersList" class="doxi-personal-items-list"><div class="doxi-history-empty">Загружаю напоминания…</div></div></div>
-      </div>
-    </section>
-
     <section class="doxi-admin-card doxi-memory-card">
       <div class="doxi-admin-section-heading"><div><h2>Моя долговременная память Докси</h2><p>Докси использует эти сведения в разных диалогах только для вашей учётной записи. Здесь можно посмотреть, добавить, исправить или удалить любую запись.</p></div><span class="doxi-admin-static-tag">Личная память</span></div>
       <div class="doxi-memory-form" id="doxiMemoryForm">
@@ -259,7 +248,7 @@
   <script src="../js/push-config.js?v=2-windows-push"></script>
   <script src="../js/notifications.js?v=moscow-time-v1"></script>
   <script src="../js/admin-navigation.js?v=1-9-1-doxi-management"></script>
-  <script src="../js/ai-ds.js?v=1-9-4-personal-items-fix"></script>
-  <script src="../js/ai-ds-management.js?v=1-10-memory"></script>
+  <script src="../js/ai-ds.js?v=1-10-2-workspace-items-quips"></script>
+  <script src="../js/ai-ds-management.js?v=1-10-2-no-personal-items"></script>
 </body>
 </html>
