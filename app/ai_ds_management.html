@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#f4f7f9">
-  <title>Управление Докси — DockSlot v1.9.3</title>
+  <title>Управление Докси — DockSlot v1.10</title>
   <link rel="stylesheet" href="../css/theme.css?v=4-1-date-exceptions">
   <link rel="stylesheet" href="../css/main.css?v=4-1-date-exceptions">
   <link rel="stylesheet" href="../css/dark-mode.css?v=4">
@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="../css/notifications.css?v=6-floating-bell-theme">
   <link rel="stylesheet" href="../css/ai-ds.css?v=1-9-3-knowledge-base">
   <link rel="stylesheet" href="../css/ai-ds-motion-v1-5-5-blush-sky.css?v=1-5-5">
-  <link rel="stylesheet" href="../css/ai-ds-management.css?v=1-9-3-knowledge-base">
+  <link rel="stylesheet" href="../css/ai-ds-management.css?v=1-10-memory">
   <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon.png">
 </head>
@@ -219,6 +219,19 @@
       </div>
     </section>
 
+    <section class="doxi-admin-card doxi-memory-card">
+      <div class="doxi-admin-section-heading"><div><h2>Моя долговременная память Докси</h2><p>Докси использует эти сведения в разных диалогах только для вашей учётной записи. Здесь можно посмотреть, добавить, исправить или удалить любую запись.</p></div><span class="doxi-admin-static-tag">Личная память</span></div>
+      <div class="doxi-memory-form" id="doxiMemoryForm">
+        <label><span>Название</span><input type="text" id="doxiMemoryTitle" maxlength="120" placeholder="Например: Предпочтительный формат отчётов"></label>
+        <label><span>Категория</span><select id="doxiMemoryCategory" class="doxi-admin-select"><option value="preference">Предпочтения</option><option value="profile">Рабочий контекст</option><option value="agreement">Договорённости</option><option value="open_task">Незавершённые задачи</option><option value="other">Другое</option></select></label>
+        <label class="doxi-memory-content"><span>Что Докси должна помнить</span><textarea id="doxiMemoryContent" maxlength="1200" rows="3" placeholder="Кратко и конкретно опишите факт, предпочтение или договорённость…"></textarea></label>
+        <div class="doxi-memory-form-actions"><span class="doxi-memory-form-hint">До 50 записей. Не сохраняйте пароли, ключи, токены и чувствительные личные сведения.</span><div><button class="doxi-admin-btn doxi-admin-btn-secondary" type="button" id="doxiMemoryCancel" hidden>Отмена</button><button class="doxi-admin-btn doxi-admin-btn-primary" type="button" id="doxiMemorySave">Сохранить в память</button></div></div>
+      </div>
+      <div id="doxiMemoryStatus" class="doxi-memory-status" role="status" aria-live="polite">Загружаю личную память…</div>
+      <div id="doxiMemoryList" class="doxi-memory-list"><div class="doxi-history-empty">Загружаю сохранённые сведения…</div></div>
+      <p class="doxi-knowledge-note">Команда в чате: «Докси, запомни: …». Посмотреть сохранённое можно фразой «Что ты помнишь обо мне?». У каждого пользователя своя отдельная память; администратор не видит память других пользователей.</p>
+    </section>
+
     <div class="doxi-history-overlay" id="doxiHistoryOverlay" hidden>
       <section class="doxi-history-dialog" role="dialog" aria-modal="true" aria-labelledby="doxiHistoryTitle">
         <header class="doxi-history-header">
@@ -247,6 +260,6 @@
   <script src="../js/notifications.js?v=moscow-time-v1"></script>
   <script src="../js/admin-navigation.js?v=1-9-1-doxi-management"></script>
   <script src="../js/ai-ds.js?v=1-9-4-personal-items-fix"></script>
-  <script src="../js/ai-ds-management.js?v=1-9-3-knowledge-base"></script>
+  <script src="../js/ai-ds-management.js?v=1-10-memory"></script>
 </body>
 </html>
