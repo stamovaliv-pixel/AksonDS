@@ -1,11 +1,114 @@
 // Doxi AI agent v2.0.0 — multi-role access and capability flags — confirmation cards, same-day continuity, registry attachment and admin-managed thinking comments.
 // Deploy with Verify JWT enabled. Never expose DOXI_PROXY_SECRET to browser code.
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { buildInputRecoveryHint } from "./input-understanding.ts";
 // node-xlsx 0.25.0 bundles SheetJS CE 0.20.3 in the npm package.
 // Supabase resolves the pinned npm dependency during bundling; no CDN URL imports are used.
 // Uploaded file bytes are parsed inside this function and are not sent to any package host.
 import xlsxParser from "npm:node-xlsx@0.25.0";
+
+// Doxi Input Understanding — deterministic keyboard-layout recovery.
+// Embedded in index.ts to avoid a separate module file in the Supabase Dashboard editor.
+// No network requests, external dependencies, or storage. Original user text remains unchanged.
+
+const EN_TO_RU_KEYS = "qwertyuiop[]asdfghjkl;'zxcvbnm,./";
+const EN_TO_RU_VALUES = "йцукенгшщзхъфывапролджэячсмитьбю.";
+const EN_TO_RU_MAP = new Map(Array.from(EN_TO_RU_KEYS).map((key, index) => [key, EN_TO_RU_VALUES[index]]));
+const EN_TO_RU_SHIFT = new Map([
+  ["@", '"'], ["#", "№"], ["$", ";"], ["^", ":"], ["&", "?"],
+  ["{", "Х"], ["}", "Ъ"], [":", "Ж"], ['"', "Э"], ["<", "Б"], [">", "Ю"], ["?", ","],
+]);
+
+// Common, unambiguous Russian words used only as a conservative confidence signal.
+// This is not a spell-check dictionary and is never used to rewrite names or identifiers.
+const COMMON_RU_WORDS = new Set((
+  "привет здравствуйте здравствуй добрый доброе день вечер утро пока спасибо благодарю пожалуйста " +
+  "как дела что это почему зачем когда где куда откуда кто кому кого чего какой какая какие какое " +
+  "меня мне мной менях тебя тебе тобой вас вам вами вы твой ваша ваше ваши наш наша наши " +
+  "понимаешь понимаете понимаю понимает поняла понял понятно понимание понять понимать " +
+  "помоги помогите помощь помогу можешь можете можно нужно надо хочу хотел хотела хотели " +
+  "давай давайте да нет хорошо отлично верно правильно ясно понятно конечно наверное " +
+  "сегодня завтра вчера сейчас потом раньше позже всегда никогда иногда опять снова " +
+  "работает работать работа проект система докслот аксон запись записи записей календарь " +
+  "слот слоты поставщик поставщики склад складской складом складов загрузка данные данныех " +
+  "информация вопрос ответ ответь скажи объясни покажи найди проверь сделай создай измени " +
+  "удали исправь добавь открой закрой отправь подготовь посмотри посчитать посчитай " +
+  "почему потому чтобы если тогда когда пока уже еще ещё только просто очень совсем " +
+  "смысл смыслом текст сообщение написал написала написано набрал набрала набрано " +
+  "ошибка ошибку ошибочный неправильно раскладка клавиатура перевод перевести переведи " +
+  "понимаю понимаем понимаете меняем поменять менять работаете работаешь работаю " +
+  "помощник помощница докси интернет поиск сайт сайты источник источники " +
+  "сумма числа число результат результатом вопросом ответом " +
+  "сотрудник сотрудники пользователь пользователи документ документа документы номер номера " +
+  "план задача задачи проектом функция функции доступ доступен доступна " +
+  "время дата даты завтра сегодня неделя месяц год годы " +
+  "сколько сколько-то чей чья чье чьи этот эта это эти тот та те " +
+  "всего уже еще далее далееже вместе отдельно можно ли нельзя " +
+  "пожалуй вероятно возможно непонятно непонятный искаженный поврежденный " +
+  "тест проверка пройдено готова готов проверить " +
+  "поставить добавить настроить подключить установить установитьcя " +
+  "стоимость цена цены сравнить сравнение анализ анализировать отчет отчёт " +
+  "объяснение напиши ответить помочь вопрос ответ " +
+  "понимаешь ли меня так ты я мы вы он она они " +
+  "последний последняя последние актуальный актуальная актуальные новый новая новое новые " +
+  "старый старая старое старые полный полная кратко подробнее " +
+  "можно нужно надо не без для про при по на в из от до с со за " +
+  "есть будет был была было были быть "
+).split(/\s+/u));
+
+function hasProtectedTechnicalShape(text: string): boolean {
+  return (
+    /https?:\/\/|www\.|[\w.+-]+@[\w.-]+\.[A-Z]{2,}/iu.test(text) ||
+    /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/iu.test(text) ||
+    /```|`|\b(?:select|insert|update|delete|create|alter|drop|from|where|join|function|const|let|var|return|import|export|async|await|class|interface|supabase|ollama|powershell|typescript|javascript)\b/iu.test(text) ||
+    /[{}<>]/u.test(text) ||
+    /(?:^|\s)[A-ZА-ЯЁ_][A-ZА-ЯЁ0-9_]{2,}(?:\s|$)/u.test(text) ||
+    /(?:ВзУ|ИНН|КПП|UUID|ID|API[_ -]?KEY)\s*[-:#№]?\s*\w{3,}/iu.test(text) ||
+    /(?:[A-Za-z]:\\|\\\\|\/mnt\/|\/home\/|\.\w{1,5}\b)/u.test(text)
+  );
+}
+
+function mapEnglishKeyboardToRussian(text: string): string {
+  return Array.from(text).map((character) => {
+    const lower = character.toLowerCase();
+    const mapped = EN_TO_RU_MAP.get(lower) ?? EN_TO_RU_SHIFT.get(character);
+    if (!mapped) return character;
+    return character !== lower && /^[а-яё]$/iu.test(mapped) ? mapped.toLocaleUpperCase("ru-RU") : mapped;
+  }).join("");
+}
+
+function buildInputRecoveryHint(input: string): { recoveredText: string; matchedWords: number; confidence: "high" } | null {
+  const text = String(input || "").trim();
+  if (text.length < 4 || text.length > 500 || hasProtectedTechnicalShape(text)) return null;
+  if (/[\r\n]/u.test(text) || /\[Вложение:/iu.test(text)) return null;
+
+  const latinLetters = (text.match(/[A-Za-z]/gu) || []).length;
+  const cyrillicLetters = (text.match(/[А-Яа-яЁё]/gu) || []).length;
+  const totalLetters = (text.match(/[\p{L}]/gu) || []).length;
+  if (latinLetters < 4 || totalLetters === 0 || latinLetters / totalLetters < 0.8 || cyrillicLetters > 0) return null;
+
+  let recoveredText = mapEnglishKeyboardToRussian(text);
+  // A frequent one-key omission: "s vtyz ..." maps literally to "ы меня ...".
+  // In this narrow sentence opening, the only plausible Russian reading is "ты меня ...".
+  if (/^ы(?=\s+меня(?=$|\s|[,.!?]))/iu.test(recoveredText)) {
+    const initial = /^Ы/u.test(recoveredText) ? "Ты" : "ты";
+    recoveredText = recoveredText.replace(/^ы/u, initial);
+  }
+  const candidateLetters = (recoveredText.match(/[А-Яа-яЁё]/gu) || []).length;
+  const candidateTotalLetters = (recoveredText.match(/[\p{L}]/gu) || []).length;
+  if (candidateTotalLetters === 0 || candidateLetters / candidateTotalLetters < 0.75) return null;
+
+  const words = (recoveredText.toLocaleLowerCase("ru-RU").replace(/ё/gu, "е").match(/[а-я]{3,}/gu) || []);
+  if (words.length === 0) return null;
+  const matchedWords = words.filter((word) => COMMON_RU_WORDS.has(word)).length;
+  const coverage = matchedWords / words.length;
+
+  const strongSentence = words.length >= 2 && matchedWords >= 2 && coverage >= 0.6;
+  const strongSingleWord = words.length === 1 && words[0].length >= 5 && matchedWords === 1;
+  if (!strongSentence && !strongSingleWord) return null;
+
+  return { recoveredText, matchedWords, confidence: "high" };
+}
+
 
 const MODEL = "qwen3.5:9b";
 const MAX_BODY_CHARS = 20_000;
@@ -79,8 +182,9 @@ const STYLE_PROMPTS: Record<string, string> = {
 
 const INPUT_UNDERSTANDING_GUIDANCE = `ПОНИМАНИЕ ВХОДНОГО СООБЩЕНИЯ:
 - Не объявляй сообщение бессмысленным и не проси переписать его, пока не проверишь очевидные опечатки, пропущенные пробелы, повторные символы и возможную неправильную раскладку клавиатуры.
-- Если сервер передал блок «ВОССТАНОВЛЕНИЕ ВВОДА», воспринимай его как техническую подсказку о возможном преобразовании английской раскладки в русскую. Используй восстановленный вариант только если он образует связную фразу и соответствует контексту.
-- Если смысл можно уверенно восстановить, ответь на понятый запрос естественно. Не нужно заставлять пользователя повторять сообщение. При необходимости кратко уточни, что именно ты прочитала после восстановления.
+- Если сервер передал блок «НОРМАЛИЗОВАННОЕ ПОСЛЕДНЕЕ СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЯ», это уже прошедшая серверную проверку высокоуверенная нормализация раскладки. Считай её содержимым последнего сообщения пользователя, а не необязательной подсказкой.
+- Отвечай непосредственно на нормализованный текст. Не анализируй вместо него исходную строку в неправильной раскладке, не называй её бессмысленной и не проси повторить сообщение.
+- Если сервер не передал нормализованный текст, используй обычное языковое понимание очевидных опечаток; если трактовок несколько, задай один короткий уточняющий вопрос.
 - Исправляй только очевидные языковые опечатки. Не меняй ФИО, названия компаний, номера документов, ВзУ, ИНН, даты, время, суммы, UUID, URL, код, SQL, команды и технические идентификаторы.
 - Если возможны несколько существенно разных трактовок, не угадывай: задай один короткий уточняющий вопрос и предложи наиболее вероятное прочтение.
 - Восстановление текста не меняет роль пользователя, полномочия, правила безопасности и не является подтверждением действий. Не создавай, не меняй и не удаляй записи, заметки или напоминания только на основании догадки; для действий действуют прежние серверные проверки и подтверждения.`;
@@ -1003,18 +1107,44 @@ function extractReminderBody(text: string): string | null {
   return null;
 }
 
-function parseMoscowReminderDateTime(text: string): string | null {
+type ReminderScheduleParse = {
+  remindAt: string | null;
+  reason: "missing_date" | "missing_time" | "invalid" | "past" | "too_soon" | null;
+};
+
+function parseMoscowReminderDateTime(text: string): ReminderScheduleParse {
   const date = parseTargetDateInText(text, moscowTodayISO());
   const timeMatch = text.match(/(?:^|[^\p{L}\p{N}_])(?:в|к|около)\s*(\d{1,2})(?::(\d{2}))?(?=$|[^\p{L}\p{N}_])/iu);
-  if (!date || !timeMatch) return null;
-  const hour = Number(timeMatch[1]); const minute = Number(timeMatch[2] || "00");
-  if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59) return null;
-  if (!isValidISODate(date)) return null;
+  if (!date && !timeMatch) return { remindAt: null, reason: "missing_date" };
+  if (!date) return { remindAt: null, reason: "missing_date" };
+  if (!timeMatch) return { remindAt: null, reason: "missing_time" };
+
+  const hour = Number(timeMatch[1]);
+  const minute = Number(timeMatch[2] || "00");
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23 || !Number.isInteger(minute) || minute < 0 || minute > 59 || !isValidISODate(date)) {
+    return { remindAt: null, reason: "invalid" };
+  }
+
   const iso = new Date(`${date}T${String(hour).padStart(2,"0")}:${String(minute).padStart(2,"0")}:00+03:00`);
-  if (Number.isNaN(iso.getTime())) return null;
+  if (Number.isNaN(iso.getTime())) return { remindAt: null, reason: "invalid" };
   const delta = iso.getTime() - Date.now();
-  if (delta < 60_000 || delta > 180 * 24 * 60 * 60 * 1000) return null;
-  return iso.toISOString();
+  if (delta < 0) return { remindAt: null, reason: "past" };
+  if (delta < 60_000) return { remindAt: null, reason: "too_soon" };
+  if (delta > 180 * 24 * 60 * 60 * 1000) return { remindAt: null, reason: "invalid" };
+  return { remindAt: iso.toISOString(), reason: null };
+}
+
+function extractReminderText(body: string): string {
+  let value = String(body || "").trim();
+  // Remove a leading preposition only when it introduces a date.
+  value = value.replace(/^\s*на\s+(?=(?:сегодня|завтра|послезавтра|20\d{2}-\d{2}-\d{2}|\d{1,2}[.\/]\d{1,2}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)))/iu, "");
+  // Remove date and time expressions from the body, leaving only what should be displayed as the reminder.
+  value = value.replace(/(?:^|[^\p{L}\p{N}_])(?:сегодня|завтра|послезавтра|20\d{2}-\d{2}-\d{2}|\d{1,2}[.\/]\d{1,2}(?:[.\/]20\d{2})?|\d{1,2}\s+(?:января|январь|февраля|февраль|марта|март|апреля|апрель|мая|май|июня|июнь|июля|июль|августа|август|сентября|сентябрь|октября|октябрь|ноября|ноябрь|декабря|декабрь)(?:\s+20\d{2})?)(?=$|[^\p{L}\p{N}_])/iu, " ");
+  value = value.replace(/(?:^|[^\p{L}\p{N}_])(?:в|к|около)\s*\d{1,2}(?::\d{2})?(?:\s*час(?:а|ов)?)?(?=$|[^\p{L}\p{N}_])/iu, " ");
+  // Natural-language introducers for the reminder's content.
+  value = value.replace(/^\s*(?:(?:с\s+)?текстом|что|о\s+том(?:,\s*|\s+)что|про)(?=$|[^\p{L}\p{N}_])\s*/iu, "");
+  value = value.replace(/^\s*(?:мне|пожалуйста)\s+/iu, "");
+  return value.replace(/^[\s,;:—-]+|[\s,;]+$/g, "").replace(/\s+/g, " ").trim();
 }
 
 async function handleReminderCommand(adminClient: any, userId: string, role: string, text: string, remindersEnabled: boolean): Promise<{ response: string; workspace_items_changed?: Record<string, boolean> } | null> {
@@ -1022,18 +1152,18 @@ async function handleReminderCommand(adminClient: any, userId: string, role: str
   if (body === null) return null;
   if (!canUseWorkspacePersonalItems(role)) return { response: workspaceItemsUnavailableResponse() };
   if (!remindersEnabled) return { response: "Функция напоминаний Докси временно отключена суперадминистратором." };
-  if (body.length > 1000) return { response: "Текст напоминания слишком длинный. Максимум — 1 000 символов." };
-  const remindAt = parseMoscowReminderDateTime(body);
-  if (!remindAt) return { response: "Я пока не сохранила напоминание: в одном сообщении укажи, о чём напомнить, дату и время. Например: «Напомни завтра в 10:30 проверить реестр». Время трактую как московское." };
-  const reminderText = body
-    .replace(/(?:^|[^\p{L}\p{N}_])на\s+(?=(?:сегодня|завтра|послезавтра|20\d{2}-\d{2}-\d{2}|\d{1,2}[.\/]\d{1,2}|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)))/giu, " ")
-    .replace(/(?:^|[^\p{L}\p{N}_])(?:сегодня|завтра|послезавтра)(?=$|[^\p{L}\p{N}_])/giu, " ")
-    .replace(/(?:^|[^\p{L}\p{N}_])(?:в|к|около)\s*\d{1,2}(?::\d{2})?(?=$|[^\p{L}\p{N}_])/giu, " ")
-    .replace(/(?:^|[^\p{L}\p{N}_])20\d{2}-\d{2}-\d{2}(?=$|[^\p{L}\p{N}_])/gu, " ")
-    .replace(/(?:^|[^\p{L}\p{N}_])\d{1,2}[.\/]\d{1,2}(?:[.\/]20\d{2})?(?=$|[^\p{L}\p{N}_])/gu, " ")
-    .replace(/(?:^|[^\p{L}\p{N}_])\d{1,2}\s+(?:января|январь|февраля|февраль|марта|март|апреля|апрель|мая|май|июня|июнь|июля|июль|августа|август|сентября|сентябрь|октября|октябрь|ноября|ноябрь|декабря|декабрь)(?:\s+20\d{2})?(?=$|[^\p{L}\p{N}_])/giu, " ")
-    .replace(/^\s*(?:о|об|что)\s+/iu, "")
-    .replace(/[\s,;—:-]+/g, " ").trim().slice(0, 2000) || "Напоминание";
+  const schedule = parseMoscowReminderDateTime(body);
+  if (!schedule.remindAt) {
+    if (schedule.reason === "past") return { response: "Указанное время уже прошло по Москве, поэтому напоминание не создано. Укажите время позже или перенесите его на завтра. Например: «Напомни завтра в 19:00: У меня лучший руководитель»." };
+    if (schedule.reason === "too_soon") return { response: "До указанного времени осталось меньше минуты. Напоминание не создано — укажите время хотя бы на минуту позже." };
+    if (schedule.reason === "missing_time") return { response: "Я распознала дату, но не нашла время. Укажите час и минуты, например: «Напомни сегодня в 20:30: проверить отчёт». Время трактую как московское." };
+    if (schedule.reason === "missing_date") return { response: "Я распознала время или текст, но не нашла дату. Укажите «сегодня», «завтра» или конкретную дату вместе со временем." };
+    return { response: "Не удалось разобрать дату или время. Укажите, например: «Напомни завтра в 10:30: проверить реестр». Время трактую как московское." };
+  }
+  const reminderText = extractReminderText(body);
+  if (!reminderText) return { response: "Я распознала дату и время, но не нашла текст напоминания. Добавьте его после даты и времени, например: «Напомни завтра в 10:30: проверить реестр»." };
+  if (reminderText.length > 1000) return { response: "Текст напоминания слишком длинный. Максимум — 1 000 символов." };
+  const remindAt = schedule.remindAt;
   const now = new Date().toISOString();
   const { data, error } = await adminClient.from("admin_personal_reminders")
     .insert({ admin_id: userId, reminder_text: reminderText, remind_at: remindAt, is_completed: false, updated_at: now })
@@ -2026,8 +2156,18 @@ Deno.serve(async (req: Request) => {
     const safeMessages = [...historyRows].reverse() as Array<{ role: "user" | "assistant"; content: string }>;
 
     const latestUserText = message;
-    // Conversational hint only: stored input and all action handlers continue to use the original text.
+    // Recover high-confidence keyboard-layout errors for ordinary model understanding.
+    // The original text remains stored unchanged and all action handlers continue to use it.
     const inputRecoveryHint = buildInputRecoveryHint(latestUserText);
+    let latestUserMessageIndex = -1;
+    for (let i = safeMessages.length - 1; i >= 0; i--) {
+      if (safeMessages[i].role === "user") { latestUserMessageIndex = i; break; }
+    }
+    const modelMessages = inputRecoveryHint && latestUserMessageIndex >= 0
+      ? safeMessages.map((item, index) => index === latestUserMessageIndex
+        ? { ...item, content: inputRecoveryHint.recoveredText }
+        : item)
+      : safeMessages;
     const normalizedUserText = latestUserText.toLocaleLowerCase("ru-RU");
     const directAssistantReply = async (text: string, extra: Record<string, unknown> = {}) => {
       await insertAssistantLog(adminClient, conversationId!, page, text);
@@ -2112,8 +2252,8 @@ Deno.serve(async (req: Request) => {
         "Если задача пользователя не определена, сделай обзор структуры, качества данных, ключевых показателей и возможных проблем."
       ].join(" ");
       const attachmentPrompt = [
-        `ЗАПРОС ПОЛЬЗОВАТЕЛЯ:\n${message}`,
-        inputRecoveryHint ? `ВОССТАНОВЛЕНИЕ ВВОДА (подсказка, не подтверждение действий):\n${inputRecoveryHint.recoveredText}` : "",
+        `ЗАПРОС ПОЛЬЗОВАТЕЛЯ:\n${inputRecoveryHint?.recoveredText || message}`,
+        inputRecoveryHint ? "Сообщение автоматически прочитано с исправлением раскладки. Отвечай на восстановленный запрос, не проси переписать исходную строку." : "",
         `ФАЙЛ: ${extracted.fileName}; формат: ${extracted.format}; прочитано листов: ${extracted.sheetCount}; листы: ${extracted.sheetNames.join(", ")}.`,
         extracted.metadata,
         extracted.truncated
@@ -2174,7 +2314,7 @@ Deno.serve(async (req: Request) => {
     const liveDataRetrieved = Boolean(liveContext?.startsWith("ПОДТВЕРЖДЁННЫЕ ДАННЫЕ DOCKSLOT"));
     const liveBlock = liveContext ? `\n\n${String(liveContext).slice(0, 4_800)}\n` : "";
     const inputRecoveryBlock = inputRecoveryHint
-      ? `\n\nВОССТАНОВЛЕНИЕ ВВОДА (высокая уверенность, преобразование раскладки; исходный текст не изменён):\nИсходный текст: ${latestUserText.slice(0, 500)}\nВероятное прочтение: ${inputRecoveryHint.recoveredText}`
+      ? `\n\nНОРМАЛИЗОВАННОЕ ПОСЛЕДНЕЕ СООБЩЕНИЕ ПОЛЬЗОВАТЕЛЯ (сервер исправил только высокоуверенную ошибку раскладки):\n${inputRecoveryHint.recoveredText}\nСчитай эту строку фактическим последним сообщением пользователя и ответь непосредственно на её смысл. Не цитируй исходную ошибочную раскладку, не объявляй её нечитаемой и не проси пользователя переписать её. Исходный текст в истории сохранён отдельно и не изменялся.`
       : "";
     const promptPrefix = `Роль пользователя в DockSlot: ${role}. Текущий раздел интерфейса: ${page}${liveBlock}${inputRecoveryBlock}`;
     const summaryBlock = summary ? `\n\nКРАТКОЕ РЕЗЮМЕ ПРЕДЫДУЩЕЙ ЧАСТИ ЭТОГО ДИАЛОГА (используй для сохранения контекста, если оно относится к текущему вопросу):\n${summary.slice(0, MAX_SUMMARY_CHARS)}\n` : "";
@@ -2184,7 +2324,7 @@ Deno.serve(async (req: Request) => {
     const ending = "\n\nПродолжи диалог, отвечая на последнее сообщение пользователя.";
     const fixedLength = promptPrefix.length + summaryBlock.length + memoryBlock.length + knowledgeBlock.length + suffix.length + ending.length;
     const dialogBudget = Math.max(2_000, Math.min(10_500, MAX_PROMPT_CHARS - fixedLength));
-    const dialogText = buildDialogText(safeMessages, dialogBudget);
+    const dialogText = buildDialogText(modelMessages, dialogBudget);
     let prompt = `${promptPrefix}${summaryBlock}${memoryBlock}${knowledgeBlock}${suffix}${dialogText}${ending}`;
     if (prompt.length > MAX_PROMPT_CHARS) {
       const excess = prompt.length - MAX_PROMPT_CHARS;
