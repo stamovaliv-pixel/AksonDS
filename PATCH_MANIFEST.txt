@@ -1,0 +1,21 @@
+DOXI 2.0 MULTIROLE PATCH — FILE MANIFEST
+
+README_DOXI_2_0_MULTIROLE_PATCH_RU.md | 9739 bytes | sha256 4261962aa6deaf0fe32f93336004fe008907099a991ae432f055e5f59c439a41
+app/admin_calendar.html | 28966 bytes | sha256 f2a9d9a98e16803a3a80bf1b126ba6700f81a3925299dfbc58e591d136df2552
+app/admin_day.html | 30199 bytes | sha256 b1e2f2b6fa99520bb31de4a00fd04e9541b4c693ea120e0169d5257b59f26330
+app/admin_overview.html | 20015 bytes | sha256 97c3c36a1dac7bd82a821026fe7150b60d0a108d6f19b89ddb63e052e6a4a6f4
+app/ai_ds_management.html | 23362 bytes | sha256 27f9e60b511e443d5d11747b0434e8c6c4c3ebe8211b18f8766a777a8895235a
+app/analytics.html | 10230 bytes | sha256 f8318613d42e349fd2450437c241d1468f7c80f9865fa80a199a82d979e2caf8
+app/calendar.html | 13243 bytes | sha256 b95c7e6b18ee34dc92b908a798cc469b9b7afb3b73c08a8b5a0858d7c3e85eda
+app/dashboard.html | 13473 bytes | sha256 42f9c43be8f609aae3c3ea68ef245b097578235351b238b0d690da12e49b52c4
+app/day.html | 25827 bytes | sha256 9c3f3f19d6fe349069c13815407ffd9d69cf9c0cb6930758c599da1ad82e34f1
+app/doxi-record.html | 3305 bytes | sha256 f08fa96a1a1a281747b3e11c153262eb037684a2715ed1baa3ff4e1067d5427c
+app/help.html | 5842 bytes | sha256 9b058c0093abf718f9fbfd57c94447e4837b63960ab5e88be6742462a1e4c5d0
+app/load_management.html | 13520 bytes | sha256 fd027b43850207abdd5d75ea009cc91afa921f76fa3b8efabf6e6b1cd37597f8
+app/settings.html | 26150 bytes | sha256 488be76448f047fd921ed88949e2ebab29f4774da3131489ac2b50f26cf7c75e
+app/shift_board.html | 8872 bytes | sha256 09849367b71aad7dcdcdb8dbceda99b9634798230dca61814ede5ebfd94f79a7
+app/suppliers.html | 7338 bytes | sha256 9aa7d557d35f53d80f48982977f79c2399d785b4a14f4b8433867bedecc433b7
+diagnostics/READ_ONLY_check_doxi_commit_booking_action.sql | 608 bytes | sha256 a29df4c08c2345427a09660c4338ec5211efd83a19b8938b4349a15a62d73f81
+js/ai-ds-management.js | 35407 bytes | sha256 b2ebd3e70ae1d3858909ab40bab4ce59d15b0ac6a6a280647239e4dedabbb768
+js/ai-ds.js | 40151 bytes | sha256 3a650509bac4d21beecb3430c56ab11ec51f344a711d3804293cecac3d0910d4
+supabase/functions/doxi-chat/index.ts | 165995 bytes | sha256 14babc5ee6ca60e814ca3c9babce5bfa0d337badfe76fe5ae33ab3a74549eb14
