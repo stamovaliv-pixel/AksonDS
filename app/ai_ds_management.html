@@ -4,16 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#f4f7f9">
-  <title>Управление Докси — DockSlot v1.10</title>
+  <title>Управление Докси — DockSlot v1.10.3</title>
   <link rel="stylesheet" href="../css/theme.css?v=4-1-date-exceptions">
   <link rel="stylesheet" href="../css/main.css?v=4-1-date-exceptions">
   <link rel="stylesheet" href="../css/dark-mode.css?v=4">
   <link rel="stylesheet" href="../css/mobile-refinements.css?v=2">
   <link rel="stylesheet" href="../css/admin-navigation.css?v=17-doxi-management">
   <link rel="stylesheet" href="../css/notifications.css?v=6-floating-bell-theme">
-  <link rel="stylesheet" href="../css/ai-ds.css?v=1-9-3-knowledge-base">
+  <link rel="stylesheet" href="../css/ai-ds.css?v=1-10-3-chat-actions-attach">
   <link rel="stylesheet" href="../css/ai-ds-motion-v1-5-5-blush-sky.css?v=1-5-5">
-  <link rel="stylesheet" href="../css/ai-ds-management.css?v=1-10-2-no-personal-items">
+  <link rel="stylesheet" href="../css/ai-ds-management.css?v=1-10-4-superadmin-lock">
   <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon.png">
 </head>
@@ -113,15 +113,11 @@
       </div>
       <div class="doxi-admin-setting-row doxi-admin-setting-row-stack">
         <div class="doxi-admin-setting-copy">
-          <strong>Кому доступен чат Докси</strong>
-          <span>По умолчанию доступна только Super Admin. Можно открыть чат выбранным ролям; страницу управления и историю видит только Super Admin.</span>
+          <strong>Доступ к чату Докси</strong>
+          <span>Чат и управление Докси доступны исключительно роли Super Admin. Ограничение проверяется на сервере и не зависит от настроек интерфейса.</span>
         </div>
-        <div class="doxi-role-permissions" id="doxiAllowedRoles">
-          <label><input type="checkbox" value="super_admin" checked disabled> Super Admin <small>обязательно</small></label>
-          <label><input type="checkbox" value="admin"> Admin</label>
-          <label><input type="checkbox" value="operator"> Operator</label>
-          <label><input type="checkbox" value="viewer"> Viewer</label>
-          <label><input type="checkbox" value="supplier"> Supplier</label>
+        <div class="doxi-role-permissions" aria-label="Доступ к Докси">
+          <label><input type="checkbox" checked disabled> Super Admin <small>единственная разрешённая роль</small></label>
         </div>
       </div>
       <div class="doxi-admin-actions">
@@ -208,6 +204,15 @@
       <div id="doxiKnowledgeStatus" class="doxi-knowledge-status" role="status" aria-live="polite">Загружаю базу знаний…</div>
       <div id="doxiKnowledgeList" class="doxi-knowledge-list"><div class="doxi-history-empty">Загружаю материалы…</div></div>
     </section>
+    <section class="doxi-admin-card doxi-thinking-admin-card">
+      <div class="doxi-admin-section-heading"><div><h2>Комментарии, пока Докси думает</h2><p>Управляй короткими репликами, которые появляются во время подготовки ответа. Последние 30 показанных реплик не повторяются подряд у одного пользователя.</p></div><span class="doxi-admin-static-tag">Настраиваемые реплики</span></div>
+      <div class="doxi-thinking-form">
+        <label><span>Текст комментария</span><textarea id="doxiThinkingText" rows="2" maxlength="260" placeholder="Например: Проверяю, не сбежали ли цифры с рабочего места…"></textarea></label>
+        <div class="doxi-thinking-form-actions"><small id="doxiThinkingStatus" role="status" aria-live="polite">Загружаю комментарии…</small><div><button class="doxi-admin-btn doxi-admin-btn-secondary" type="button" id="doxiThinkingCancel" hidden>Отмена</button><button class="doxi-admin-btn doxi-admin-btn-primary" type="button" id="doxiThinkingSave" disabled>Добавить комментарий</button></div></div>
+      </div>
+      <div id="doxiThinkingList" class="doxi-thinking-list"><div class="doxi-history-empty">Загружаю реплики…</div></div>
+    </section>
+
     <section class="doxi-admin-card doxi-memory-card">
       <div class="doxi-admin-section-heading"><div><h2>Моя долговременная память Докси</h2><p>Докси использует эти сведения в разных диалогах только для вашей учётной записи. Здесь можно посмотреть, добавить, исправить или удалить любую запись.</p></div><span class="doxi-admin-static-tag">Личная память</span></div>
       <div class="doxi-memory-form" id="doxiMemoryForm">
@@ -248,7 +253,7 @@
   <script src="../js/push-config.js?v=2-windows-push"></script>
   <script src="../js/notifications.js?v=moscow-time-v1"></script>
   <script src="../js/admin-navigation.js?v=1-9-1-doxi-management"></script>
-  <script src="../js/ai-ds.js?v=1-10-2-workspace-items-quips"></script>
-  <script src="../js/ai-ds-management.js?v=1-10-2-no-personal-items"></script>
+  <script src="../js/ai-ds.js?v=1-10-4-superadmin-lock"></script>
+  <script src="../js/ai-ds-management.js?v=1-10-4-superadmin-lock"></script>
 </body>
 </html>
