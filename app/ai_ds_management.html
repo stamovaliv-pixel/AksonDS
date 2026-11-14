@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="../css/notifications.css?v=6-floating-bell-theme">
   <link rel="stylesheet" href="../css/ai-ds.css?v=1-10-4-2-welcome">
   <link rel="stylesheet" href="../css/ai-ds-motion-v1-5-5-blush-sky.css?v=1-5-5">
-  <link rel="stylesheet" href="../css/ai-ds-management.css?v=2-0-0-role-access">
+  <link rel="stylesheet" href="../css/ai-ds-management.css?v=1-10-4-superadmin-lock">
   <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon.png">
 </head>
@@ -97,8 +97,6 @@
           <label class="doxi-capability-row"><span><strong>Создание записей</strong><small>Подготовка новой записи или копии разрешённой исходной записи.</small></span><input type="checkbox" id="doxiBookingCreateEnabled"></label>
           <label class="doxi-capability-row"><span><strong>Редактирование записей</strong><small>Только дата, время, документ, типы поставки, ТК и комментарий.</small></span><input type="checkbox" id="doxiBookingUpdateEnabled"></label>
           <label class="doxi-capability-row doxi-capability-danger"><span><strong>Удаление записей</strong><small>Только активные записи без ворот, прибытия и убытия; с отдельным подтверждением.</small></span><input type="checkbox" id="doxiBookingDeleteEnabled"></label>
-          <label class="doxi-capability-row"><span><strong>Личные заметки</strong><small>Для admin и super_admin — в штатном блоке «Рабочего стола».</small></span><input type="checkbox" id="doxiNotesEnabled"></label>
-          <label class="doxi-capability-row"><span><strong>Напоминания</strong><small>Для admin и super_admin — в штатном блоке «Рабочего стола».</small></span><input type="checkbox" id="doxiRemindersEnabled"></label>
         </div>
       </div>
       <div class="doxi-admin-setting-row doxi-admin-setting-row-stack">
@@ -116,14 +114,10 @@
       <div class="doxi-admin-setting-row doxi-admin-setting-row-stack">
         <div class="doxi-admin-setting-copy">
           <strong>Доступ к чату Докси</strong>
-          <span>Выберите роли, которым разрешён чат. Super Admin всегда остаётся включённым; страницу управления, историю всех диалогов и глобальные настройки по-прежнему видит только Super Admin.</span>
+          <span>Чат и управление Докси доступны исключительно роли Super Admin. Ограничение проверяется на сервере и не зависит от настроек интерфейса.</span>
         </div>
-        <div class="doxi-role-permissions" aria-label="Роли с доступом к чату Докси">
-          <label><input type="checkbox" id="doxiRoleSuperAdmin" checked disabled> Super Admin <small>обязательный доступ</small></label>
-          <label><input type="checkbox" id="doxiRoleAdmin"> Администратор</label>
-          <label><input type="checkbox" id="doxiRoleOperator"> Оператор</label>
-          <label><input type="checkbox" id="doxiRoleViewer"> Наблюдатель</label>
-          <label><input type="checkbox" id="doxiRoleSupplier"> Поставщик</label>
+        <div class="doxi-role-permissions" aria-label="Доступ к Докси">
+          <label><input type="checkbox" checked disabled> Super Admin <small>единственная разрешённая роль</small></label>
         </div>
       </div>
       <div class="doxi-admin-actions">
@@ -259,7 +253,7 @@
   <script src="../js/push-config.js?v=2-windows-push"></script>
   <script src="../js/notifications.js?v=moscow-time-v1"></script>
   <script src="../js/admin-navigation.js?v=1-9-1-doxi-management"></script>
-  <script src="../js/ai-ds.js?v=2-0-0-role-access"></script>
-  <script src="../js/ai-ds-management.js?v=2-0-0-role-access"></script>
+  <script src="../js/ai-ds.js?v=1-10-4-3-booking-guard"></script>
+  <script src="../js/ai-ds-management.js?v=1-10-4-1-fix-empty"></script>
 </body>
 </html>
