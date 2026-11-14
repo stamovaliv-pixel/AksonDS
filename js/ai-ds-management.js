@@ -1,4 +1,4 @@
-/* Doxi management v1.9.3.
+/* Doxi management v1.10.
    Only super_admin can read global history and change assistant permissions/style. */
 document.addEventListener('DOMContentLoaded', async () => {
   const root = document.getElementById('doxiAdminRoot');
@@ -42,6 +42,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   const knowledgeUpload = $('doxiKnowledgeUpload');
   const knowledgeStatus = $('doxiKnowledgeStatus');
   const knowledgeList = $('doxiKnowledgeList');
+  const memoryTitle = $('doxiMemoryTitle');
+  const memoryCategory = $('doxiMemoryCategory');
+  const memoryContent = $('doxiMemoryContent');
+  const memorySave = $('doxiMemorySave');
+  const memoryCancel = $('doxiMemoryCancel');
+  const memoryStatus = $('doxiMemoryStatus');
+  const memoryList = $('doxiMemoryList');
 
   let saved = null;
   let busy = false;
@@ -54,6 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let messageOffset = 0;
   let messageHasMore = false;
   let historyQuery = '';
+  let editingMemoryId = null;
 
   const showToast = (message, isError = false) => {
     toast.textContent = message;
@@ -338,6 +346,81 @@ document.addEventListener('DOMContentLoaded', async () => {
   remindersList?.addEventListener('click',handlePersonalItemClick);
   refreshPersonalItems?.addEventListener('click',()=>void renderPersonalItems());
 
+  // ---------- Personal long-term memory. The server always scopes every action to auth.uid(). ----------
+  const memoryCategoryLabels = { preference:'Предпочтения', profile:'Рабочий контекст', agreement:'Договорённости', open_task:'Незавершённые задачи', other:'Другое' };
+  const resetMemoryForm = () => {
+    editingMemoryId = null;
+    memoryTitle.value = ''; memoryCategory.value = 'preference'; memoryContent.value = '';
+    memorySave.textContent = 'Сохранить в память'; memoryCancel.hidden = true;
+  };
+  const loadMemory = async () => {
+    if (!memoryList) return;
+    safeEmpty(memoryList, 'Загружаю личную память…');
+    if (memoryStatus) memoryStatus.textContent = 'Проверяю сохранённые сведения…';
+    try {
+      const result = await invoke({ action:'memory_list' });
+      const items = Array.isArray(result.memories) ? result.memories : [];
+      memoryList.replaceChildren();
+      if (!items.length) safeEmpty(memoryList, 'Личная память пока пуста. В чате напиши: «Запомни: …»');
+      items.forEach((item) => {
+        const row = document.createElement('article'); row.className = 'doxi-memory-item';
+        const main = document.createElement('div'); main.className = 'doxi-memory-item-main';
+        const title = document.createElement('strong'); title.textContent = item.title || 'Без названия';
+        const content = document.createElement('p'); content.textContent = item.content || '';
+        const meta = document.createElement('small');
+        const date = item.updated_at ? new Date(item.updated_at).toLocaleString('ru-RU') : '';
+        meta.textContent = `${memoryCategoryLabels[item.category] || 'Другое'}${date ? ' · обновлено ' + date : ''}`;
+        main.append(title, content, meta);
+        const actions = document.createElement('div'); actions.className = 'doxi-memory-item-actions';
+        const edit = document.createElement('button'); edit.type='button'; edit.className='doxi-memory-edit'; edit.textContent='Изменить'; edit.dataset.editMemory=item.id;
+        const remove = document.createElement('button'); remove.type='button'; remove.className='doxi-knowledge-delete'; remove.textContent='Удалить'; remove.dataset.deleteMemory=item.id;
+        actions.append(edit,remove); row.append(main,actions); memoryList.append(row);
+      });
+      if (memoryStatus) memoryStatus.textContent = `Сохранено: ${items.length} из ${Number(result.limit || 50)} записей. Это только ваша личная память.`;
+    } catch (error) {
+      safeEmpty(memoryList, error.message);
+      if (memoryStatus) memoryStatus.textContent = 'Не удалось загрузить личную память.';
+    }
+  };
+  memorySave?.addEventListener('click', async () => {
+    if (busy) return;
+    const title = (memoryTitle.value || '').trim();
+    const content = (memoryContent.value || '').trim();
+    if (title.length < 2 || content.length < 5) { showToast('Заполни название и содержание записи.', true); return; }
+    busy = true; memorySave.disabled = true;
+    try {
+      const wasEditing = Boolean(editingMemoryId);
+      const payload = { action: wasEditing ? 'memory_update' : 'memory_save', title, content, category: memoryCategory.value, importance: 3 };
+      if (editingMemoryId) payload.memory_id = editingMemoryId;
+      await invoke(payload);
+      resetMemoryForm(); await loadMemory(); showToast(wasEditing ? 'Память обновлена.' : 'Сведения сохранены в памяти.');
+    } catch (error) { showToast(error.message, true); }
+    finally { busy = false; memorySave.disabled = false; updateSaveState(); }
+  });
+  memoryCancel?.addEventListener('click', resetMemoryForm);
+  memoryList?.addEventListener('click', async (event) => {
+    const edit = event.target.closest('[data-edit-memory]');
+    const remove = event.target.closest('[data-delete-memory]');
+    if (!edit && !remove) return;
+    if (edit) {
+      try {
+        const result = await invoke({ action:'memory_list' });
+        const item = (result.memories || []).find((entry) => entry.id === edit.dataset.editMemory);
+        if (!item) throw new Error('Запись памяти больше не найдена. Обнови список.');
+        editingMemoryId = item.id; memoryTitle.value = item.title || ''; memoryContent.value = item.content || ''; memoryCategory.value = item.category || 'other';
+        memorySave.textContent = 'Сохранить изменения'; memoryCancel.hidden = false;
+        memoryTitle.focus(); memoryTitle.scrollIntoView({behavior:'smooth',block:'center'});
+      } catch (error) { showToast(error.message, true); }
+      return;
+    }
+    if (remove) {
+      if (!window.confirm('Удалить эту запись из твоей личной памяти Докси?')) return;
+      remove.disabled = true;
+      try { await invoke({ action:'memory_delete', memory_id:remove.dataset.deleteMemory }); if (editingMemoryId === remove.dataset.deleteMemory) resetMemoryForm(); await loadMemory(); showToast('Запись удалена из личной памяти.'); }
+      catch (error) { remove.disabled = false; showToast(error.message, true); }
+    }
+  });
+
   // ---------- Global conversation history (server verifies super_admin again) ----------
   const formatDate = (value) => {
     if (!value) return 'Дата не указана';
@@ -483,4 +566,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadSettings();
   await loadKnowledge();
   await renderPersonalItems();
+  await loadMemory();
 });
