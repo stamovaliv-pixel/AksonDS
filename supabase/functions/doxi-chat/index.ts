@@ -1,4 +1,4 @@
-// Doxi AI agent v3.4.3 — natural-language note commands and fail-closed action claims.
+// Doxi AI agent v3.4.4 — natural-language booking detail lookup by date and slot hour.
 // Preserves MultiRole, booking confirmations, personal items, memory, knowledge and CSV/XLS/XLSX analysis.
 // Deploy with Verify JWT enabled. Never expose DOXI_PROXY_SECRET to browser code.
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -139,7 +139,7 @@ function buildInputRecoveryHint(input: string): { recoveredText: string; matched
 
 
 // Doxi 3.4 — cognitive agent: controlled planning, retrieval, reasoning and effort routing.
-const DOXI_RELEASE = "3.4.3";
+const DOXI_RELEASE = "3.4.4";
 const MODEL = "qwen3.5:9b";                 // validated local model for all synchronous requests
 const AGENT_PLAN_TIMEOUT_MS = 10_000;
 const AGENT_VERIFY_TIMEOUT_MS = 12_000;
@@ -351,7 +351,22 @@ function asksAboutLiveData(text: string): boolean {
 }
 
 function wantsDetailedRows(text: string): boolean {
-  return /(список|какие\s+запис|кто\s+приед|перечисли|найди\s+запис|покажи\s+(?:мне\s+)?(?:список|записи))/i.test(text);
+  // Treat natural-language questions about who is booked/assigned as detail requests,
+  // not merely aggregate calendar questions. Keep matching narrow to avoid pulling
+  // personal booking rows for unrelated uses of "кто".
+  return /(список|какие\s+запис|кто\s+(?:(?:перв[\p{L}]*|раньше)\s+)?(?:запис[\p{L}]*|приед[\p{L}]*|стоит|назначен[\p{L}]*)|кто\s+занима[\p{L}]*|найди\s+запис|покажи\s+(?:мне\s+)?(?:список|записи))/iu.test(text);
+}
+
+function parseSlotHourInText(text: string): number | null {
+  // Require an explicit time marker (e.g. "в 9:00", "на 09:00", "в 9 часов")
+  // so a date such as "на 16.11" is never mistaken for hour 16.
+  const re = /(?:^|[^\p{L}\p{N}_])(?:в|на)\s*(\d{1,2})(?::[0-5]\d|\s*(?:ч(?:ас(?:а|ов)?)?))(?=$|[^\p{L}\p{N}_])/giu;
+  let match: RegExpExecArray | null = null;
+  let candidate: RegExpExecArray | null = null;
+  while ((match = re.exec(String(text || ""))) !== null) candidate = match;
+  if (!candidate) return null;
+  const hour = Number(candidate[1]);
+  return Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : null;
 }
 
 function wantsWeekRange(text: string): boolean {
@@ -483,18 +498,28 @@ async function getLiveDataContext(adminClient: any, userText: string, enabled: b
   }
 
   if (wantsDetailedRows(userText) && !week && targetDate && Number(count || 0) > 0 && detailsEnabled && role === "super_admin") {
-    const { data: detailRows, error: detailError } = await adminClient
+    const requestedHour = parseSlotHourInText(userText);
+    let detailQuery = adminClient
       .from("bookings")
-      .select("slot_hour, order_number, order_type, supply_type, supply_types, profiles(company_name)")
+      .select("slot_hour, order_number, order_type, supply_type, supply_types, created_at, profiles(company_name)")
       .eq("status", "active")
-      .eq("slot_date", targetDate)
+      .eq("slot_date", targetDate);
+    if (requestedHour !== null) detailQuery = detailQuery.eq("slot_hour", requestedHour);
+    const { data: detailRows, error: detailError } = await detailQuery
       .order("slot_hour", { ascending: true })
+      .order("created_at", { ascending: true })
       .limit(MAX_DETAIL_ROWS);
     if (detailError) {
       console.error("[doxi-chat] Live booking detail query failed:", detailError.code || "DB_ERROR");
       lines.push("Детальный список записей получить не удалось; используй только сводные числа выше.");
     } else {
-      lines.push(`Ограниченный список активных записей на ${targetDate} (не более ${MAX_DETAIL_ROWS}; не включать скрытые поля):`);
+      const detailLabel = requestedHour === null
+        ? `на ${targetDate}`
+        : `на ${targetDate} в ${String(requestedHour).padStart(2, "0")}:00`;
+      lines.push(`Ограниченный список активных записей ${detailLabel} (не более ${MAX_DETAIL_ROWS}; не включать скрытые поля). Строки упорядочены по времени создания от ранней к поздней:`);
+      if (!(detailRows || []).length) {
+        lines.push(`На ${targetDate}${requestedHour === null ? "" : ` в ${String(requestedHour).padStart(2, "0")}:00`} активных записей не найдено.`);
+      }
       for (const row of (detailRows || []) as Array<Record<string, unknown>>) {
         const profileValue = row.profiles as Record<string, unknown> | Record<string, unknown>[] | null;
         const profile = Array.isArray(profileValue) ? profileValue[0] : profileValue;
@@ -504,15 +529,21 @@ async function getLiveDataContext(adminClient: any, userText: string, enabled: b
         const rawType = String(row.order_type || "");
         const type = (orderTypeLabels[rawType] || rawType || "документ не указан").slice(0, 40);
         const hour = Number(row.slot_hour);
-        lines.push(`- ${String(Number.isFinite(hour) ? hour : 0).padStart(2, "0")}:00 — ${company} — документ ${order} — ${type} — поставка: ${classifySupply(row)}.`);
+        const createdAt = Date.parse(String(row.created_at || ""));
+        const createdLabel = Number.isFinite(createdAt)
+          ? new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(createdAt)) + " МСК"
+          : "время создания не указано";
+        lines.push(`- ${String(Number.isFinite(hour) ? hour : 0).padStart(2, "0")}:00 — ${company} — документ ${order} — ${type} — поставка: ${classifySupply(row)} — создана: ${createdLabel}.`);
       }
-      if (Number(count || 0) > MAX_DETAIL_ROWS) lines.push(`Показаны первые ${MAX_DETAIL_ROWS} строк из ${Number(count || 0)} активных; не утверждай, что список полный.`);
+      if ((detailRows || []).length >= MAX_DETAIL_ROWS) lines.push(`Показаны первые ${MAX_DETAIL_ROWS} строк; не утверждай, что список полный.`);
     }
   }
   if (wantsDetailedRows(userText) && role !== "super_admin") {
     lines.push("Подробные строки бронирований доступны только суперадминистратору. Для текущей роли показывай только разрешённую сводку.");
   } else if (wantsDetailedRows(userText) && !detailsEnabled) {
     lines.push("Подробные списки записей отключены в настройках Докси. Показывай только сводные показатели.");
+  } else if (wantsDetailedRows(userText) && !week && targetDate && Number(count || 0) === 0) {
+    lines.push(`На ${targetDate} активных записей не найдено.`);
   }
   if (rowsLimited) lines.push(`Внимание: для распределения по датам загружены первые ${MAX_LIVE_ROWS} строк. Общее количество по COUNT(*) точное; детальное распределение может быть неполным.`);
   lines.push("Интерпретируй только приведённые данные. Не утверждай, что проверяла другие даты или неактивные статусы.");
