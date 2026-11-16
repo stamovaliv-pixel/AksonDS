@@ -242,9 +242,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const greeting = greetings[Math.floor(Math.random() * greetings.length)];
     const wrap = document.createElement('div'); wrap.className = 'ak-ai-ds-welcome';
     const icon = document.createElement('div'); icon.className = 'ak-ai-ds-welcome-icon'; icon.textContent = '✦';
-    const title = document.createElement('h3'); title.textContent = 'Здравствуйте! Я — Докси, ваш ассистент по\u00A0DockSlot.';
+    const title = document.createElement('h3'); title.textContent = 'Привет! Я — Докси, ваш виртуальный ассистент.';
     const copy = document.createElement('p'); copy.textContent = greeting.text;
-    const sub = document.createElement('p'); sub.className = 'ak-ai-ds-welcome-sub'; sub.textContent = 'К вашим задачам готова!';
     const suggestions = document.createElement('div'); suggestions.className = 'ak-ai-ds-suggestions';
     const suggestionItems = [
       ['Сводка на сегодня', 'Сколько активных записей сегодня? Покажи распределение по часам.'],
@@ -259,7 +258,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const span = document.createElement('span'); span.textContent = '↗';
       button.append(document.createTextNode(label), span); suggestions.append(button);
     });
-    wrap.append(icon, title, copy, sub, suggestions);
+    wrap.append(icon, title, copy, suggestions);
     return wrap;
   };
 
