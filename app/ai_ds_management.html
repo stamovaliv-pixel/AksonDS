@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="../css/notifications.css?v=6-floating-bell-theme">
   <link rel="stylesheet" href="../css/ai-ds.css?v=3-4-cognitive-agent">
   <link rel="stylesheet" href="../css/ai-ds-motion-v1-5-5-blush-sky.css?v=1-5-5">
-  <link rel="stylesheet" href="../css/ai-ds-management.css?v=2-0-0-role-access">
+  <link rel="stylesheet" href="../css/ai-ds-management.css?v=2-2-table-access-matrix">
   <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon.png">
 </head>
@@ -129,6 +129,45 @@
       <div class="doxi-admin-actions">
         <span class="doxi-admin-save-meta" id="doxiSaveMeta" aria-live="polite">Загрузка настроек…</span>
         <button class="doxi-admin-btn doxi-admin-btn-primary" id="doxiSaveBtn" type="button" disabled>Сохранить настройки</button>
+      </div>
+    </section>
+
+    <section class="doxi-admin-card doxi-table-access-card">
+      <div class="doxi-admin-section-heading">
+        <div>
+          <h2>Матрица доступа Докси к таблицам</h2>
+          <p>Выбери, какие таблицы Докси может читать и какие разрешённые серверные операции может выполнять. Эти настройки проверяются сервером при каждом запросе.</p>
+        </div>
+        <span class="doxi-admin-static-tag">Только Super Admin</span>
+      </div>
+      <div class="doxi-table-access-note">
+        <strong>Важно о правах:</strong> матрица не предоставляет произвольный SQL. INSERT / UPDATE / DELETE доступны только через готовые защищённые сценарии Докси. Профили пользователей доступны только для чтения. Для персональных таблиц Admin всегда ограничен собственными строками; Super Admin может выбрать область отдельно. Push-подписки, ключи и токены закрыты без возможности включения.
+      </div>
+      <div class="doxi-table-access-meta">
+        <span id="doxiTableAccessStatus" role="status" aria-live="polite">Загружаю таблицы и разрешения…</span>
+        <span>Максимум строк на запрос: 1–1 000</span>
+      </div>
+      <div class="doxi-table-access-wrap">
+        <table class="doxi-table-access-table">
+          <thead>
+            <tr>
+              <th scope="col">Таблица</th>
+              <th scope="col">Чтение</th>
+              <th scope="col">Добавление</th>
+              <th scope="col">Изменение</th>
+              <th scope="col">Удаление</th>
+              <th scope="col">Область строк</th>
+              <th scope="col">Лимит</th>
+            </tr>
+          </thead>
+          <tbody id="doxiTableAccessRows">
+            <tr><td colspan="7" class="doxi-table-access-empty">Загружаю матрицу…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="doxi-admin-actions">
+        <span class="doxi-admin-save-meta" id="doxiTableAccessMeta">Права ещё не загружены.</span>
+        <button class="doxi-admin-btn doxi-admin-btn-primary" id="doxiTableAccessSaveBtn" type="button" disabled>Сохранить матрицу доступа</button>
       </div>
     </section>
 
@@ -260,6 +299,6 @@
   <script src="../js/notifications.js?v=moscow-time-v1"></script>
   <script src="../js/admin-navigation.js?v=1-9-1-doxi-management"></script>
   <script src="../js/ai-ds.js?v=3-4-cognitive-agent"></script>
-  <script src="../js/ai-ds-management.js?v=2-0-0-role-access"></script>
+  <script src="../js/ai-ds-management.js?v=2-2-table-access-matrix"></script>
 </body>
 </html>

@@ -1,0 +1,15 @@
+DOXI TABLE ACCESS MATRIX PATCH
+
+Changed files:
+- app/ai_ds_management.html
+- css/ai-ds-management.css
+- js/ai-ds-management.js
+- supabase/functions/doxi-chat/index.ts
+- supabase/migrations/20261116_doxi_table_access_matrix.sql
+
+Documentation:
+- README_DOXI_TABLE_ACCESS_MATRIX_RU.md
+- CHANGELOG_DOXI_TABLE_ACCESS_MATRIX_RU.md
+- diagnostics/DOXI_TABLE_ACCESS_MATRIX_STATIC_REPORT_RU.md
+
+Apply SQL migration before deploying the Edge Function.

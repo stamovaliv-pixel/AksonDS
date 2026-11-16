@@ -51,6 +51,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const memoryStatus = $('doxiMemoryStatus');
   const memoryList = $('doxiMemoryList');
   const thinkingText = $('doxiThinkingText'); const thinkingSave = $('doxiThinkingSave'); const thinkingCancel = $('doxiThinkingCancel'); const thinkingStatus = $('doxiThinkingStatus'); const thinkingList = $('doxiThinkingList');
+  const tableAccessStatus = $('doxiTableAccessStatus');
+  const tableAccessRows = $('doxiTableAccessRows');
+  const tableAccessMeta = $('doxiTableAccessMeta');
+  const tableAccessSaveBtn = $('doxiTableAccessSaveBtn');
 
   let saved = null;
   let busy = false;
@@ -65,6 +69,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   let historyQuery = '';
   let editingMemoryId = null;
   let editingThinkingId = null;
+  let tableAccessSnapshot = '';
+  let tableAccessBusy = false;
+  let tableAccessLoaded = false;
 
   const showToast = (message, isError = false) => {
     toast.textContent = message;
@@ -87,6 +94,140 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!data) throw new Error('Сервер Докси вернул пустой ответ.');
     if (data.error) throw new Error(data.error);
     return data;
+  };
+
+  const captureTablePermissions = () => Array.from(tableAccessRows?.querySelectorAll('tr[data-table-name]') || []).map((row) => {
+    const permission = { table_name: row.dataset.tableName };
+    ['select', 'insert', 'update', 'delete'].forEach((operation) => {
+      permission[`can_${operation}`] = Boolean(row.querySelector(`input[data-op="${operation}"]`)?.checked);
+    });
+    permission.scope_mode = row.querySelector('select[data-field="scope_mode"]')?.value === 'current_user' ? 'current_user' : 'all';
+    const maxRows = Number(row.querySelector('input[data-field="max_rows"]')?.value || 100);
+    permission.max_rows = Math.max(1, Math.min(1000, Math.round(Number.isFinite(maxRows) ? maxRows : 100)));
+    return permission;
+  });
+
+  const updateTableAccessSaveState = () => {
+    if (!tableAccessLoaded || tableAccessBusy) {
+      tableAccessSaveBtn.disabled = true;
+      return;
+    }
+    const changed = JSON.stringify(captureTablePermissions()) !== tableAccessSnapshot;
+    tableAccessSaveBtn.disabled = !changed;
+    tableAccessMeta.textContent = changed ? 'Есть несохранённые изменения.' : 'Матрица доступа сохранена.';
+  };
+
+  const createTablePermissionCheckbox = (operation, checked, locked, title) => {
+    const label = document.createElement('label');
+    label.className = 'doxi-table-access-check';
+    if (locked) label.classList.add('is-locked');
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.dataset.op = operation;
+    input.checked = Boolean(checked);
+    input.disabled = Boolean(locked);
+    input.setAttribute('aria-label', `${operation}: ${title}`);
+    const mark = document.createElement('span');
+    mark.setAttribute('aria-hidden', 'true');
+    label.append(input, mark);
+    if (locked) label.title = 'Операция не реализована безопасным серверным инструментом или жёстко запрещена.';
+    return label;
+  };
+
+  const renderTableAccess = (permissions) => {
+    tableAccessRows.replaceChildren();
+    (permissions || []).forEach((item) => {
+      const row = document.createElement('tr');
+      row.dataset.tableName = item.table_name;
+      const tableCell = document.createElement('td');
+      tableCell.className = 'doxi-table-access-name';
+      const title = document.createElement('strong'); title.textContent = item.label || item.table_name;
+      const name = document.createElement('code'); name.textContent = item.table_name;
+      const description = document.createElement('small'); description.textContent = item.description || '';
+      tableCell.append(title, name, description);
+      row.append(tableCell);
+
+      const supportedWrites = new Set(item.supported_writes || []);
+      const readLocked = Boolean(item.read_locked || item.table_name === 'push_subscriptions');
+      const writeLocked = Boolean(item.write_locked || item.read_only || !supportedWrites.size);
+      ['select', 'insert', 'update', 'delete'].forEach((operation) => {
+        const cell = document.createElement('td');
+        cell.className = 'doxi-table-access-permission';
+        const locked = operation === 'select' ? readLocked : (writeLocked || !supportedWrites.has(operation));
+        cell.append(createTablePermissionCheckbox(operation, item[`can_${operation}`], locked, item.table_name));
+        row.append(cell);
+      });
+
+      const scopeCell = document.createElement('td');
+      const scope = document.createElement('select');
+      scope.dataset.field = 'scope_mode';
+      scope.className = 'doxi-table-access-select';
+      const allOption = document.createElement('option'); allOption.value = 'all'; allOption.textContent = 'Все строки';
+      scope.append(allOption);
+      if (item.scope_column) {
+        const userOption = document.createElement('option'); userOption.value = 'current_user'; userOption.textContent = 'Текущий пользователь';
+        scope.append(userOption);
+      }
+      scope.value = item.scope_mode === 'current_user' && item.scope_column ? 'current_user' : 'all';
+      scope.disabled = !item.scope_column;
+      scopeCell.append(scope); row.append(scopeCell);
+
+      const limitCell = document.createElement('td');
+      const limit = document.createElement('input');
+      limit.type = 'number'; limit.min = '1'; limit.max = '1000'; limit.step = '1';
+      limit.dataset.field = 'max_rows'; limit.className = 'doxi-table-access-limit';
+      limit.value = String(Math.max(1, Math.min(1000, Number(item.max_rows) || 100)));
+      limitCell.append(limit); row.append(limitCell);
+      tableAccessRows.append(row);
+    });
+    tableAccessSnapshot = JSON.stringify(captureTablePermissions());
+    tableAccessLoaded = true;
+    tableAccessStatus.textContent = `Загружено таблиц: ${(permissions || []).length}. Изменения применяются на сервере.`;
+    updateTableAccessSaveState();
+  };
+
+  const loadTableAccess = async () => {
+    tableAccessLoaded = false;
+    tableAccessSaveBtn.disabled = true;
+    tableAccessStatus.textContent = 'Загружаю список таблиц и разрешений…';
+    try {
+      const result = await invoke({ action: 'admin_get_table_permissions' });
+      renderTableAccess(result.permissions || []);
+      return true;
+    } catch (error) {
+      tableAccessRows.replaceChildren();
+      const row = document.createElement('tr');
+      const cell = document.createElement('td'); cell.colSpan = 7;
+      cell.className = 'doxi-table-access-empty';
+      cell.textContent = error.message || 'Не удалось загрузить матрицу. Примените SQL-миграцию DOXI table access matrix.';
+      row.append(cell); tableAccessRows.append(row);
+      tableAccessStatus.textContent = 'Матрица недоступна.';
+      tableAccessMeta.textContent = 'Сохранение отключено до применения миграции и публикации функции.';
+      showToast('Не удалось загрузить матрицу доступа.', true);
+      return false;
+    }
+  };
+
+  const saveTableAccess = async () => {
+    if (!tableAccessLoaded || tableAccessBusy) return;
+    tableAccessBusy = true;
+    tableAccessSaveBtn.disabled = true;
+    tableAccessSaveBtn.textContent = 'Сохраняю…';
+    try {
+      await invoke({ action: 'admin_update_table_permissions', permissions: captureTablePermissions() });
+      await loadTableAccess();
+      if (tableAccessLoaded) {
+        tableAccessMeta.textContent = 'Сохранено ' + new Date().toLocaleString('ru-RU');
+        showToast('Матрица доступа Докси сохранена.');
+      }
+    } catch (error) {
+      tableAccessMeta.textContent = 'Не удалось сохранить матрицу.';
+      showToast(error.message || 'Ошибка сохранения матрицы.', true);
+    } finally {
+      tableAccessBusy = false;
+      tableAccessSaveBtn.textContent = 'Сохранить матрицу доступа';
+      updateTableAccessSaveState();
+    }
   };
 
   const captureSettings = () => ({
@@ -181,6 +322,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   [enabledInput, liveDataInput, detailsInput, createInput, updateInput, deleteInput, notesInput, remindersInput, ...Object.values(roleControls), styleInput].forEach((control) => {
     control.addEventListener('change', updateSaveState);
   });
+  tableAccessRows.addEventListener('change', updateTableAccessSaveState);
+  tableAccessRows.addEventListener('input', updateTableAccessSaveState);
+  tableAccessSaveBtn.addEventListener('click', () => void saveTableAccess());
 
   saveButton.addEventListener('click', async () => {
     if (!saved || busy) return;
@@ -573,6 +717,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   await loadSettings();
+  await loadTableAccess();
   await loadKnowledge();
   await loadMemory();
   await renderThinkingComments();
