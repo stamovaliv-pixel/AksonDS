@@ -201,7 +201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       'admin_calendar.html': 'Календарь администратора', 'day.html': 'Страница дня поставщика',
       'admin_day.html': 'Страница дня администратора', 'suppliers.html': 'Пользователи и поставщики',
       'analytics.html': 'Аналитика', 'settings.html': 'Настройки', 'load_management.html': 'Управление загрузкой',
-      'shift_board.html': 'Рабочая доска', 'dashboard.html': 'Личный кабинет', 'help.html': 'Помощь',
+      'dashboard.html': 'Личный кабинет', 'help.html': 'Помощь',
       'ai_ds_management.html': 'Управление Докси', 'doxi-record.html': 'Подготовленная запись Докси'
     };
     return labels[file] || 'Раздел DockSlot';
