@@ -27,6 +27,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeView = 'inbox';
   let realtimeChannel = null;
   let fallbackPoll = null;
+  let fallbackStartPromise = null;
+  let fallbackPausedForAuth = false;
+  let inboxLoadPromise = null;
+  let inboxLoadUserId = null;
+  let authSubscription = null;
+  let realtimeStartPromise = null;
   let toastTimer = null;
   const desktopNotificationIds = new Set();
 
@@ -40,6 +46,98 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const clone = (value) => JSON.parse(JSON.stringify(value || {}));
   const $ = (id) => document.getElementById(id);
+
+  // Never query a user-scoped notification table unless Supabase currently has
+  // a real authenticated session for the same user whose inbox is being shown.
+  // getSession() reads the SDK-managed session and performs its normal refresh
+  // flow when needed; it does not expose or accept an arbitrary client identity.
+  const hasCurrentAuthenticatedSession = async () => {
+    if (!user?.id || typeof sb.auth.getSession !== 'function') return false;
+    try {
+      const { data, error } = await sb.auth.getSession();
+      const session = data?.session;
+      return !error
+        && Boolean(session?.access_token)
+        && String(session?.user?.id || '') === String(user.id);
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const isAuthorizationError = (error) => {
+    const code = String(error?.code || '');
+    const status = Number(error?.status || error?.statusCode || 0);
+    return code === '42501' || status === 401 || status === 403;
+  };
+
+  const removeRealtimeChannel = () => {
+    if (!realtimeChannel) return;
+    const channel = realtimeChannel;
+    realtimeChannel = null;
+    try { void sb.removeChannel(channel); } catch (_) { }
+  };
+
+  const clearNotificationSession = () => {
+    fallbackPausedForAuth = true;
+    stopFallbackPolling();
+    removeRealtimeChannel();
+    user = null;
+    userRole = '';
+    preferences = {};
+    draftPreferences = {};
+    inbox = [];
+    closeModal();
+    $('akNotificationsBell')?.remove();
+    $('akNotificationsOverlay')?.remove();
+    document.body.classList.remove('ak-notifications-lock');
+    window.dockslotResetAuthProfile?.();
+  };
+
+  const registerAuthStateListener = () => {
+    if (typeof sb.auth.onAuthStateChange !== 'function') return;
+    try {
+      const result = sb.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_OUT' || !session?.user?.id) {
+          clearNotificationSession();
+          return;
+        }
+
+        const sessionUserId = String(session.user.id);
+        if (user?.id && sessionUserId !== String(user.id)) {
+          // An account was switched in this tab. Tear down the old user's
+          // channel and restart initialization against the new verified user.
+          clearNotificationSession();
+          if (event === 'SIGNED_IN') window.setTimeout(() => { void init(); }, 0);
+          return;
+        }
+
+        if (event === 'SIGNED_IN' && !user) {
+          window.dockslotResetAuthProfile?.();
+          window.setTimeout(() => { void init(); }, 0);
+          return;
+        }
+
+        if (user?.id && sessionUserId === String(user.id)
+            && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
+          fallbackPausedForAuth = false;
+          // Supabase invokes auth callbacks while holding its internal auth lock.
+          // Defer all SDK calls until after the callback returns to avoid lock re-entry.
+          window.setTimeout(async () => {
+            if (!await hasCurrentAuthenticatedSession()) {
+              fallbackPausedForAuth = true;
+              stopFallbackPolling();
+              return;
+            }
+            if (!realtimeChannel) await setupRealtime();
+            await loadInbox();
+          }, 0);
+        }
+      });
+      authSubscription = result?.data?.subscription || null;
+    } catch (error) {
+      console.warn('[DockSlot notifications] Auth-state listener unavailable:', error?.message || error);
+    }
+  };
   const create = (tag, className, textValue) => {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -54,12 +152,19 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!authProfile?.user || authProfile.error || !authProfile.profile || authProfile.profile.is_blocked) return;
       user = authProfile.user;
       userRole = String(authProfile.profile.role || '').toLowerCase();
+      if (!await hasCurrentAuthenticatedSession()) {
+        user = null;
+        userRole = '';
+        fallbackPausedForAuth = true;
+        return;
+      }
+      fallbackPausedForAuth = false;
       // Suppliers and view-only users have no notification preferences in this specification.
       if (!['admin', 'super_admin', 'operator'].includes(userRole)) return;
 
       mountBellAndModal();
       await Promise.all([loadPreferences(), loadInbox()]);
-      setupRealtime();
+      await setupRealtime();
       await refreshPushSettingsUI();
       openFromNotificationUrl();
 
@@ -198,6 +303,10 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const loadPreferences = async () => {
+    if (!await hasCurrentAuthenticatedSession()) {
+      preferences = defaultPreferences();
+      return;
+    }
     const { data, error } = await sb
       .from('notification_preferences')
       .select('preferences')
@@ -213,23 +322,68 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const loadInbox = async () => {
-    const { data, error } = await sb
-      .from('app_notifications')
-      .select('id, event_type, title, body, related_booking_id, booking_date, metadata, created_at, read_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(100);
-    if (error) {
-      console.error('[DockSlot notifications] Cannot load inbox:', error);
-      setStatus('Не удалось загрузить уведомления. Проверьте SQL-миграцию и политики доступа.', true);
-      inbox = [];
+    const requestedUserId = String(user?.id || '');
+    if (!requestedUserId) return false;
+
+    // Collapse duplicate refreshes for one user. If the signed-in account has
+    // changed, let the old request settle and then fetch for the new identity.
+    if (inboxLoadPromise) {
+      if (inboxLoadUserId === requestedUserId) return inboxLoadPromise;
+      try { await inboxLoadPromise; } catch (_) { }
+      if (String(user?.id || '') !== requestedUserId) return false;
+    }
+
+    const requestPromise = (async () => {
+      if (!await hasCurrentAuthenticatedSession()) {
+        // A signed-out or expired tab must not fall back to the public anon key.
+        fallbackPausedForAuth = true;
+        stopFallbackPolling();
+        return false;
+      }
+
+      const { data, error } = await sb
+        .from('app_notifications')
+        .select('id, event_type, title, body, related_booking_id, booking_date, metadata, created_at, read_at')
+        .eq('user_id', requestedUserId)
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      // Ignore late responses after a sign-out or account switch.
+      if (!user?.id || String(user.id) !== requestedUserId) return false;
+
+      if (error) {
+        console.error('[DockSlot notifications] Cannot load inbox:', error);
+        if (isAuthorizationError(error)) {
+          // A permission/auth failure is not a transient Realtime outage. Stop
+          // retrying every 30 seconds; retry only after a new/renewed auth session.
+          fallbackPausedForAuth = true;
+          stopFallbackPolling();
+          setStatus('Не удалось подтвердить доступ к уведомлениям. Проверьте вход в DockSlot и обновите страницу.', true);
+        } else {
+          setStatus('Не удалось загрузить уведомления. Повторная попытка будет выполнена автоматически.', true);
+        }
+        inbox = [];
+        updateBadge();
+        if (activeView === 'inbox') renderInbox();
+        return false;
+      }
+
+      inbox = data || [];
       updateBadge();
       if (activeView === 'inbox') renderInbox();
-      return;
+      return true;
+    })();
+
+    inboxLoadPromise = requestPromise;
+    inboxLoadUserId = requestedUserId;
+    try {
+      return await requestPromise;
+    } finally {
+      if (inboxLoadPromise === requestPromise) {
+        inboxLoadPromise = null;
+        inboxLoadUserId = null;
+      }
     }
-    inbox = data || [];
-    updateBadge();
-    if (activeView === 'inbox') renderInbox();
   };
 
   const updateBadge = () => {
@@ -429,7 +583,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const markNotificationRead = async (id) => {
     const item = inbox.find((entry) => String(entry.id) === String(id));
-    if (!item || item.read_at) return;
+    if (!item || item.read_at || !user?.id) return;
+    if (!await hasCurrentAuthenticatedSession()) {
+      fallbackPausedForAuth = true;
+      stopFallbackPolling();
+      return;
+    }
     const readAt = new Date().toISOString();
     const { error } = await sb.from('app_notifications').update({ read_at: readAt }).eq('id', id).eq('user_id', user.id);
     if (error) {
@@ -442,6 +601,11 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const markAllRead = async () => {
+    if (!user?.id || !await hasCurrentAuthenticatedSession()) {
+      fallbackPausedForAuth = true;
+      stopFallbackPolling();
+      return;
+    }
     const readAt = new Date().toISOString();
     const { error } = await sb.from('app_notifications').update({ read_at: readAt }).eq('user_id', user.id).is('read_at', null);
     if (error) {
@@ -455,6 +619,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const savePreferences = async () => {
     const button = $('akNotificationsFooter')?.querySelector('[data-action="save-settings"]');
+    if (!user?.id || !await hasCurrentAuthenticatedSession()) {
+      fallbackPausedForAuth = true;
+      stopFallbackPolling();
+      if (button) { button.disabled = false; button.textContent = 'Сохранить настройки'; }
+      setStatus('Сессия DockSlot завершилась. Войдите снова, чтобы изменить настройки уведомлений.', true);
+      return;
+    }
     if (button) { button.disabled = true; button.textContent = 'Сохранение…'; }
     const payload = {};
     [...COMMON_EVENTS, ...(['admin', 'super_admin'].includes(userRole) ? ADMIN_EVENTS : [])].forEach((event) => {
@@ -731,7 +902,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const handleRealtimePayload = (payload) => {
     const row = payload?.new;
-    if (!row || String(row.user_id) !== String(user.id)) return;
+    if (!user?.id || !row || String(row.user_id) !== String(user.id)) return;
     if (payload.eventType === 'INSERT') {
       if (!inbox.some((item) => String(item.id) === String(row.id))) inbox.unshift(row);
       inbox = inbox.slice(0, 100);
@@ -747,40 +918,81 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activeView === 'inbox' && $('akNotificationsOverlay') && !$('akNotificationsOverlay').hidden) renderInbox();
   };
 
-  const setupRealtime = () => {
-    if (typeof sb.channel !== 'function') {
-      startFallbackPolling();
-      return;
-    }
-    realtimeChannel = sb.channel(`dockslot-notifications-${user.id}`)
-      .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'app_notifications', filter: `user_id=eq.${user.id}`
-      }, handleRealtimePayload)
-      .on('postgres_changes', {
-        event: 'UPDATE', schema: 'public', table: 'app_notifications', filter: `user_id=eq.${user.id}`
-      }, handleRealtimePayload)
-      .subscribe((status) => {
+  const setupRealtime = async () => {
+    // Realtime remains the primary delivery path even when the REST fallback is
+    // paused after an authorization error. Only polling is gated by that flag.
+    if (!user?.id || realtimeChannel || realtimeStartPromise) return;
+    realtimeStartPromise = (async () => {
+      if (!await hasCurrentAuthenticatedSession()) {
+        fallbackPausedForAuth = true;
+        stopFallbackPolling();
+        return;
+      }
+      if (!user?.id || realtimeChannel) return;
+      if (typeof sb.channel !== 'function') {
+        await startFallbackPolling();
+        return;
+      }
+      const channelUserId = String(user.id);
+      const channel = sb.channel(`dockslot-notifications-${channelUserId}`)
+        .on('postgres_changes', {
+          event: 'INSERT', schema: 'public', table: 'app_notifications', filter: `user_id=eq.${channelUserId}`
+        }, handleRealtimePayload)
+        .on('postgres_changes', {
+          event: 'UPDATE', schema: 'public', table: 'app_notifications', filter: `user_id=eq.${channelUserId}`
+        }, handleRealtimePayload);
+      realtimeChannel = channel;
+      channel.subscribe((status) => {
+        if (realtimeChannel !== channel) return;
         if (status === 'SUBSCRIBED') {
           stopFallbackPolling();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          startFallbackPolling();
+          void startFallbackPolling();
         }
       });
+    })();
+    try { await realtimeStartPromise; }
+    finally { realtimeStartPromise = null; }
   };
 
-  const startFallbackPolling = () => {
-    if (fallbackPoll) return;
-    fallbackPoll = window.setInterval(loadInbox, 30000);
+  const startFallbackPolling = async () => {
+    if (fallbackPoll || fallbackStartPromise || fallbackPausedForAuth || !user?.id) return;
+    fallbackStartPromise = (async () => {
+      if (!await hasCurrentAuthenticatedSession()) {
+        fallbackPausedForAuth = true;
+        stopFallbackPolling();
+        return;
+      }
+      if (fallbackPoll || fallbackPausedForAuth || !user?.id) return;
+      // Preserve the 30-second recovery interval, but never poll while the page
+      // is backgrounded. A visible tab performs an immediate refresh instead.
+      fallbackPoll = window.setInterval(() => {
+        if (document.visibilityState === 'hidden' || fallbackPausedForAuth) return;
+        void loadInbox();
+      }, 30000);
+    })();
+    try { await fallbackStartPromise; }
+    finally { fallbackStartPromise = null; }
   };
+
   const stopFallbackPolling = () => {
     if (!fallbackPoll) return;
     window.clearInterval(fallbackPoll);
     fallbackPoll = null;
   };
 
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && fallbackPoll && !fallbackPausedForAuth) {
+      void loadInbox();
+    }
+  });
+
+  registerAuthStateListener();
+
   window.addEventListener('beforeunload', () => {
-    if (realtimeChannel) sb.removeChannel(realtimeChannel);
-    if (fallbackPoll) window.clearInterval(fallbackPoll);
+    stopFallbackPolling();
+    removeRealtimeChannel();
+    try { authSubscription?.unsubscribe?.(); } catch (_) { }
   });
 
   init();
