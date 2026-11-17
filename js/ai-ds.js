@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const attachButton = $('akAiDsAttach'); const fileInput = $('akAiDsFileInput'); const attachment = $('akAiDsAttachment'); const attachmentName = $('akAiDsAttachmentName'); const attachmentRemove = $('akAiDsAttachmentRemove');
   const status = $('akAiDsStatus'); const note = $('akAiDsConnectionNote');
   const headerDot = $('akAiDsHeaderDot'); const contextDot = $('akAiDsContextDot');
-  let conversationId = null; let isSending = false; let thinkingTimer = null; let revealFrame = 0;
+  let conversationId = null; let isSending = false; let sendLock = false; let thinkingTimer = null; let revealFrame = 0;
   let connectionTimer = null; let conversationRestored = false; let conversationRestorePromise = null; let selectedRegistryFile = null; let lastCreatedBookingId = null;
   const MOSCOW_DAY = () => new Intl.DateTimeFormat('en-CA', { timeZone:'Europe/Moscow', year:'numeric', month:'2-digit', day:'2-digit' }).format(new Date());
   const conversationStorageKey = () => `doxi-active-conversation-${auth.user.id}-${MOSCOW_DAY()}`;
@@ -512,24 +512,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const send = async (value) => {
     const text = String(value || '').trim() || (selectedRegistryFile ? 'Проанализируй, пожалуйста, вложенный файл и подготовь основные выводы.' : '');
-    if (!text || isSending) return;
+    if (!text || isSending || sendLock) return;
+    // Lock synchronously before any asynchronous conversation restore. This prevents
+    // a rapid double-click on a starter prompt from submitting duplicate messages.
+    sendLock = true;
     const webMatch = text.match(/^\/интернет(?:\s+([\s\S]+))?$/iu)
       || text.match(/^(?:найди|поищи|проверь)\s+(?:мне\s+)?(?:информацию\s+)?в\s+(?:интернете|сети|вебе)\s*[:—-]?\s*([\s\S]+)$/iu)
       || text.match(/^([\s\S]+?)\s+в\s+(?:интернете|сети|вебе)[.!? ]*$/iu);
-    if (webMatch) { await sendWebSearch(text, String(webMatch[1] || '').trim()); return; }
-    await Promise.all([thinkingLoadPromise, restoreTodayConversation()]);
-    if (isSending) return;
+    if (webMatch) {
+      try { await sendWebSearch(text, String(webMatch[1] || '').trim()); }
+      finally { sendLock = false; }
+      return;
+    }
+    try {
+      await Promise.all([thinkingLoadPromise, restoreTodayConversation()]);
+    } catch (error) {
+      sendLock = false;
+      addMessage(error?.message || 'Не удалось восстановить текущий диалог. Попробуйте ещё раз.', 'assistant');
+      return;
+    }
+    if (isSending) { sendLock = false; return; }
     const wantsRegistryUpload = Boolean(selectedRegistryFile && lastCreatedBookingId) &&
       /(?:прикрепи|загрузи|добавь)\s+(?:этот\s+)?(?:файл|реестр)|(?:файл|реестр)[\s\S]{0,50}(?:к\s+последней|к\s+созданной|в\s+последнюю)\s+записи/iu.test(text);
     if (wantsRegistryUpload) {
       const welcome = messages.querySelector('.ak-ai-ds-welcome'); if (welcome) welcome.remove();
-      addMessage(text, 'user'); input.value = ''; input.style.height = 'auto'; setBusy(true);
+      addMessage(text, 'user'); input.value = ''; input.style.height = 'auto'; setBusy(true); sendLock = false;
       try { await uploadSelectedRegistry(lastCreatedBookingId); }
       finally { setBusy(false); input.focus(); }
       return;
     }
     const welcome = messages.querySelector('.ak-ai-ds-welcome'); if (welcome) welcome.remove();
-    addMessage(text, 'user'); input.value = ''; input.style.height = 'auto'; setBusy(true);
+    addMessage(text, 'user'); input.value = ''; input.style.height = 'auto'; setBusy(true); sendLock = false;
     note.textContent = 'Собираю факты и готовлю ответ.'; note.classList.add('is-visible');
     const pending = addMessage('Секундочку…', 'assistant', 'ak-ai-ds-pending'); startThinking(pending);
     try {
@@ -572,8 +585,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !overlay.hidden) close(); });
   $('akAiDsNew').addEventListener('click', () => { if (revealFrame) cancelAnimationFrame(revealFrame); revealFrame = 0; void startNewConversation(); });
   messages.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-prompt]'); if (!button || isSending) return;
-    input.value = button.dataset.prompt || ''; input.focus();
+    const button = event.target.closest('[data-prompt]');
+    if (!button || isSending || sendLock) return;
+    const prompt = String(button.dataset.prompt || '').trim();
+    if (!prompt) return;
+    // Starter questions are real send actions: submit immediately through the same
+    // pipeline as the composer button, rather than copying text into the textarea.
+    void send(prompt);
   });
   $('akAiDsForm').addEventListener('submit', (event) => { event.preventDefault(); void send(input.value); });
   attachButton?.addEventListener('click', () => fileInput?.click());
