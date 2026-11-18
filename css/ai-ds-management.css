@@ -294,3 +294,62 @@ html[data-theme="dark"] .doxi-table-access-note strong,html[data-theme="dark"] .
 html[data-theme="dark"] .doxi-table-access-table,html[data-theme="dark"] .doxi-table-access-table th,html[data-theme="dark"] .doxi-table-access-select,html[data-theme="dark"] .doxi-table-access-limit { background:#202c39; color:#e2e8f0; }
 html[data-theme="dark"] .doxi-table-access-name code { color:#9eb8d7; }
 @media(max-width:760px) { .doxi-table-access-meta { align-items:flex-start; flex-direction:column; } .doxi-table-access-card .doxi-admin-actions { align-items:stretch; flex-direction:column; } .doxi-table-access-card .doxi-admin-actions button { width:100%; } }
+
+
+/* v3.0 — collapsible management sections and curated Doxi learning loop. */
+.doxi-admin-fold { display:block; padding:0; overflow:hidden; }
+.doxi-admin-fold > .doxi-admin-section-heading { display:none; }
+.doxi-admin-fold-summary { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:58px; padding:17px 20px; cursor:pointer; list-style:none; color:var(--color-text-main,#26364b); }
+.doxi-admin-fold-summary::-webkit-details-marker { display:none; }
+.doxi-admin-fold-summary::after { content:""; flex:0 0 auto; width:8px; height:8px; margin-left:8px; border-right:2px solid var(--color-text-muted,#8492a5); border-bottom:2px solid var(--color-text-muted,#8492a5); transform:rotate(45deg) translateY(-2px); transition:transform .18s ease; }
+.doxi-admin-fold[open] > .doxi-admin-fold-summary::after { transform:rotate(225deg) translate(-2px,-1px); }
+.doxi-admin-fold-title { font-size:14px; font-weight:800; }
+.doxi-admin-fold-meta { margin-left:auto; color:var(--color-text-muted,#8492a5); font-size:10px; font-weight:600; text-align:right; }
+.doxi-admin-fold[open] > .doxi-admin-fold-summary { border-bottom:1px solid var(--color-border,#e4eaf1); }
+.doxi-admin-fold[open] > :not(summary) { margin-left:20px; margin-right:20px; }
+.doxi-admin-fold[open] > :last-child { margin-bottom:20px; }
+.doxi-admin-fold[open] > .doxi-admin-section-heading { display:none; }
+.doxi-learning-panel { display:grid; gap:14px; padding-top:15px; }
+.doxi-learning-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; }
+.doxi-learning-stats article { min-width:0; display:grid; gap:7px; padding:12px 13px; border:1px solid var(--color-border,#e2e8f0); border-radius:11px; background:rgba(100,116,139,.035); }
+.doxi-learning-stats article span { color:var(--color-text-muted,#8492a5); font-size:9px; line-height:1.35; }
+.doxi-learning-stats article strong { color:var(--color-text-main,#26364b); font-size:22px; font-weight:800; letter-spacing:-.04em; font-variant-numeric:tabular-nums; }
+.doxi-learning-progress-wrap { display:grid; gap:7px; padding:13px 14px; border:1px solid var(--color-border,#e2e8f0); border-radius:11px; }
+.doxi-learning-progress-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.doxi-learning-progress-heading strong { color:var(--color-text-main,#35445a); font-size:10px; }
+.doxi-learning-progress-heading span,.doxi-learning-progress-wrap small { color:var(--color-text-muted,#8492a5); font-size:9px; }
+.doxi-learning-progress { height:8px; overflow:hidden; border-radius:999px; background:rgba(132,146,165,.16); }
+.doxi-learning-progress span { display:block; width:0; height:100%; border-radius:inherit; background:linear-gradient(90deg,#4e91d3,#55b89d); transition:width .25s ease; }
+.doxi-learning-manual { display:grid; grid-template-columns:minmax(0,1fr) minmax(180px,.35fr) auto; gap:10px; align-items:end; padding:13px; border:1px solid var(--color-border,#e2e8f0); border-radius:11px; background:rgba(100,116,139,.025); }
+.doxi-learning-manual label,.doxi-learning-import-label { display:grid; gap:6px; color:var(--color-text-muted,#718096); font-size:10px; font-weight:700; }
+.doxi-learning-manual textarea { width:100%; min-height:40px; padding:9px 10px; border:1px solid var(--color-border,#dbe2ea); border-radius:9px; background:var(--color-surface,#fff); color:var(--color-text-main,#26364b); font:11px/1.45 var(--font-main,Arial,sans-serif); resize:vertical; }
+.doxi-learning-manual .doxi-admin-btn { min-height:38px; white-space:nowrap; }
+.doxi-learning-tools { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; padding:13px; border:1px solid var(--color-border,#e2e8f0); border-radius:11px; }
+.doxi-learning-tools-copy { display:grid; gap:4px; }
+.doxi-learning-tools-copy strong { color:var(--color-text-main,#35445a); font-size:11px; }
+.doxi-learning-tools-copy small,.doxi-learning-import-label small { color:var(--color-text-muted,#8492a5); font-size:9px; line-height:1.45; }
+.doxi-learning-tools-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:7px; }
+.doxi-learning-tools-actions .doxi-admin-btn,.doxi-learning-tools > .doxi-admin-btn { min-height:33px; font-size:9px; }
+.doxi-learning-import-label { grid-column:1; }
+.doxi-learning-tools > #doxiLearningImportBtn { grid-column:2; grid-row:2; }
+.doxi-learning-import-label input { max-width:100%; color:var(--color-text-muted,#718096); font:10px var(--font-main,Arial,sans-serif); }
+.doxi-learning-list-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:3px; }
+.doxi-learning-list-heading > div { display:grid; gap:3px; }
+.doxi-learning-list-heading strong { color:var(--color-text-main,#26364b); font-size:12px; }
+.doxi-learning-list-heading small { color:var(--color-text-muted,#8492a5); font-size:9px; }
+.doxi-learning-cases { display:grid; gap:8px; }
+.doxi-learning-case { display:grid; gap:8px; padding:12px 13px; border:1px solid var(--color-border,#e2e8f0); border-radius:11px; background:var(--color-surface,#fff); }
+.doxi-learning-case-header { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.doxi-learning-case-question { color:var(--color-text-main,#26364b); font-size:11px; font-weight:750; line-height:1.5; overflow-wrap:anywhere; }
+.doxi-learning-case-meta { color:var(--color-text-muted,#8492a5); font-size:9px; line-height:1.45; }
+.doxi-learning-case-answer { padding:9px 10px; border-radius:8px; background:rgba(100,116,139,.045); color:var(--color-text-muted,#607086); font-size:10px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; }
+.doxi-learning-case-footer { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.doxi-learning-status { display:inline-flex; align-items:center; padding:4px 7px; border-radius:999px; background:rgba(132,146,165,.11); color:var(--color-text-muted,#718096); font-size:9px; font-weight:700; }
+.doxi-learning-status.is-trained { background:rgba(44,160,115,.10); color:#23845f; }
+.doxi-learning-status.is-dismissed { background:rgba(132,146,165,.10); color:#7b8796; }
+.doxi-learning-case-footer .doxi-admin-btn { min-height:29px; padding:0 9px; font-size:9px; }
+html[data-theme="dark"] .doxi-learning-stats article,html[data-theme="dark"] .doxi-learning-manual,html[data-theme="dark"] .doxi-learning-case-answer { background:rgba(148,163,184,.06); }
+html[data-theme="dark"] .doxi-learning-stats article strong,html[data-theme="dark"] .doxi-learning-case-question { color:#e2e8f0; }
+html[data-theme="dark"] .doxi-learning-manual textarea,html[data-theme="dark"] .doxi-learning-case { background:#202c39; color:#e2e8f0; }
+@media(max-width:900px) { .doxi-learning-stats { grid-template-columns:repeat(2,minmax(0,1fr)); } .doxi-learning-manual { grid-template-columns:1fr 1fr; } .doxi-learning-manual > button { grid-column:1/-1; } }
+@media(max-width:620px) { .doxi-admin-fold-summary { padding:15px 16px; } .doxi-admin-fold-meta { max-width:55%; } .doxi-admin-fold[open] > :not(summary) { margin-left:16px; margin-right:16px; } .doxi-learning-manual,.doxi-learning-tools { grid-template-columns:1fr; } .doxi-learning-tools-actions { justify-content:stretch; flex-direction:column; } .doxi-learning-tools-actions .doxi-admin-btn { width:100%; } .doxi-learning-import-label,.doxi-learning-tools > #doxiLearningImportBtn { grid-column:1; grid-row:auto; } .doxi-learning-progress-heading { align-items:flex-start; flex-direction:column; } }

@@ -1,4 +1,4 @@
-/* Doxi management v2.0.0.
+/* Doxi management v3.0.0.
    Only super_admin can read global history and change assistant permissions/style. */
 document.addEventListener('DOMContentLoaded', async () => {
   const root = document.getElementById('doxiAdminRoot');
@@ -441,6 +441,220 @@ document.addEventListener('DOMContentLoaded', async () => {
     finally { busy = false; updateSaveState(); }
   });
 
+  // ---------- Curated learning loop: automatic cases, reviewed solutions and progress ----------
+  const learningTotal = $('doxiLearningTotal');
+  const learningPending = $('doxiLearningPending');
+  const learningTrained = $('doxiLearningTrained');
+  const learningContexts = $('doxiLearningContexts');
+  const learningProgress = $('doxiLearningProgress');
+  const learningProgressBar = $('doxiLearningProgressBar');
+  const learningProgressLabel = $('doxiLearningProgressLabel');
+  const learningContextLabels = $('doxiLearningContextLabels');
+  const learningFoldMeta = $('doxiLearningFoldMeta');
+  const learningStatus = $('doxiLearningStatus');
+  const learningCases = $('doxiLearningCases');
+  const learningQuestionInput = $('doxiLearningQuestionInput');
+  const learningContextInput = $('doxiLearningContextType');
+  const learningAddButton = $('doxiLearningAddBtn');
+  const learningRefreshButton = $('doxiLearningRefresh');
+  const learningExportButton = $('doxiLearningExportCsv');
+  const learningTemplateButton = $('doxiLearningTemplate');
+  const learningImportFile = $('doxiLearningImportFile');
+  const learningImportButton = $('doxiLearningImportBtn');
+  let learningBusy = false;
+  let learningRows = [];
+
+  const learningContextNames = {
+    general:'Общий вопрос', bookings:'Записи и бронирования', suppliers:'Поставщики', arrivals:'Прибытие и убытие',
+    verification:'Верификация', calendar:'Календарь и слоты', permissions:'Права доступа', warehouse:'Складские процессы'
+  };
+  const learningReasonNames = {
+    knowledge_gap:'Не хватило знания или фактов', data_access:'Проблема получения данных', permissions:'Ограничение доступа',
+    missing_context:'Не хватило контекста', manual:'Добавлено вручную'
+  };
+  const learningStatusNames = { pending:'Требует разбора', trained:'Обучено', dismissed:'В архиве' };
+
+  const downloadLearningFile = (fileName, mimeType, content) => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = fileName; link.style.display = 'none';
+    document.body.append(link); link.click(); link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const learningDate = (value) => value ? new Date(value).toLocaleString('ru-RU') : '—';
+  const renderLearningCases = (rows) => {
+    if (!learningCases) return;
+    learningCases.replaceChildren();
+    if (!rows.length) {
+      safeEmpty(learningCases, 'Пока нет вопросов, требующих обучения. Докси будет автоматически добавлять сюда случаи, в которых ей явно не хватило данных или контекста.');
+      return;
+    }
+    rows.forEach((item) => {
+      const card = document.createElement('article'); card.className = 'doxi-learning-case';
+      const header = document.createElement('div'); header.className = 'doxi-learning-case-header';
+      const question = document.createElement('div'); question.className = 'doxi-learning-case-question'; question.textContent = item.question || 'Вопрос не указан';
+      const status = document.createElement('span'); status.className = 'doxi-learning-status';
+      if (item.status === 'trained') status.classList.add('is-trained');
+      if (item.status === 'dismissed') status.classList.add('is-dismissed');
+      status.textContent = learningStatusNames[item.status] || item.status || 'Неизвестно';
+      header.append(question, status);
+      const meta = document.createElement('div'); meta.className = 'doxi-learning-case-meta';
+      const contextLabel = learningContextNames[item.context_type] || item.context_type || 'Общий вопрос';
+      const reasonLabel = learningReasonNames[item.reason_type] || item.reason_type || 'Причина не указана';
+      meta.textContent = `${contextLabel} · ${reasonLabel} · ${item.page_name || 'Раздел не указан'} · ${learningDate(item.last_seen_at)} · повторов: ${Number(item.occurrences || 1)}`;
+      card.append(header, meta);
+      if (item.assistant_answer) {
+        const answer = document.createElement('div'); answer.className = 'doxi-learning-case-answer';
+        answer.textContent = `Ответ Докси: ${item.assistant_answer}`;
+        card.append(answer);
+      }
+      const footer = document.createElement('div'); footer.className = 'doxi-learning-case-footer';
+      const source = document.createElement('span'); source.className = 'doxi-learning-case-meta';
+      source.textContent = item.source === 'manual' ? 'Добавлено вручную' : 'Автоматическая фиксация';
+      footer.append(source);
+      if (item.status === 'pending') {
+        const dismiss = document.createElement('button'); dismiss.type = 'button'; dismiss.className = 'doxi-admin-btn doxi-admin-btn-secondary';
+        dismiss.textContent = 'В архив'; dismiss.dataset.dismissLearning = item.id;
+        footer.append(dismiss);
+      }
+      card.append(footer); learningCases.append(card);
+    });
+  };
+
+  const loadLearning = async () => {
+    if (!learningCases) return;
+    if (learningStatus) learningStatus.textContent = 'Обновляю журнал и статистику…';
+    try {
+      const [dashboard, list] = await Promise.all([
+        invoke({ action:'admin_learning_dashboard' }),
+        invoke({ action:'admin_learning_list' }),
+      ]);
+      const stats = dashboard.stats || {};
+      learningRows = Array.isArray(list.cases) ? list.cases : [];
+      const total = Number(stats.total || 0);
+      const pending = Number(stats.pending || 0);
+      const trained = Number(stats.trained || 0);
+      const dismissed = Number(stats.dismissed || 0);
+      const eligible = Math.max(0, total - dismissed);
+      const percent = eligible ? Math.round((trained / eligible) * 100) : 0;
+      if (learningTotal) learningTotal.textContent = String(total);
+      if (learningPending) learningPending.textContent = String(pending);
+      if (learningTrained) learningTrained.textContent = String(trained);
+      if (learningContexts) learningContexts.textContent = String(Number(stats.trained_context_types || 0));
+      if (learningProgressBar) learningProgressBar.style.width = `${Math.min(100, percent)}%`;
+      if (learningProgress) learningProgress.setAttribute('aria-valuenow', String(percent));
+      if (learningProgressLabel) learningProgressLabel.textContent = `${trained} из ${eligible} активных вопросов · ${percent}%`;
+      if (learningContextLabels) {
+        const labels = Array.isArray(stats.trained_context_labels) ? stats.trained_context_labels : [];
+        learningContextLabels.textContent = labels.length ? `Уже есть проверенные решения для контекстов: ${labels.join(' · ')}.` : 'Типы контекста появятся после загрузки первых проверенных решений.';
+      }
+      if (learningFoldMeta) learningFoldMeta.textContent = total ? `${trained} обучено · ${pending} на разборе · ${Number(stats.trained_context_types || 0)} контекстов` : 'Журнал пока пуст';
+      renderLearningCases(learningRows);
+      if (learningStatus) learningStatus.textContent = `Показано ${learningRows.length} последних случаев${list.truncated ? ' · список ограничен' : ''}. Всего в журнале: ${total}.`;
+    } catch (error) {
+      if (learningStatus) learningStatus.textContent = `${error.message} Проверьте, что SQL-миграция обучения применена и Edge Function обновлена.`;
+      if (learningFoldMeta) learningFoldMeta.textContent = 'Журнал недоступен';
+      safeEmpty(learningCases, error.message || 'Не удалось загрузить журнал обучения.');
+    }
+  };
+
+  learningAddButton?.addEventListener('click', async () => {
+    const question = String(learningQuestionInput?.value || '').trim();
+    if (learningBusy || question.length < 8) { showToast('Введите вопрос не короче 8 символов.', true); return; }
+    learningBusy = true; learningAddButton.disabled = true; learningAddButton.textContent = 'Добавляю…';
+    try {
+      await invoke({ action:'admin_learning_add_case', question, context_type:learningContextInput?.value || 'general' });
+      if (learningQuestionInput) learningQuestionInput.value = '';
+      await loadLearning(); showToast('Вопрос добавлен в журнал обучения.');
+    } catch (error) { showToast(error.message || 'Не удалось добавить вопрос.', true); }
+    finally { learningBusy = false; learningAddButton.disabled = false; learningAddButton.textContent = 'Добавить вопрос'; }
+  });
+  learningRefreshButton?.addEventListener('click', () => { if (!learningBusy) void loadLearning(); });
+  learningCases?.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-dismiss-learning]');
+    if (!button || learningBusy) return;
+    if (!window.confirm('Переместить этот вопрос в архив? Он не будет учитываться в прогрессе обучения.')) return;
+    learningBusy = true; button.disabled = true;
+    try {
+      await invoke({ action:'admin_learning_dismiss_case', case_id:button.dataset.dismissLearning });
+      await loadLearning(); showToast('Вопрос перемещён в архив.');
+    } catch (error) { showToast(error.message || 'Не удалось обновить статус вопроса.', true); button.disabled = false; }
+    finally { learningBusy = false; }
+  });
+  learningExportButton?.addEventListener('click', async () => {
+    if (learningBusy) return;
+    learningBusy = true; learningExportButton.disabled = true; learningExportButton.textContent = 'Формирую…';
+    try {
+      const result = await invoke({ action:'admin_learning_export' });
+      const rows = Array.isArray(result.cases) ? result.cases : [];
+      const columns = [
+        ['id','ID'],['question','Вопрос'],['assistant_answer','Ответ Докси'],['reason_type','Причина'],['context_type','Тип контекста'],
+        ['status','Статус'],['source','Источник'],['page_name','Раздел'],['occurrences','Повторов'],['first_seen_at','Первый случай'],
+        ['last_seen_at','Последний случай'],['solution_title','Название решения'],['solution_content','Решение']
+      ];
+      const csvCell = (value) => {
+        let text = String(value ?? '');
+        // Prevent spreadsheet formula injection when opening user-authored text in Excel.
+        if (/^[\s\u0000-\u001f]*[=+@\-]/u.test(text)) text = `'${text}`;
+        return `"${text.replace(/"/g,'""')}"`;
+      };
+      const csv = '\uFEFF' + [columns.map((col)=>csvCell(col[1])).join(';'), ...rows.map((row)=>columns.map((col)=>csvCell(row[col[0]])).join(';'))].join('\r\n');
+      downloadLearningFile(`doxi-learning-journal-${new Date().toISOString().slice(0,10)}.csv`, 'text/csv;charset=utf-8', csv);
+      showToast(`Выгружено записей: ${rows.length}${result.truncated ? ' (достигнут лимит выгрузки)' : ''}.`);
+    } catch (error) { showToast(error.message || 'Не удалось выгрузить журнал.', true); }
+    finally { learningBusy = false; learningExportButton.disabled = false; learningExportButton.textContent = 'Выгрузить журнал CSV'; }
+  });
+  learningTemplateButton?.addEventListener('click', async () => {
+    if (learningBusy) return;
+    learningBusy = true; learningTemplateButton.disabled = true; learningTemplateButton.textContent = 'Готовлю шаблон…';
+    try {
+      const result = await invoke({ action:'admin_learning_export' });
+      const pendingRows = (Array.isArray(result.cases) ? result.cases : []).filter((item) => item.status === 'pending');
+      const rows = pendingRows.slice(0, 100);
+      if (!rows.length) { showToast('Нет вопросов, ожидающих разбора.'); return; }
+      const template = {
+        schema_version:'doxi-learning-solutions-v1',
+        instructions:'Заполните title и content. Не меняйте case_id. category: general, company, project, roles, communication, processes, glossary или faq. context_type: general, bookings, suppliers, arrivals, verification, calendar, permissions или warehouse. В questions перечислите варианты вопроса. Решение должно содержать проверенное правило, а не предположение.',
+        solutions: rows.map((item) => ({
+          case_id:item.id, title:'', category:'faq', context_type:item.context_type || 'general',
+          questions:[item.question], previous_answer:item.assistant_answer || '', reason:item.reason_type || '', content:''
+        }))
+      };
+      downloadLearningFile(`doxi-learning-solutions-template-${new Date().toISOString().slice(0,10)}.json`, 'application/json;charset=utf-8', JSON.stringify(template, null, 2));
+      showToast(`Шаблон подготовлен: ${rows.length} вопросов${pendingRows.length > rows.length ? '. Остальные будут доступны следующей выгрузкой' : ''}.`);
+    } catch (error) { showToast(error.message || 'Не удалось сформировать шаблон.', true); }
+    finally { learningBusy = false; learningTemplateButton.disabled = false; learningTemplateButton.textContent = 'Скачать шаблон решений JSON'; }
+  });
+  learningImportFile?.addEventListener('change', () => {
+    const file = learningImportFile.files?.[0];
+    if (learningImportButton) learningImportButton.disabled = !file || !file.name.toLowerCase().endsWith('.json') || file.size <= 0 || file.size > 2 * 1024 * 1024 || learningBusy;
+  });
+  learningImportButton?.addEventListener('click', async () => {
+    const file = learningImportFile?.files?.[0];
+    if (!file || learningBusy) return;
+    if (!window.confirm('Загрузить решения в базу знаний Докси? Только содержимое поля «content» станет проверенным справочным контекстом.')) return;
+    learningBusy = true; learningImportButton.disabled = true; learningImportButton.textContent = 'Загружаю решения…';
+    if (learningStatus) learningStatus.textContent = 'Проверяю JSON и загружаю решения…';
+    try {
+      const form = new FormData();
+      form.append('action','admin_import_learning_solutions');
+      form.append('file',file,file.name);
+      const { data, error } = await sb.functions.invoke('doxi-chat', { body:form });
+      if (error) throw new Error(error.message || 'Не удалось загрузить решения.');
+      if (!data || data.error) throw new Error(data?.error || 'Сервер не подтвердил импорт.');
+      if (learningImportFile) learningImportFile.value = '';
+      showToast(`Обработано решений: ${Number(data.processed || 0)}. Новых: ${Number(data.imported || 0)}, уже были: ${Number(data.already_present || 0)}.`);
+      await Promise.all([loadLearning(), loadKnowledge()]);
+    } catch (error) {
+      if (learningStatus) learningStatus.textContent = error.message || 'Не удалось загрузить решения.';
+      showToast(error.message || 'Ошибка импорта решений.', true);
+    } finally {
+      learningBusy = false; learningImportButton.textContent = 'Загрузить решения в базу знаний';
+      if (learningImportButton) learningImportButton.disabled = !learningImportFile?.files?.[0];
+    }
+  });
+
   // ---------- Personal long-term memory. The server always scopes every action to auth.uid(). ----------
   const memoryCategoryLabels = { preference:'Предпочтения', profile:'Рабочий контекст', agreement:'Договорённости', open_task:'Незавершённые задачи', other:'Другое' };
   const resetMemoryForm = () => {
@@ -719,6 +933,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadSettings();
   await loadTableAccess();
   await loadKnowledge();
+  await loadLearning();
   await loadMemory();
   await renderThinkingComments();
 });

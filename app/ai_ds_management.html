@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#f4f7f9">
-  <title>Управление Докси — DockSlot v1.10.3</title>
+  <title>Управление Докси — DockSlot · Опыт и обучение</title>
   <link rel="stylesheet" href="../css/theme.css?v=4-1-date-exceptions">
   <link rel="stylesheet" href="../css/main.css?v=4-1-date-exceptions">
   <link rel="stylesheet" href="../css/dark-mode.css?v=4">
@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="../css/notifications.css?v=6-floating-bell-theme">
   <link rel="stylesheet" href="../css/ai-ds.css?v=20261118-doxi-flip-fix-1-12">
   <link rel="stylesheet" href="../css/ai-ds-motion-v1-5-5-blush-sky.css?v=1-5-5">
-  <link rel="stylesheet" href="../css/ai-ds-management.css?v=2-2-table-access-matrix">
+  <link rel="stylesheet" href="../css/ai-ds-management.css?v=3-0-learning-accordion">
   <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon.png">
 </head>
@@ -58,7 +58,8 @@
       </article>
     </section>
 
-    <section class="doxi-admin-card doxi-admin-settings-card">
+    <details class="doxi-admin-card doxi-admin-settings-card doxi-admin-fold" id="doxiFoldSettings">
+      <summary class="doxi-admin-fold-summary"><span class="doxi-admin-fold-title">Основные настройки</span><span class="doxi-admin-fold-meta">Конфигурация и полномочия</span></summary>
       <div class="doxi-admin-section-heading">
         <div>
           <h2>Основные настройки</h2>
@@ -130,9 +131,10 @@
         <span class="doxi-admin-save-meta" id="doxiSaveMeta" aria-live="polite">Загрузка настроек…</span>
         <button class="doxi-admin-btn doxi-admin-btn-primary" id="doxiSaveBtn" type="button" disabled>Сохранить настройки</button>
       </div>
-    </section>
+    </details>
 
-    <section class="doxi-admin-card doxi-table-access-card">
+    <details class="doxi-admin-card doxi-table-access-card doxi-admin-fold" id="doxiFoldTableAccess">
+      <summary class="doxi-admin-fold-summary"><span class="doxi-admin-fold-title">Матрица доступа к таблицам</span><span class="doxi-admin-fold-meta">Какие данные доступны Докси</span></summary>
       <div class="doxi-admin-section-heading">
         <div>
           <h2>Матрица доступа Докси к таблицам</h2>
@@ -169,9 +171,10 @@
         <span class="doxi-admin-save-meta" id="doxiTableAccessMeta">Права ещё не загружены.</span>
         <button class="doxi-admin-btn doxi-admin-btn-primary" id="doxiTableAccessSaveBtn" type="button" disabled>Сохранить матрицу доступа</button>
       </div>
-    </section>
+    </details>
 
-    <section class="doxi-admin-card doxi-admin-connection-card">
+    <details class="doxi-admin-card doxi-admin-connection-card doxi-admin-fold" id="doxiFoldConnection">
+      <summary class="doxi-admin-fold-summary"><span class="doxi-admin-fold-title">Проверка соединения</span><span class="doxi-admin-fold-meta">Связь с локальной моделью и сервером</span></summary>
       <div class="doxi-admin-section-heading">
         <div>
           <h2>Проверка соединения</h2>
@@ -183,9 +186,10 @@
         <span class="doxi-admin-test-indicator"></span>
         <span>Проверка ещё не выполнялась.</span>
       </div>
-    </section>
+    </details>
 
-    <section class="doxi-admin-card">
+    <details class="doxi-admin-card doxi-admin-fold" id="doxiFoldPersona">
+      <summary class="doxi-admin-fold-summary"><span class="doxi-admin-fold-title">Личность и характер</span><span class="doxi-admin-fold-meta">Образ и правила общения</span></summary>
       <div class="doxi-admin-section-heading">
         <div>
           <h2>Личность и характер Докси</h2>
@@ -203,19 +207,21 @@
         <div class="doxi-admin-persona-fact"><span>Образ</span><strong>Блондинка — образ виртуального персонажа</strong></div>
       </div>
       <p class="doxi-admin-hint">Докси не изображает реального человека и не заявляет о физическом теле. Личные предпочтения она упоминает только по прямому вопросу или когда разговор явно к ним подводит.</p>
-    </section>
+    </details>
 
-    <section class="doxi-admin-card doxi-admin-guardrails">
+    <details class="doxi-admin-card doxi-admin-guardrails doxi-admin-fold" id="doxiFoldGuardrails">
+      <summary class="doxi-admin-fold-summary"><span class="doxi-admin-fold-title">Границы полномочий</span><span class="doxi-admin-fold-meta">Защита данных и действий</span></summary>
       <div class="doxi-admin-section-heading"><div><h2>Границы полномочий</h2><p>Безопасность работы с данными DockSlot.</p></div></div>
       <div class="doxi-admin-guardrail-grid">
         <div><span class="doxi-guardrail-ok">✓</span><strong>Настраиваемое чтение</strong><p>Сводки по датам и, по отдельному разрешению, ограниченные списки записей.</p></div>
         <div><span class="doxi-guardrail-ok">✓</span><strong>Настраиваемые действия</strong><p>Создание, редактирование и удаление включаются отдельно суперадминистратором и всегда требуют проверки карточки и подтверждения.</p></div>
         <div><span class="doxi-guardrail-lock">⌑</span><strong>Неизменяемая защита</strong><p>Запрещены произвольный SQL, смена владельца записи, статуса, ворот, прибытия/убытия, управление пользователями и доступ к секретам.</p></div>
       </div>
-    </section>
+    </details>
 
 
-    <section class="doxi-admin-card doxi-knowledge-card">
+    <details class="doxi-admin-card doxi-knowledge-card doxi-admin-fold" id="doxiFoldKnowledge">
+      <summary class="doxi-admin-fold-summary"><span class="doxi-admin-fold-title">База знаний Докси</span><span class="doxi-admin-fold-meta">Справочные материалы</span></summary>
       <div class="doxi-admin-section-heading">
         <div>
           <h2>База знаний Докси</h2>
@@ -248,17 +254,58 @@
       <div class="doxi-knowledge-template"><a href="../docs/DOXI_KNOWLEDGE_TEMPLATE.md" download>Скачать шаблон Markdown</a><span> · </span><a href="../docs/DOXI_KNOWLEDGE_EXAMPLE.json" download>Пример JSON-структуры</a></div>
       <div id="doxiKnowledgeStatus" class="doxi-knowledge-status" role="status" aria-live="polite">Загружаю базу знаний…</div>
       <div id="doxiKnowledgeList" class="doxi-knowledge-list"><div class="doxi-history-empty">Загружаю материалы…</div></div>
-    </section>
-    <section class="doxi-admin-card doxi-thinking-admin-card">
+    </details>
+
+    <details class="doxi-admin-card doxi-admin-fold doxi-learning-admin-card" id="doxiFoldLearning">
+      <summary class="doxi-admin-fold-summary">
+        <span class="doxi-admin-fold-title">Опыт и обучение Докси</span>
+        <span class="doxi-admin-fold-meta" id="doxiLearningFoldMeta">Загрузка статистики…</span>
+      </summary>
+      <div class="doxi-learning-panel">
+        <p class="doxi-knowledge-note">Докси автоматически фиксирует ответы, в которых явно не хватает данных или контекста. Мы проверяем такие случаи, готовим решения и загружаем только подтверждённые правила в базу знаний. Это пополнение проверенной памяти, а не изменение весов модели.</p>
+        <div class="doxi-learning-stats" aria-label="Прогресс обучения Докси">
+          <article><span>Зафиксировано вопросов</span><strong id="doxiLearningTotal">—</strong></article>
+          <article><span>Требуют разбора</span><strong id="doxiLearningPending">—</strong></article>
+          <article><span>Обучено вопросов</span><strong id="doxiLearningTrained">—</strong></article>
+          <article><span>Освоено типов контекста</span><strong id="doxiLearningContexts">—</strong></article>
+        </div>
+        <div class="doxi-learning-progress-wrap">
+          <div class="doxi-learning-progress-heading"><strong>Прогресс по проверенным решениям</strong><span id="doxiLearningProgressLabel">Подсчитываю…</span></div>
+          <div class="doxi-learning-progress" role="progressbar" aria-label="Доля вопросов, добавленных в базу знаний" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="doxiLearningProgress"><span id="doxiLearningProgressBar"></span></div>
+          <small id="doxiLearningContextLabels">Типы контекста появятся после загрузки первых решений.</small>
+        </div>
+        <div class="doxi-learning-manual">
+          <label><span>Добавить вопрос в журнал вручную</span><textarea id="doxiLearningQuestionInput" rows="2" maxlength="2000" placeholder="Вставьте вопрос, который Докси не поняла или обработала неверно…"></textarea></label>
+          <label><span>Тип контекста</span><select id="doxiLearningContextType" class="doxi-admin-select">
+            <option value="general">Общий вопрос</option><option value="bookings">Записи и бронирования</option><option value="suppliers">Поставщики</option><option value="arrivals">Прибытие и убытие</option><option value="verification">Верификация</option><option value="calendar">Календарь и слоты</option><option value="permissions">Права доступа</option><option value="warehouse">Складские процессы</option>
+          </select></label>
+          <button class="doxi-admin-btn doxi-admin-btn-primary" id="doxiLearningAddBtn" type="button">Добавить вопрос</button>
+        </div>
+        <div class="doxi-learning-tools">
+          <div class="doxi-learning-tools-copy"><strong>Выгрузка журнала и загрузка решений</strong><small>Скачайте CSV для просмотра или JSON-шаблон, заполните проверенные решения и загрузите его обратно. Повторная загрузка одинакового решения не создаёт дубль; для замены отличающегося решения сначала удалите прежнюю карточку из базы знаний.</small></div>
+          <div class="doxi-learning-tools-actions">
+            <button class="doxi-admin-btn doxi-admin-btn-secondary" id="doxiLearningExportCsv" type="button">Выгрузить журнал CSV</button>
+            <button class="doxi-admin-btn doxi-admin-btn-secondary" id="doxiLearningTemplate" type="button">Скачать шаблон решений JSON</button>
+          </div>
+          <label class="doxi-learning-import-label"><span>Загрузить заполненный JSON с решениями</span><input id="doxiLearningImportFile" type="file" accept=".json,application/json"><small>В одном файле — до 100 решений. Решение должно содержать проверенное правило и примеры формулировок.</small></label>
+          <button class="doxi-admin-btn doxi-admin-btn-primary" id="doxiLearningImportBtn" type="button" disabled>Загрузить решения в базу знаний</button>
+        </div>
+        <div class="doxi-learning-list-heading"><div><strong>Журнал вопросов</strong><small id="doxiLearningStatus" role="status" aria-live="polite">Загружаю журнал…</small></div><button class="doxi-admin-btn doxi-admin-btn-secondary" id="doxiLearningRefresh" type="button">Обновить</button></div>
+        <div class="doxi-learning-cases" id="doxiLearningCases"><div class="doxi-history-empty">Загружаю журнал обучения…</div></div>
+      </div>
+    </details>
+    <details class="doxi-admin-card doxi-thinking-admin-card doxi-admin-fold" id="doxiFoldThinking">
+      <summary class="doxi-admin-fold-summary"><span class="doxi-admin-fold-title">Комментарии во время ответа</span><span class="doxi-admin-fold-meta">Реплики, пока Докси думает</span></summary>
       <div class="doxi-admin-section-heading"><div><h2>Комментарии, пока Докси думает</h2><p>Управляй короткими репликами, которые появляются во время подготовки ответа. Последние 30 показанных реплик не повторяются подряд у одного пользователя.</p></div><span class="doxi-admin-static-tag">Настраиваемые реплики</span></div>
       <div class="doxi-thinking-form">
         <label><span>Текст комментария</span><textarea id="doxiThinkingText" rows="2" maxlength="260" placeholder="Например: Проверяю, не сбежали ли цифры с рабочего места…"></textarea></label>
         <div class="doxi-thinking-form-actions"><small id="doxiThinkingStatus" role="status" aria-live="polite">Загружаю комментарии…</small><div><button class="doxi-admin-btn doxi-admin-btn-secondary" type="button" id="doxiThinkingCancel" hidden>Отмена</button><button class="doxi-admin-btn doxi-admin-btn-primary" type="button" id="doxiThinkingSave" disabled>Добавить комментарий</button></div></div>
       </div>
       <div id="doxiThinkingList" class="doxi-thinking-list"><div class="doxi-history-empty">Загружаю реплики…</div></div>
-    </section>
+    </details>
 
-    <section class="doxi-admin-card doxi-memory-card">
+    <details class="doxi-admin-card doxi-memory-card doxi-admin-fold" id="doxiFoldMemory">
+      <summary class="doxi-admin-fold-summary"><span class="doxi-admin-fold-title">Долговременная память</span><span class="doxi-admin-fold-meta">Личные сведения текущего пользователя</span></summary>
       <div class="doxi-admin-section-heading"><div><h2>Моя долговременная память Докси</h2><p>Докси использует эти сведения в разных диалогах только для вашей учётной записи. Здесь можно посмотреть, добавить, исправить или удалить любую запись.</p></div><span class="doxi-admin-static-tag">Личная память</span></div>
       <div class="doxi-memory-form" id="doxiMemoryForm">
         <label><span>Название</span><input type="text" id="doxiMemoryTitle" maxlength="120" placeholder="Например: Предпочтительный формат отчётов"></label>
@@ -269,7 +316,7 @@
       <div id="doxiMemoryStatus" class="doxi-memory-status" role="status" aria-live="polite">Загружаю личную память…</div>
       <div id="doxiMemoryList" class="doxi-memory-list"><div class="doxi-history-empty">Загружаю сохранённые сведения…</div></div>
       <p class="doxi-knowledge-note">Команда в чате: «Докси, запомни: …». Посмотреть сохранённое можно фразой «Что ты помнишь обо мне?». У каждого пользователя своя отдельная память; администратор не видит память других пользователей.</p>
-    </section>
+    </details>
 
     <div class="doxi-history-overlay" id="doxiHistoryOverlay" hidden>
       <section class="doxi-history-dialog" role="dialog" aria-modal="true" aria-labelledby="doxiHistoryTitle">
@@ -299,6 +346,6 @@
   <script src="../js/notifications.js?v=20261117-auth-session-guard"></script>
   <script src="../js/admin-navigation.js?v=1-9-2-no-shift-board"></script>
   <script src="../js/ai-ds.js?v=20261118-doxi-flip-fix-1-13"></script>
-  <script src="../js/ai-ds-management.js?v=2-2-table-access-matrix"></script>
+  <script src="../js/ai-ds-management.js?v=3-0-learning-accordion"></script>
 </body>
 </html>
