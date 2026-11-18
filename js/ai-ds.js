@@ -27,22 +27,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     try { launcherBrandImage.src = new URL(faviconLink.getAttribute('href'), document.baseURI).href; }
     catch (_) { launcherBrandImage.remove(); }
   }
-  // Flip the inner logo holder (not the launcher button itself) every 30 seconds.
+  // Keep the Dx emblem fully visible for 115 seconds, then show the DockSlot DS
+  // emblem for 5 seconds. Transition time is additional, so both visible hold
+  // durations remain exact; only the inner logo holder rotates, never the button.
   // Keep this requested brand animation enabled even when the OS asks to reduce
   // non-essential motion; the button's size, color and hover treatment stay intact.
   const launcherFlip = launcher.querySelector('.ak-ai-ds-launcher-flip');
   const launcherFlipDuration = 780;
+  const launcherDxHoldDuration = 115000;
+  const launcherDsHoldDuration = 5000;
   if (launcherFlip) {
-    window.setInterval(() => {
-      if (!launcher.isConnected || launcherFlip.classList.contains('is-ds-side')) return;
-      // Force a paint boundary so the browser always transitions from the Dx face.
-      launcherFlip.classList.remove('is-ds-side');
-      void launcherFlip.offsetWidth;
-      launcherFlip.classList.add('is-ds-side');
+    const scheduleNextDxHold = () => {
       window.setTimeout(() => {
-        if (launcherFlip.isConnected) launcherFlip.classList.remove('is-ds-side');
-      }, launcherFlipDuration + 5000);
-    }, 30000);
+        if (!launcher.isConnected || !launcherFlip.isConnected) return;
+        // Force a paint boundary so the browser always transitions from the Dx face.
+        launcherFlip.classList.remove('is-ds-side');
+        void launcherFlip.offsetWidth;
+        launcherFlip.classList.add('is-ds-side');
+        // Start the 5-second DS hold only after the first flip has completed.
+        window.setTimeout(() => {
+          if (!launcher.isConnected || !launcherFlip.isConnected) return;
+          window.setTimeout(() => {
+            if (!launcher.isConnected || !launcherFlip.isConnected) return;
+            launcherFlip.classList.remove('is-ds-side');
+            // Start the next 115-second Dx hold after the return flip completes.
+            window.setTimeout(() => {
+              if (launcher.isConnected && launcherFlip.isConnected) scheduleNextDxHold();
+            }, launcherFlipDuration);
+          }, launcherDsHoldDuration);
+        }, launcherFlipDuration);
+      }, launcherDxHoldDuration);
+    };
+    scheduleNextDxHold();
   }
 
   const overlay = document.createElement('div');
