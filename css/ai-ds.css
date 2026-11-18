@@ -152,3 +152,48 @@ html[data-theme="dark"] .ak-ai-ds-card-btn.is-primary { background:#286bc4; bord
 .ak-ai-ds-web-source-domain { color:var(--color-text-muted,#94a3b8); font-size:9px; }
 .ak-ai-ds-web-source p { margin:2px 0 0; color:var(--color-text-main,#475569); font-size:10px; line-height:1.4; }
 html[data-theme="dark"] .ak-ai-ds-web-source { background:rgba(15,23,42,.32); }
+
+/* v1.11 — discreet response timing and a periodic DockSlot emblem flip on the launcher. */
+.ak-ai-ds-message-assistant { flex-direction:column; align-items:flex-start; }
+.ak-ai-ds-response-meta {
+  margin:4px 0 0 9px;
+  color:var(--color-text-muted,#94a3b8);
+  font:400 9px/1.25 var(--font-main,Arial,sans-serif);
+  letter-spacing:.015em;
+  opacity:.72;
+  user-select:none;
+}
+html[data-theme="dark"] .ak-ai-ds-response-meta { color:#a8b4c3; opacity:.78; }
+
+.ak-ai-ds-launcher { perspective:700px; }
+.ak-ai-ds-launcher-flip {
+  position:relative;
+  display:block;
+  width:38px;
+  height:38px;
+  transform-style:preserve-3d;
+  transform:rotateY(0deg);
+  transition:transform .72s cubic-bezier(.22,.72,.22,1);
+  will-change:transform;
+}
+.ak-ai-ds-launcher.is-ds-side .ak-ai-ds-launcher-flip { transform:rotateY(180deg); }
+.ak-ai-ds-launcher-face {
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  backface-visibility:hidden;
+  -webkit-backface-visibility:hidden;
+}
+.ak-ai-ds-launcher-face-dx { transform:rotateY(0deg); }
+.ak-ai-ds-launcher-face-ds { transform:rotateY(180deg); }
+.ak-ai-ds-launcher-brand {
+  display:block;
+  width:36px;
+  height:36px;
+  object-fit:contain;
+  filter:drop-shadow(0 1px 1px rgba(35,58,92,.12));
+}
+@media(prefers-reduced-motion:reduce) {
+  .ak-ai-ds-launcher-flip { transition:none; }
+}

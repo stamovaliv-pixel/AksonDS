@@ -1,4 +1,4 @@
-/* Doxi client v3.4.0.
+/* Doxi client v3.4.1 — discreet response timing and DockSlot emblem flip.
    All data access and every mutation are authorized by the Supabase Edge Function. */
 document.addEventListener('DOMContentLoaded', async () => {
   const sb = window.supabaseClient;
@@ -19,7 +19,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   const launcher = document.createElement('button');
   launcher.type = 'button'; launcher.id = 'akAiDsLauncher'; launcher.className = 'ak-ai-ds-launcher';
   launcher.setAttribute('aria-label', 'Открыть Докси'); launcher.setAttribute('aria-haspopup', 'dialog'); launcher.setAttribute('aria-expanded', 'false');
-  launcher.innerHTML = mark;
+  launcher.innerHTML = `<span class="ak-ai-ds-launcher-flip" aria-hidden="true"><span class="ak-ai-ds-launcher-face ak-ai-ds-launcher-face-dx">${mark}</span><span class="ak-ai-ds-launcher-face ak-ai-ds-launcher-face-ds"><img class="ak-ai-ds-launcher-brand" alt=""></span></span>`;
+  // Reuse the exact favicon artwork for the DockSlot side of the floating button.
+  const launcherBrandImage = launcher.querySelector('.ak-ai-ds-launcher-brand');
+  const faviconLink = document.querySelector('link[rel~="icon"][href]');
+  if (launcherBrandImage && faviconLink) {
+    try { launcherBrandImage.src = new URL(faviconLink.getAttribute('href'), document.baseURI).href; }
+    catch (_) { launcherBrandImage.remove(); }
+  }
+  // Every 30 seconds, show the DockSlot DS emblem for five seconds, then return to Dx.
+  // Respect reduced-motion preferences and skip cycles while the page is in the background.
+  const launcherMotionReduced = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+  if (!launcherMotionReduced) {
+    const launcherFlipDuration = 720;
+    window.setInterval(() => {
+      if (document.hidden || !launcher.isConnected || launcher.classList.contains('is-ds-side')) return;
+      launcher.classList.add('is-ds-side');
+      window.setTimeout(() => launcher.classList.remove('is-ds-side'), launcherFlipDuration + 5000);
+    }, 30000);
+  }
 
   const overlay = document.createElement('div');
   overlay.className = 'ak-ai-ds-overlay'; overlay.id = 'akAiDsOverlay'; overlay.hidden = true;
@@ -312,9 +330,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       box.appendChild(anchor); messages.appendChild(box); scrollToBottom();
     } catch (_) { /* invalid link is not rendered */ }
   };
-  const revealAnswer = (text) => {
+  const revealAnswer = (text, elapsedMs = null) => {
     const node = document.createElement('div'); node.className = 'ak-ai-ds-message ak-ai-ds-message-assistant ak-ai-ds-message-revealing';
     const bubble = document.createElement('div'); bubble.className = 'ak-ai-ds-bubble'; node.appendChild(bubble); messages.appendChild(node);
+    const appendResponseMeta = () => {
+      if (!Number.isFinite(elapsedMs) || elapsedMs < 0) return;
+      const meta = document.createElement('div'); meta.className = 'ak-ai-ds-response-meta';
+      const seconds = elapsedMs / 1000;
+      const formatted = seconds < 10 ? seconds.toFixed(1).replace('.', ',') : String(Math.round(seconds));
+      meta.textContent = `Время ответа · ${formatted} сек.`;
+      node.appendChild(meta);
+      scrollToBottom();
+    };
     const full = String(text || ''); const start = performance.now();
     const duration = Math.min(820, Math.max(260, full.length * 0.28));
     const easeOut = (value) => 1 - Math.pow(1 - value, 2.2);
@@ -322,7 +349,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const progress = Math.min(1, (now - start) / duration);
       const visible = Math.min(full.length, Math.max(1, Math.ceil(full.length * easeOut(progress))));
       bubble.textContent = full.slice(0, visible); scrollToBottom();
-      if (progress < 1) revealFrame = requestAnimationFrame(tick); else revealFrame = 0;
+      if (progress < 1) revealFrame = requestAnimationFrame(tick);
+      else { revealFrame = 0; appendResponseMeta(); }
     };
     revealFrame = requestAnimationFrame(tick); return node;
   };
@@ -495,11 +523,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     note.textContent = 'В Brave отправляется только отдельная поисковая фраза. История, вложения и данные DockSlot не передаются.';
     note.classList.add('is-visible');
     const pending = addMessage('Ищу публичные источники…', 'assistant', 'ak-ai-ds-pending'); startThinking(pending);
+    const requestStartedAt = performance.now();
     try {
       const result = await invoke({ action: 'web_search', query });
+      const elapsedMs = performance.now() - requestStartedAt;
       stopThinking(); pending.remove();
       if (!result || typeof result.response !== 'string' || !result.response.trim()) throw new Error(result?.error || 'Не удалось получить ответ по результатам поиска.');
-      revealAnswer(result.response.trim());
+      revealAnswer(result.response.trim(), elapsedMs);
       addWebSources(result.sources);
       setConnection(true);
       note.textContent = 'Поиск выполнен. Источники показаны отдельно; запрос и результат не сохраняются в истории Докси.';
@@ -545,6 +575,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     addMessage(text, 'user'); input.value = ''; input.style.height = 'auto'; setBusy(true); sendLock = false;
     note.textContent = 'Собираю факты и готовлю ответ.'; note.classList.add('is-visible');
     const pending = addMessage('Секундочку…', 'assistant', 'ak-ai-ds-pending'); startThinking(pending);
+    const requestStartedAt = performance.now();
     try {
       let requestBody = { message: text, conversation_id: conversationId, page: pageContext() };
       if (selectedRegistryFile) {
@@ -559,13 +590,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       const { data, error } = await sb.functions.invoke('doxi-chat', { body: requestBody });
       if (error) { console.error('[Докси] Edge Function error:', error); throw new Error('Не удалось получить ответ от Докси. Проверьте подключение и настройки доступа.'); }
       if (!data || typeof data.response !== 'string' || !data.response.trim()) throw new Error(data?.error || 'Сервер Докси вернул пустой ответ. Повторите запрос.');
+      const elapsedMs = performance.now() - requestStartedAt;
       conversationId = data.conversation_id || conversationId; saveConversationId(); stopThinking(); pending.remove();
       if (data.conversation_rolled_over) {
         messages.replaceChildren();
         addMessage('Диалог достиг лимита в 60 сообщений. Я открыла новый чат и перенесла в него краткое резюме важных деталей. Предыдущая переписка сохранена в истории.', 'assistant', 'ak-ai-ds-context-transfer');
         addMessage(text, 'user');
       }
-      revealAnswer(data.response.trim());
+      revealAnswer(data.response.trim(), elapsedMs);
       if (data.attachment_analysis) clearSelectedFile();
       if (data.workspace_items_changed) window.dispatchEvent(new CustomEvent('doxi:workspace-items-changed', { detail: data.workspace_items_changed }));
       if (data.pending_question) renderPendingQuestion(data.pending_question);
