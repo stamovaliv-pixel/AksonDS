@@ -490,7 +490,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       return alert('В этом слоте закончились основные места. Запись доступна только для типа "Заказы ИМ".');
     }
 
-    if (selectedTypes.includes('return')) {
+    // Ограничение предварительного бронирования возврата применяется только
+    // при создании новой записи. Для существующей записи разрешено менять
+    // комментарий и реестр до конца дня прибытия; дату/час поставщик изменить не может.
+    if (!currentEditBookingId && selectedTypes.includes('return')) {
       const returnDeadlineDays = settings.return_deadline_days || 0;
       if (returnDeadlineDays > 0) {
         const minAllowedDateISO = addBusinessDays(businessTodayISO, returnDeadlineDays);
