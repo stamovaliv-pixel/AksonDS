@@ -27,15 +27,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     try { launcherBrandImage.src = new URL(faviconLink.getAttribute('href'), document.baseURI).href; }
     catch (_) { launcherBrandImage.remove(); }
   }
-  // Every 30 seconds, show the DockSlot DS emblem for five seconds, then return to Dx.
-  // Respect reduced-motion preferences and skip cycles while the page is in the background.
-  const launcherMotionReduced = Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
-  if (!launcherMotionReduced) {
-    const launcherFlipDuration = 720;
+  // Flip the inner logo holder (not the launcher button itself) every 30 seconds.
+  // Keep this requested brand animation enabled even when the OS asks to reduce
+  // non-essential motion; the button's size, color and hover treatment stay intact.
+  const launcherFlip = launcher.querySelector('.ak-ai-ds-launcher-flip');
+  const launcherFlipDuration = 780;
+  if (launcherFlip) {
     window.setInterval(() => {
-      if (document.hidden || !launcher.isConnected || launcher.classList.contains('is-ds-side')) return;
-      launcher.classList.add('is-ds-side');
-      window.setTimeout(() => launcher.classList.remove('is-ds-side'), launcherFlipDuration + 5000);
+      if (!launcher.isConnected || launcherFlip.classList.contains('is-ds-side')) return;
+      // Force a paint boundary so the browser always transitions from the Dx face.
+      launcherFlip.classList.remove('is-ds-side');
+      void launcherFlip.offsetWidth;
+      launcherFlip.classList.add('is-ds-side');
+      window.setTimeout(() => {
+        if (launcherFlip.isConnected) launcherFlip.classList.remove('is-ds-side');
+      }, launcherFlipDuration + 5000);
     }, 30000);
   }
 
