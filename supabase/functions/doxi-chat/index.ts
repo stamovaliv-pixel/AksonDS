@@ -139,7 +139,7 @@ function buildInputRecoveryHint(input: string): { recoveredText: string; matched
 
 
 // Doxi 3.4 — cognitive agent: controlled planning, retrieval, reasoning and effort routing.
-const DOXI_RELEASE = "3.4.11";
+const DOXI_RELEASE = "3.4.12";
 const MODEL = "qwen3.5:9b";                 // validated local model for all synchronous requests
 const AGENT_PLAN_TIMEOUT_MS = 10_000;
 const AGENT_VERIFY_TIMEOUT_MS = 12_000;
@@ -2386,16 +2386,26 @@ function inferLearningContextType(question: string): string {
 
 function detectLearningReason(question: string, answer: string, liveContext: string | null, selectedTableContext: string | null): string | null {
   const q = String(question || "").trim();
-  const a = String(answer || "").toLocaleLowerCase("ru-RU");
-  const live = `${String(liveContext || "")}\n${String(selectedTableContext || "")}`.toLocaleLowerCase("ru-RU");
+  const a = String(answer || "").toLocaleLowerCase("ru-RU").replace(/ё/gu, "е");
+  const live = `${String(liveContext || "")}\n${String(selectedTableContext || "")}`.toLocaleLowerCase("ru-RU").replace(/ё/gu, "е");
+  const combined = `${a}\n${live}`;
   if (q.length < 8 || a.length < 20) return null;
-  if (/(серверн(?:ый|ого) запрос.{0,60}ошиб|чтение (?:базы|таблиц).{0,60}ошиб|база сейчас недоступ|временно недоступн|не удалось получить данные)/iu.test(live + "\n" + a)) return "data_access";
-  if (/(нет права|недостаточно прав|доступ.{0,40}(?:отключен|запрещен|недоступ)|только для рол|не разрешено текущей роли)/iu.test(a + "\n" + live)) return "permissions";
-  if (/(не могу (?:точно )?(?:определить|подтвердить|ответить)|не удалось (?:определить|найти|получить|проверить)|не вижу (?:информац|данн)|недостаточно данных|нет (?:достаточно )?(?:данных|информации)|в (?:текущем|предоставленном|доступном|этом|данном) (?:блоке|контексте).{0,80}(?:не указан|отсутств|нет данных)|не располагаю (?:данными|информацией)|невозможно определить|не могу установить)/iu.test(a)) return "knowledge_gap";
-  if (/(уточните|нужно уточнить|не указали|не указана дата|не хватает контекста)/iu.test(a) && q.length < 180) return "missing_context";
+
+  // Operational retrieval failures take precedence over generic knowledge gaps.
+  if (/(серверн(?:ый|ого) запрос.{0,60}ошиб|чтение (?:базы|таблиц).{0,60}ошиб|база сейчас недоступ|временно недоступн|не удалось получить данные|ошибка.{0,40}(?:получени|чтени).{0,40}(?:данн|баз))/iu.test(combined)) return "data_access";
+  if (/(нет права|недостаточно прав|доступ.{0,40}(?:отключен|запрещен|недоступ)|только для рол|не разрешено текущей роли|чтение.{0,40}запрещено матрицей)/iu.test(combined)) return "permissions";
+
+  // Explicit statements that required source data/fields are absent. This covers
+  // natural variants such as "не содержатся алгоритмы/данные", "поле отсутствует",
+  // "флаг не присутствует" and "мне не передали блок с актуальными данными".
+  const explicitMissingData = /(?:не содерж(?:ится|атся|ат|ит).{0,120}(?:алгоритм|правил|данн|пол(?:е|я)|флаг|отметк|критери|статус|информац)|(?:пол(?:е|я)|флаг|отметк|критери|данн|информац).{0,100}(?:отсутств|не присутств|не передан|не предоставлен|не включен|не содерж|нет в выборк)|отсутств(?:ует|уют|уют|ие).{0,100}(?:пол(?:е|я)|флаг|отметк|критери|данн|информац)|не был[аои]? передан[аои]?\s+(?:мне\s+)?(?:блок|контекст|набор|выборк|данн)|(?:блок|контекст|набор|выборк|данн).{0,80}не был[аои]? передан[аои]?)/iu.test(a);
+  const refusesDeliverableDueToGap = /не могу (?:сформировать|предоставить|выдать|составить|показать|подготовить).{0,160}(?:список|отчет|отч[её]т|данн|информац|результат).{0,140}(?:так как|поскольку|потому что|из-за|отсутств|не содерж|не передан|не предоставлен|нет)/iu.test(a);
+  const classicKnowledgeGap = /(не могу (?:точно )?(?:определить|подтвердить|ответить)|не удалось (?:определить|найти|получить|проверить)|не вижу (?:информац|данн)|недостаточно данных|нет (?:достаточно )?(?:данных|информации)|в (?:текущем|предоставленном|доступном|этом|данном) (?:блоке|контексте).{0,80}(?:не указан|отсутств|нет данных)|не располагаю (?:данными|информацией)|невозможно определить|не могу установить)/iu.test(a);
+  if (explicitMissingData || refusesDeliverableDueToGap || classicKnowledgeGap) return "knowledge_gap";
+
+  if (/(уточните|нужно уточнить|не указали|не указана дата|не хватает контекста|не передали контекст)/iu.test(a) && q.length < 500) return "missing_context";
   return null;
 }
-
 async function captureLearningCase(adminClient: any, details: {
   userId: string; role: string; page: string; conversationId: string; questionMessageId: unknown;
   question: string; answer: string; liveContext: string | null; selectedTableContext: string | null;
