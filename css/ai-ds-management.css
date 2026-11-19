@@ -353,3 +353,18 @@ html[data-theme="dark"] .doxi-learning-stats article strong,html[data-theme="dar
 html[data-theme="dark"] .doxi-learning-manual textarea,html[data-theme="dark"] .doxi-learning-case { background:#202c39; color:#e2e8f0; }
 @media(max-width:900px) { .doxi-learning-stats { grid-template-columns:repeat(2,minmax(0,1fr)); } .doxi-learning-manual { grid-template-columns:1fr 1fr; } .doxi-learning-manual > button { grid-column:1/-1; } }
 @media(max-width:620px) { .doxi-admin-fold-summary { padding:15px 16px; } .doxi-admin-fold-meta { max-width:55%; } .doxi-admin-fold[open] > :not(summary) { margin-left:16px; margin-right:16px; } .doxi-learning-manual,.doxi-learning-tools { grid-template-columns:1fr; } .doxi-learning-tools-actions { justify-content:stretch; flex-direction:column; } .doxi-learning-tools-actions .doxi-admin-btn { width:100%; } .doxi-learning-import-label,.doxi-learning-tools > #doxiLearningImportBtn { grid-column:1; grid-row:auto; } .doxi-learning-progress-heading { align-items:flex-start; flex-direction:column; } }
+
+/* Connection test button visibility fix: keep controls outside the hidden fold section heading. */
+.doxi-admin-connection-actions {
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  margin-bottom:15px; padding-top:15px;
+}
+.doxi-admin-connection-description {
+  flex:1; margin:0 !important; color:var(--color-text-muted,#77869a);
+  font-size:11px; line-height:1.5;
+}
+.doxi-admin-connection-actions .doxi-admin-btn { flex:0 0 auto; white-space:nowrap; }
+@media(max-width:760px) {
+  .doxi-admin-connection-actions { align-items:stretch; flex-direction:column; gap:10px; }
+  .doxi-admin-connection-actions .doxi-admin-btn { width:100%; }
+}

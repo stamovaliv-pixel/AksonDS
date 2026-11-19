@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="../css/notifications.css?v=6-floating-bell-theme">
   <link rel="stylesheet" href="../css/ai-ds.css?v=20261118-doxi-flip-fix-1-12">
   <link rel="stylesheet" href="../css/ai-ds-motion-v1-5-5-blush-sky.css?v=1-5-5">
-  <link rel="stylesheet" href="../css/ai-ds-management.css?v=3-0-learning-accordion">
+  <link rel="stylesheet" href="../css/ai-ds-management.css?v=3-0-learning-accordion-connection-test-fix-1">
   <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
   <link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon.png">
 </head>
@@ -175,11 +175,8 @@
 
     <details class="doxi-admin-card doxi-admin-connection-card doxi-admin-fold" id="doxiFoldConnection">
       <summary class="doxi-admin-fold-summary"><span class="doxi-admin-fold-title">Проверка соединения</span><span class="doxi-admin-fold-meta">Связь с локальной моделью и сервером</span></summary>
-      <div class="doxi-admin-section-heading">
-        <div>
-          <h2>Проверка соединения</h2>
-          <p>Отправляет короткий тестовый запрос через защищённый серверный канал.</p>
-        </div>
+      <div class="doxi-admin-connection-actions">
+        <p class="doxi-admin-connection-description">Отправляет короткий тестовый запрос через защищённый серверный канал.</p>
         <button class="doxi-admin-btn doxi-admin-btn-secondary" id="doxiTestBtn" type="button" disabled>Проверить соединение</button>
       </div>
       <div class="doxi-admin-test-result" id="doxiTestResult" role="status" aria-live="polite">
