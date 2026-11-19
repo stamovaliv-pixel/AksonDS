@@ -1,4 +1,4 @@
-// Doxi AI agent v3.4.13.5 — adds an independent slot_date filter to created-booking analytics; preserves v3.4.13.4 and all controls.
+// Doxi AI agent v3.4.13.6 — returns created-booking analytics directly from the server, bypassing LLM reinterpretation; preserves v3.4.13.5 and all controls.
 // Preserves MultiRole, booking confirmations, personal items, memory, knowledge and CSV/XLS/XLSX analysis.
 // Deploy with Verify JWT enabled. Never expose DOXI_PROXY_SECRET to browser code.
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -139,7 +139,7 @@ function buildInputRecoveryHint(input: string): { recoveredText: string; matched
 
 
 // Doxi 3.4 — cognitive agent: controlled planning, retrieval, reasoning and effort routing.
-const DOXI_RELEASE = "3.4.13.5";
+const DOXI_RELEASE = "3.4.13.6";
 const MODEL = "qwen3.5:9b";                 // validated local model for all synchronous requests
 const AGENT_PLAN_TIMEOUT_MS = 10_000;
 const AGENT_VERIFY_TIMEOUT_MS = 12_000;
@@ -4832,6 +4832,18 @@ Deno.serve(async (req: Request) => {
         liveContext = "ПОЛУЧЕНИЕ ЖИВЫХ ДАННЫХ: чтение текущих записей отключено в настройках Докси. Не называй цифры; сообщи, что функция временно выключена.";
       }
     }
+
+    // Deterministic supplier-created-bookings report: the server has already
+    // resolved Moscow-relative dates, applied created_at AND slot_date filters,
+    // counted the exact result set, and joined supplier profiles. Do not send
+    // these facts through Qwen for paraphrasing: it may collapse rows, shift
+    // dates, or invent a different count. Return the verified server report as-is.
+    if (isSupplierCreatedBookingRequest(effectiveUserText)) {
+      const deterministicReport = liveContext ||
+        "ПОЛУЧЕНИЕ ЖИВЫХ ДАННЫХ: сервер не вернул отчёт по созданным записям. Никакие количества и названия поставщиков не подтверждены.";
+      return directAssistantReply(deterministicReport, { doxi_version: DOXI_RELEASE });
+    }
+
     const liveDataRetrieved = Boolean(liveContext?.startsWith("ПОДТВЕРЖДЁННЫЕ ДАННЫЕ DOCKSLOT"));
     let selectedTableContext: string | null = null;
     if (role === "admin" || role === "super_admin") {
