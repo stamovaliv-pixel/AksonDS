@@ -413,16 +413,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const renderPendingAction = (pending) => {
     if (!pending?.id || !pending?.token) { addMessage('Я не смогла сформировать защищённое подтверждение. Запись не создана и не изменена. Повтори запрос позже.', 'assistant'); return; }
-    const card = document.createElement('div'); card.className = `ak-ai-ds-action-card ${pending.action_type === 'booking_delete' ? 'is-danger' : ''}`;
+    const isGenericTableAction = typeof pending.action_type === 'string' && pending.action_type.startsWith('table_');
+    const isDeleteAction = pending.action_type === 'booking_delete' || pending.action_type === 'table_delete';
+    const card = document.createElement('div'); card.className = `ak-ai-ds-action-card ${isDeleteAction ? 'is-danger' : ''}`;
     const label = document.createElement('strong');
-    label.textContent = pending.action_type === 'booking_create' ? 'Подготовлена новая запись' : pending.action_type === 'booking_update' ? 'Подготовлено изменение' : 'Подготовлено удаление';
+    label.textContent = pending.action_type === 'booking_create' ? 'Подготовлена новая запись'
+      : pending.action_type === 'booking_update' ? 'Подготовлено изменение'
+        : isGenericTableAction ? (pending.action_type === 'table_insert' ? 'Подготовлено добавление данных' : pending.action_type === 'table_update' ? 'Подготовлено изменение данных' : 'Подготовлено удаление данных')
+          : 'Подготовлено удаление';
     const summary = document.createElement('p'); summary.textContent = pending.summary || 'Проверь параметры действия.';
     const hint = document.createElement('small');
-    hint.textContent = pending.action_type === 'booking_delete'
-      ? 'Удаление окончательное. Нажми «Подтвердить», только если действительно хочешь удалить эту запись.'
-      : pending.action_type === 'booking_create' && selectedRegistryFile
-        ? 'После подтверждения запись будет создана, а выбранный файл реестра автоматически прикрепится к ней.'
-        : 'Пока вы не нажмёте «Подтвердить», запись в DockSlot не изменится.';
+    hint.textContent = isDeleteAction
+      ? 'Удаление окончательное. Нажми «Подтвердить», только если действительно хочешь удалить эту строку.'
+      : isGenericTableAction
+        ? 'Операция будет выполнена с правами вашей учётной записи. До подтверждения данные не изменяются.'
+        : pending.action_type === 'booking_create' && selectedRegistryFile
+          ? 'После подтверждения запись будет создана, а выбранный файл реестра автоматически прикрепится к ней.'
+          : 'Пока вы не нажмёте «Подтвердить», запись в DockSlot не изменится.';
     const actions = document.createElement('div'); actions.className = 'ak-ai-ds-card-actions';
     const confirm = document.createElement('button'); confirm.type = 'button'; confirm.className = 'ak-ai-ds-card-btn is-primary';
     confirm.textContent = 'Подтвердить';
