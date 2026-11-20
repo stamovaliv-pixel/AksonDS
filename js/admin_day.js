@@ -50,6 +50,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isAdmin = ['admin', 'super_admin'].includes(profile.role);
   const isOperator = profile.role === 'operator';
   const isViewer = profile.role === 'viewer';
+  let favoriteFilterActive = false;
+  let favoriteSupplierIds = new Set();
+  if (isAdmin && window.DockSlotFavorites) {
+    try { favoriteSupplierIds = await window.DockSlotFavorites.load(sb, user.id); }
+    catch (error) { console.error('Не удалось загрузить избранных поставщиков:', error); }
+    window.DockSlotFavorites.createFilterButton(document.getElementById('favoritesFilterMount'), (active) => {
+      favoriteFilterActive = active;
+      const next = new URL(window.location.href);
+      if (active) next.searchParams.set('favorites', '1'); else next.searchParams.delete('favorites');
+      window.location.href = next.toString();
+    });
+    // Сохраняем переключатель при перезагрузке страницы дня.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('favorites') === '1') {
+      favoriteFilterActive = true;
+      const button = document.querySelector('#favoritesFilterMount .favorite-filter-btn');
+      if (button) { button.setAttribute('aria-pressed', 'true'); button.classList.add('is-active'); }
+    }
+  }
 
   // На странице admin_day кнопка выхода ранее не имела обработчика.
   // Ставим явный обработчик после проверки авторизации и до инициализации страницы.
@@ -228,11 +247,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // 1. Загрузка данных
-  const { data: bookings } = await sb
+  let bookingsQuery = sb
     .from('bookings')
     .select('id, profile_id, slot_date, slot_hour, order_number, order_type, supply_type, supply_types, arrival_time, departure_time, gate_number, is_tk, comment, registry_file_url, profiles(company_name, inn)')
     .eq('slot_date', selectedDate)
     .eq('status', 'active');
+  if (favoriteFilterActive) {
+    const ids = [...favoriteSupplierIds];
+    bookingsQuery = ids.length ? bookingsQuery.in('profile_id', ids) : bookingsQuery.eq('profile_id', '00000000-0000-0000-0000-000000000000');
+  }
+  const { data: bookings } = await bookingsQuery;
 
   const advisorySnapshot = window.dockslotLoadAdvisory?.loadSnapshot
     ? await window.dockslotLoadAdvisory.loadSnapshot(sb, selectedDate, selectedDate)

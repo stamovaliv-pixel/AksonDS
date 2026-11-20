@@ -1,0 +1,32 @@
+AKSON DOCKSLOT — PERSONAL FAVORITE SUPPLIERS PATCH
+Base project: AksonDS-main (15)(2).zip
+Date: 2026-11-20
+
+Changed / added files:
+- app/suppliers.html
+- app/admin_calendar.html
+- app/admin_day.html
+- app/admin_overview.html
+- css/favorites.css (new)
+- js/favorites.js (new)
+- js/suppliers.js
+- js/admin_calendar.js
+- js/admin_day.js
+- js/admin_overview.js
+- supabase/migrations/20261120_admin_favorite_suppliers.sql (new)
+- supabase/functions/doxi-chat/index.ts
+- README_FAVORITE_SUPPLIERS_RU.md (new)
+- diagnostics/FAVORITE_SUPPLIERS_STATIC_CHECK_RU.md (new)
+- PATCH_NOTES_RU.md
+
+Deployment order:
+1. Backup database.
+2. Run supabase/migrations/20261120_admin_favorite_suppliers.sql in Supabase SQL Editor.
+3. Publish the project static files.
+4. Deploy supabase/functions/doxi-chat Edge Function.
+5. Test isolation with two distinct admin accounts.
+
+Validation performed:
+- node --check passed for all modified JavaScript files.
+- TypeScript transpileModule parsed doxi-chat/index.ts with zero syntax diagnostics.
+- Full runtime/database integration tests require the target Supabase project and were not run here.

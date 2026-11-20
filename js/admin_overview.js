@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let settings = { supply_types: [] };
   let bookings = [];
   let verifiedIds = new Set();
+  let favoriteSupplierIds = new Set();
+  let favoriteFilterActive = false;
   let activeListKind = null;
   let notes = [];
   let reminders = [];
@@ -86,6 +88,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       return null;
     }
     currentUser = authProfile.user;
+    try { favoriteSupplierIds = await window.DockSlotFavorites.load(sb, currentUser.id); }
+    catch (error) { console.error('Не удалось загрузить избранных поставщиков:', error); }
     return profile;
   };
 
@@ -231,7 +235,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const profile = getBookingSupplier(booking);
     const supplierText = `${profile.company_name || ''} ${profile.inn || ''}`.toLocaleLowerCase('ru-RU');
     const supplyMatches = !supplyFilter || getSupplyTypeValues(booking).some((value) => String(value) === supplyFilter);
-    return (!supplierFilter || supplierText.includes(supplierFilter))
+    return (!favoriteFilterActive || favoriteSupplierIds.has(String(booking.profile_id)))
+      && (!supplierFilter || supplierText.includes(supplierFilter))
       && (!docFilter || String(booking.order_number || '').toLocaleLowerCase('ru-RU').includes(docFilter))
       && supplyMatches
       && (!orderFilter || booking.order_type === orderFilter);
@@ -981,6 +986,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Не удалось загрузить справочник типов поставки:', error);
       showState('Не удалось загрузить справочник типов поставки. Проверьте подключение к Supabase.', true);
     }
+
+    window.DockSlotFavorites?.createFilterButton($('favoritesFilterMount'), (active) => {
+      favoriteFilterActive = active;
+      renderOverview();
+    });
 
     $('applyBtn').addEventListener('click', () => {
       setExportSelectionMode(false);

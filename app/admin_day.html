@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Управление днем - AKSon Logistics</title>
   <link rel="stylesheet" href="../css/theme.css?v=4-1-date-exceptions">
+  <link rel="stylesheet" href="../css/favorites.css?v=20261120-1">
   <link rel="stylesheet" href="../css/main.css?v=4-1-date-exceptions">
   <link rel="stylesheet" href="../css/admin-navigation.css?v=9-graphite-submenu-day-nav">
   <link rel="stylesheet" href="../css/load-advisory.css?v=advisory-load-v1">
@@ -247,7 +248,7 @@
   <main class="container" style="max-width: 1600px; margin: 0 auto;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
       <a href="admin_calendar.html" style="color: #3b82f6; text-decoration: none; font-weight: 500;">&larr; Назад</a>
-      <h2 style="margin: 0; font-size: 20px;">Слоты на: <span id="dateDisplay" style="color: var(--color-primary);">...</span></h2>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;"><h2 style="margin: 0; font-size: 20px;">Слоты на: <span id="dateDisplay" style="color: var(--color-primary);">...</span></h2><div class="favorite-filter-mount" id="favoritesFilterMount"></div></div>
     </div>
     <div id="loadAdvisoryDayDetail" aria-live="polite"></div>
     <div id="hoursContainer">
@@ -401,6 +402,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js?v=security-20261023"></script>
+  <script src="../js/favorites.js?v=20261120-1"></script>
   <script src="../js/auth-profile.js?v=2-dashboard-profile"></script>
   <script src="../js/push-config.js?v=2-windows-push"></script>
   <script src="../js/notifications.js?v=20261117-auth-session-guard"></script>

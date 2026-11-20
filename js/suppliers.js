@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   let allUsers = [];
+  let favoriteIds = new Set();
+  let favoritesOnly = false;
   const makeText = (tag, className, value) => {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -30,8 +32,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     list.replaceChildren();
     const lowerFilter = String(filterText).toLowerCase().trim();
     const filtered = allUsers.filter(s =>
-      String(s.company_name || '').toLowerCase().includes(lowerFilter) ||
-      String(s.inn || '').toLowerCase().includes(lowerFilter)
+      (!favoritesOnly || favoriteIds.has(String(s.id))) &&
+      (String(s.company_name || '').toLowerCase().includes(lowerFilter) ||
+      String(s.inn || '').toLowerCase().includes(lowerFilter))
     );
 
     if (filtered.length === 0) {
@@ -45,6 +48,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       const card = document.createElement('div');
       card.className = `supplier-card ${s.is_blocked ? 'blocked' : ''}`;
 
+      let favorite = null;
+      if (isAdmin) {
+        favorite = document.createElement('button');
+        favorite.type = 'button'; favorite.className = 'favorite-star-btn';
+        favorite.dataset.favoriteSupplierId = String(s.id);
+        window.DockSlotFavorites?.syncStar(favorite, favoriteIds.has(String(s.id)));
+      }
       const info = document.createElement('div');
       info.className = 'sup-info';
       const company = makeText('div', 'sup-name', `${s.company_name || 'Без названия'} (ИНН: ${s.inn || 'Не указан'})`);
@@ -71,7 +81,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       slider.className = 'slider';
       label.append(toggle, slider);
       control.appendChild(label);
-      card.append(info, control);
+      if (favorite) card.append(info, favorite, control);
+      else card.append(info, control);
       list.appendChild(card);
     });
   };
@@ -90,6 +101,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     allUsers = (data || []).filter(u => !['admin', 'super_admin', 'operator'].includes(u.role));
+    try { favoriteIds = await window.DockSlotFavorites.load(sb, user.id); }
+    catch (favoriteError) { console.error('Не удалось загрузить избранных поставщиков:', favoriteError); favoriteIds = new Set(); }
     allUsers.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
     renderUsers(document.getElementById('searchInput').value);
   };
@@ -106,6 +119,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('searchInput').addEventListener('input', e => debouncedRender(e.target.value));
   const performSearch = () => renderUsers(document.getElementById('searchInput').value);
   document.getElementById('searchBtn')?.addEventListener('click', performSearch);
+
+  document.getElementById('usersList').addEventListener('click', async e => {
+    const star = e.target.closest('[data-favorite-supplier-id]');
+    if (!star) return;
+    if (!isAdmin) return;
+    star.disabled = true;
+    try {
+      const active = await window.DockSlotFavorites.toggle(sb, user.id, star.dataset.favoriteSupplierId);
+      favoriteIds = window.DockSlotFavorites.ids();
+      window.DockSlotFavorites.syncStar(star, active);
+    } catch (error) { alert(`Не удалось изменить избранное: ${error.message || 'ошибка базы данных'}`); }
+    finally { star.disabled = false; }
+  });
 
   document.getElementById('usersList').addEventListener('change', async e => {
     if (!e.target.classList.contains('toggle-block')) return;
@@ -132,5 +158,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  if (isAdmin) {
+    window.DockSlotFavorites?.createFilterButton(document.getElementById('favoritesFilterMount'), (active) => {
+      favoritesOnly = active;
+      renderUsers(document.getElementById('searchInput').value);
+    });
+  }
   await loadData();
 });

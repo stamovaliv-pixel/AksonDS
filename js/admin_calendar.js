@@ -66,6 +66,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault(); await sb.auth.signOut(); window.location.href = '../index.html';
   };
 
+  let favoriteFilterActive = false;
+  let favoriteSupplierIds = new Set();
+  if (isAdmin) {
+    try { favoriteSupplierIds = await window.DockSlotFavorites.load(sb, user.id); }
+    catch (error) { console.error('Не удалось загрузить избранных поставщиков:', error); }
+    window.DockSlotFavorites?.createFilterButton(document.getElementById('favoritesFilterMount'), (active) => {
+      favoriteFilterActive = active;
+      renderCalendar();
+    });
+  }
+  const applyFavoriteFilter = (query) => {
+    if (!favoriteFilterActive) return query;
+    const ids = [...favoriteSupplierIds];
+    return ids.length ? query.in('profile_id', ids) : query.eq('profile_id', '00000000-0000-0000-0000-000000000000');
+  };
+
   // Настройки вместимости должны совпадать с поставщиком: учитываем основные
   // И резервные слоты. Старый sessionStorage мог содержать неполный набор полей,
   // поэтому обновляем его, если в кэше отсутствуют параметры вместимости.
@@ -236,6 +252,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (filterOrder) query = query.eq('order_type', filterOrder);
     if (filterSupplier) query = query.or(`company_name.ilike.%${filterSupplier}%,inn.ilike.%${filterSupplier}%`, { foreignTable: 'profiles' });
     if (filterSupply) query = query.contains('supply_types', JSON.stringify([filterSupply]));
+    query = applyFavoriteFilter(query);
 
     exportRegistryButton?.classList.add('is-exporting');
     if (exportRegistryButton) exportRegistryButton.disabled = true;
@@ -328,7 +345,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const filterOrder = document.getElementById('filterOrderType').value;
     const showPast = canViewPastBookings && pastToggle && pastToggle.checked;
 
-    const isSearchActive = filterSupplier !== '' || filterDoc !== '' || filterSupply !== '' || filterOrder !== '';
+    const isSearchActive = filterSupplier !== '' || filterDoc !== '' || filterSupply !== '' || filterOrder !== '' || favoriteFilterActive;
 
     // Сначала рассчитываем фактический видимый диапазон календаря.
     const startDate = new Date(today);
@@ -371,6 +388,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (filterOrder) query = query.eq('order_type', filterOrder);
       if (filterSupplier) query = query.or(`company_name.ilike.%${filterSupplier}%,inn.ilike.%${filterSupplier}%`, { foreignTable: 'profiles' });
       if (filterSupply) query = query.contains('supply_types', JSON.stringify([filterSupply]));
+      query = applyFavoriteFilter(query);
 
       const { data, error } = await query;
       if (error) throw error;

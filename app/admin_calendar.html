@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Календарь - AKSon Logistics</title>
   <link rel="stylesheet" href="../css/theme.css?v=4-1-date-exceptions">
+  <link rel="stylesheet" href="../css/favorites.css?v=20261120-1">
   <link rel="stylesheet" href="../css/main.css?v=4-1-date-exceptions">
   <link rel="stylesheet" href="../css/admin-navigation.css?v=9-graphite-submenu-day-nav">
   <link rel="stylesheet" href="../css/load-advisory.css?v=historical-density-v1-5-10">
@@ -215,6 +216,7 @@
           <option value="">Все типы</option>
         </select>
       </div>
+      <div class="favorite-filter-mount" id="favoritesFilterMount"></div>
       <button class="btn-search" id="applyFiltersBtn">Найти</button>
       <button class="btn-search" id="resetFiltersBtn" style="background: #e2e8f0; color: #1e293b;">Сбросить</button>
     </div>
@@ -355,6 +357,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js?v=security-20261023"></script>
+  <script src="../js/favorites.js?v=20261120-1"></script>
   <script src="../js/auth-profile.js?v=2-dashboard-profile"></script>
   <script src="../js/push-config.js?v=2-windows-push"></script>
   <script src="../js/notifications.js?v=20261117-auth-session-guard"></script>

@@ -8,3 +8,7 @@
 - Empty Ollama visible responses no longer become HTTP 200 with an empty string; proxy emits `EMPTY_MODEL_RESPONSE` as HTTP 502 and Edge Function returns a distinct diagnostic message/code.
 - Model, context 8192, 8 HTTP workers, cap 24, loopback binding and shared-secret check are preserved.
 - No frontend, SQL, RLS, or role changes.
+
+## 20.11.2026 — Персональные избранные поставщики
+
+Добавлены персональные избранные поставщики для admin/super_admin, фильтр «Показать избранных» на страницах Пользователи, Календарь администратора, День администратора и Рабочий стол. Докси использует ту же таблицу избранного вместо хранения списка поставщиков в личной памяти. Требуется применить SQL-миграцию `20261120_admin_favorite_suppliers.sql` и опубликовать Edge Function `doxi-chat`.

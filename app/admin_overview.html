@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#f4f7f9">
   <title>Рабочий стол — AKSon Logistics</title>
   <link rel="stylesheet" href="../css/theme.css?v=4-1-date-exceptions">
+  <link rel="stylesheet" href="../css/favorites.css?v=20261120-1">
   <link rel="stylesheet" href="../css/main.css?v=4-1-date-exceptions">
   <link rel="stylesheet" href="../css/dark-mode.css?v=4">
   <link rel="stylesheet" href="../css/mobile-refinements.css?v=2">
@@ -78,6 +79,7 @@
         </select>
       </div>
       <div class="overview-filter-actions">
+        <div class="favorite-filter-mount" id="favoritesFilterMount"></div>
         <button type="button" class="overview-btn overview-btn-primary" id="applyBtn">Применить</button>
         <button type="button" class="overview-btn overview-btn-secondary" id="resetBtn">Сбросить</button>
         <button type="button" class="calendar-tool-btn overview-export-btn" id="exportBtn" title="Выгрузить общий реестр" aria-label="Выгрузить общий реестр" aria-pressed="false">
@@ -228,6 +230,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../js/supabase-client.js?v=security-20261023"></script>
+  <script src="../js/favorites.js?v=20261120-1"></script>
   <script src="../js/auth-profile.js?v=2-dashboard-profile"></script>
   <script src="../js/push-config.js?v=2-windows-push"></script>
   <script src="../js/notifications.js?v=20261117-auth-session-guard"></script>
