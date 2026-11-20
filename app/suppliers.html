@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Пользователи - AKSon Logistics</title>
   <link rel="stylesheet" href="../css/theme.css">
-  <link rel="stylesheet" href="../css/favorites.css?v=20261120-3">
+  <link rel="stylesheet" href="../css/favorites.css?v=20261120-4">
   <link rel="stylesheet" href="../css/main.css">
   <link rel="stylesheet" href="../css/admin-navigation.css?v=9-graphite-submenu-day-nav">
   <style>
@@ -15,9 +15,12 @@
     .nav-icon { display: inline-flex; align-items: center; justify-content: center; padding: 5px; transition: transform 0.2s ease; text-decoration: none; }
     
     .search-box { background: #fff; padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--color-border); margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
-    .search-box input { flex: 1; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 15px; box-sizing: border-box; outline: none; }
+    .search-box input { flex: 1; height: 36px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 15px; box-sizing: border-box; outline: none; }
     .search-box input:focus { border-color: #3b82f6; }
-    .btn-search { background: #3b82f6; color: #fff; border: none; padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+    .btn-search { height: 36px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; background: #3b82f6; color: #fff; border: none; padding: 0 20px; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; transition: 0.2s; white-space: nowrap; }
+    /* Keep the supplier-page favourite star in the same 36px control row. */
+    .search-box .favorite-filter-mount { flex: 0 0 36px; width: 36px; min-width: 36px; height: 36px; min-height: 36px; }
+    .search-box .favorite-filter-btn { flex-basis: 36px !important; width: 36px !important; min-width: 36px !important; max-width: 36px !important; height: 36px !important; min-height: 36px !important; max-height: 36px !important; }
     .btn-search:hover { background: #2563eb; }
     
     .supplier-card { background: #fff; padding: 15px; border-radius: var(--radius-sm); border: 1px solid var(--color-border); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; transition: 0.2s; border-left: 4px solid #10b981; }
@@ -64,8 +67,8 @@
     <h2 style="margin-top: 0;">Управление пользователями</h2>
     <div class="search-box">
       <input type="text" id="searchInput" placeholder="Поиск по части ИНН или Названия...">
-      <button class="btn-search" id="searchBtn">Поиск</button>
       <div class="favorite-filter-mount" id="favoritesFilterMount"></div>
+      <button class="btn-search" id="searchBtn">Поиск</button>
     </div>
     <div id="usersList">
       <div style="text-align:center; padding: 20px; color: #64748b;">Загрузка списка пользователей...</div>
