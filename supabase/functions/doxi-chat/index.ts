@@ -141,7 +141,7 @@ function buildInputRecoveryHint(input: string): { recoveredText: string; matched
 
 
 // Doxi 3.4 — cognitive agent: controlled planning, retrieval, reasoning and effort routing.
-const DOXI_RELEASE = "3.5.0-user-context";
+const DOXI_RELEASE = "3.5.4-favorite-bookings-priority";
 const MODEL = "qwen3.5:9b";                 // validated local model for all synchronous requests
 const AGENT_PLAN_TIMEOUT_MS = 10_000;
 const AGENT_VERIFY_TIMEOUT_MS = 12_000;
@@ -4042,9 +4042,58 @@ function isMySupplierScopeRequest(text: string): boolean {
   return /(?:моих?\s+(?:личн\w*\s+)?поставщик|из\s+моего\s+(?:личного\s+)?списка\s+поставщик|поставщик[а-яё]*\s+из\s+моего\s+списка|избранн(?:ые|ых)\s+поставщик)/iu.test(String(text || ""));
 }
 
+// A short follow-up such as «кто из них записан на следующей неделе?» inherits
+// the favorite-supplier scope only when the same conversation actually showed
+// the user's favorite list. The real supplier IDs are always reloaded from the
+// current user's admin_favorite_suppliers rows; dialogue text never grants access.
+function isMySupplierFollowupRequest(text: string): boolean {
+  const value = String(text || "").toLocaleLowerCase("ru-RU");
+  const refersBack = /(?:из\s+них|по\s+ним|у\s+них|этих?\s+поставщик[а-яё]*|кто\s+из\s+них|какие\s+из\s+них)/iu.test(value);
+  const asksOperational = /(?:запис|бронир|слот|заявк|прибыл|приехал|верификац|следующ[а-яё]*\s+недел|эт[а-яё]*\s+недел)/iu.test(value);
+  return refersBack && asksOperational;
+}
+
+function hasPriorMySupplierListContext(
+  messages: Array<{ role: "user" | "assistant"; content: string }>, beforeIndex: number,
+): boolean {
+  const prior = messages.slice(Math.max(0, beforeIndex - 12), beforeIndex);
+  const userAskedForList = prior.some((item) => item.role === "user"
+    && /(?:мои\s+поставщик|моих\s+поставщик|избранн[а-яё]*\s+поставщик|списк[а-яё]*\s+поставщик)/iu.test(item.content));
+  const assistantShowedList = prior.some((item) => item.role === "assistant"
+    && /(?:ваши\s+избранные\s+поставщик|всего\s+избранных\s+поставщик|список\s+избранных\s+поставщик)/iu.test(item.content));
+  return userAskedForList && assistantShowedList;
+}
+
+function findPendingMySupplierBookingQuestion(
+  messages: Array<{ role: "user" | "assistant"; content: string }>, latestUserIndex: number,
+  currentText: string, today: string,
+): string | null {
+  // Only treat a date-only answer as clarification of the unanswered favorite
+  // supplier question. Do not hijack a new substantive user request.
+  const compactText = String(currentText || "").trim();
+  const dateOnlyAnswer = /^(?:(?:сегодня|завтра|послезавтра)\s+)?(?:20\d{2}-\d{2}-\d{2}|\d{1,2}[.\/]\d{1,2}(?:[.\/]20\d{2})?|\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s+20\d{2})?)$/iu.test(compactText);
+  if ((!/(?:сегодня|дат[а-яё]*|считать)/iu.test(compactText) && !dateOnlyAnswer)
+      || !parseDateInText(compactText, today)
+      || /(?:запис|брони|слот|поставщик|покажи|найди|кто|какие)/iu.test(compactText)) return null;
+
+  const prior = messages.slice(0, latestUserIndex);
+  for (let i = prior.length - 1; i >= 0; i--) {
+    const item = prior[i];
+    if (item.role !== "user" || !isMySupplierFollowupRequest(item.content)) continue;
+    if (!hasPriorMySupplierListContext(messages, i)) continue;
+    const assistantAfter = prior.slice(i + 1).filter((entry) => entry.role === "assistant");
+    const lastAssistant = assistantAfter[assistantAfter.length - 1]?.content || "";
+    if (/(?:уточн|какую\s+дату|сегодняшн[а-яё]*\s+дат|проверю|подождите|соберу\s+актуальн)/iu.test(lastAssistant)) {
+      return item.content;
+    }
+    return null;
+  }
+  return null;
+}
+
 type MySupplierReportKind = "booked" | "unverified" | "not_arrived";
-function classifyMySupplierReportRequest(text: string): MySupplierReportKind | null {
-  if (!isMySupplierScopeRequest(text)) return null;
+function classifyMySupplierReportRequest(text: string, inheritedFavoriteScope = false): MySupplierReportKind | null {
+  if (!isMySupplierScopeRequest(text) && !inheritedFavoriteScope) return null;
   const value = String(text || "").toLocaleLowerCase("ru-RU");
   if (/(?:верификац|верифицир|проверен)/iu.test(value)
     && /(?:кто|какие|список|покажи|не\s+име|не\s+верифицир|не\s+проверен|без\s+верификац|не\s+прош|требу)/iu.test(value)) return "unverified";
@@ -4070,13 +4119,18 @@ async function getMySupplierOperationalReport(
   const ids = [...new Set(entries.map((entry) => entry.profile_id).filter(Boolean))];
   if (!ids.length) return "В вашем списке пока нет подтверждённых профилей поставщиков.";
   const today = moscowTodayISO();
+  // This resolver uses the server's Europe/Moscow business date and returns
+  // Monday–Sunday calendar boundaries for «следующая неделя».
+  const bookedPeriod = kind === "booked" ? resolveSupplierCreatedAtPeriod(text, today) : null;
   const parsedDate = parseDateInText(text, today);
   const targetDate = kind === "not_arrived" ? (parsedDate || today) : parsedDate;
   const maxRows = Math.max(1, Math.min(Number(userTablePermissions.get("bookings")?.max_rows) || MAX_LIVE_ROWS, MAX_LIVE_ROWS));
   let query = userDataClient.from("bookings")
     .select("id,profile_id,slot_date,slot_hour,order_number,arrival_time,supply_type,supply_types", { count: "exact" })
     .eq("status", "active").in("profile_id", ids);
-  if (targetDate) query = query.eq("slot_date", targetDate);
+  if (kind === "booked" && bookedPeriod) {
+    query = query.gte("slot_date", bookedPeriod.dateFrom).lte("slot_date", bookedPeriod.dateTo);
+  } else if (targetDate) query = query.eq("slot_date", targetDate);
   else query = query.gte("slot_date", today);
   const { data, error, count } = await query.order("slot_date", { ascending: true }).order("slot_hour", { ascending: true }).limit(maxRows);
   if (error) {
@@ -4122,10 +4176,19 @@ async function getMySupplierOperationalReport(
     selectedRows = rows.filter((row) => !String(row.arrival_time || "").trim());
     if (!selectedRows.length) return `По всем активным записям ваших поставщиков на ${formatIsoDateRu(targetDate || today)} отметка прибытия уже есть.`;
   } else {
-    heading = targetDate ? `Ваши поставщики, записанные на ${formatIsoDateRu(targetDate)}` : "Ближайшие записи ваших поставщиков";
-    if (!rows.length) return targetDate
-      ? `На ${formatIsoDateRu(targetDate)} у ваших поставщиков нет активных записей.`
-      : "У ваших поставщиков нет предстоящих активных записей.";
+    if (bookedPeriod && bookedPeriod.days > 1) {
+      heading = `Ваши поставщики, записанные с ${formatIsoDateRu(bookedPeriod.dateFrom)} по ${formatIsoDateRu(bookedPeriod.dateTo)}`;
+    } else {
+      heading = targetDate ? `Ваши поставщики, записанные на ${formatIsoDateRu(targetDate)}` : "Ближайшие записи ваших поставщиков";
+    }
+    if (!rows.length) {
+      if (bookedPeriod && bookedPeriod.days > 1) {
+        return `С ${formatIsoDateRu(bookedPeriod.dateFrom)} по ${formatIsoDateRu(bookedPeriod.dateTo)} у ваших избранных поставщиков нет активных записей.`;
+      }
+      return targetDate
+        ? `На ${formatIsoDateRu(targetDate)} у ваших поставщиков нет активных записей.`
+        : "У ваших поставщиков нет предстоящих активных записей.";
+    }
   }
 
   const grouped = new Map<string, { name: string; inn: string; records: Array<Record<string, any>> }>();
@@ -4157,18 +4220,27 @@ async function getMySupplierOperationalReport(
     ? "В DockSlot пока нет отметки о прибытии; это не подтверждает физическое отсутствие автомобиля."
     : kind === "unverified"
       ? "Показаны записи без отметки верификации. Если у поставщика несколько записей, проверка относится к каждой записи отдельно."
-      : "Показаны активные записи на выбранную дату.";
+      : bookedPeriod && bookedPeriod.days > 1
+        ? "Показаны активные записи только в указанном календарном периоде. Неделя считается с понедельника по воскресенье по московскому времени."
+        : "Показаны активные записи на выбранную дату.";
   return `${heading}:\n${resultLines.join("\n")}\n\nВсего поставщиков: ${grouped.size}; записей: ${selectedRows.length}. ${scopeText}`;
 }
 
 async function handleMySupplierAndDirectoryCommand(
   userDataClient: any, userId: string, role: string, text: string, conversationId: string,
   liveDataEnabled: boolean, detailsEnabled: boolean, userTablePermissions: DoxiTablePermissionMap,
+  inheritedFavoriteScope = false,
 ): Promise<{ response: string } | null> {
   const addPayload = extractMySupplierAddPayload(text);
   const removePayload = extractMySupplierRemovePayload(text);
-  const showList = isMySupplierListRequest(text) || /(?:кто|какие|покажи).{0,32}(?:(?:мои|моих)\s+поставщик[а-яё]*|избранн(?:ые|ых)\s+поставщик[а-яё]*)/iu.test(text);
-  const reportKind = classifyMySupplierReportRequest(text);
+  const reportKind = classifyMySupplierReportRequest(text, inheritedFavoriteScope);
+  // Operational questions about favorite suppliers must win over the broad
+  // list-intent pattern. Otherwise «кто из моих поставщиков записан…» is
+  // incorrectly answered with the favorite list and never reaches bookings.
+  const showList = !reportKind && (
+    isMySupplierListRequest(text)
+    || /(?:кто|какие|покажи).{0,32}(?:(?:мои|моих)\s+поставщик[а-яё]*|избранн(?:ые|ых)\s+поставщик[а-яё]*)/iu.test(text)
+  );
   const directoryLookup = isSupplierDirectoryLookupRequest(text);
   if (!addPayload && !removePayload && !showList && !reportKind && !directoryLookup) return null;
   if (role !== "admin" && role !== "super_admin") {
@@ -5488,9 +5560,20 @@ Deno.serve(async (req: Request) => {
     if (supplierVerificationReminderResult) return directAssistantReply(supplierVerificationReminderResult.response,
       supplierVerificationReminderResult.workspace_items_changed ? { workspace_items_changed: supplierVerificationReminderResult.workspace_items_changed } : {});
 
+    const moscowBusinessToday = moscowTodayISO();
+    const priorFavoriteListContext = hasPriorMySupplierListContext(modelMessages, latestUserMessageIndex);
+    const pendingFavoriteBookingQuestion = findPendingMySupplierBookingQuestion(
+      modelMessages, latestUserMessageIndex, effectiveUserText, moscowBusinessToday,
+    );
+    const favoriteSupplierOperationalText = pendingFavoriteBookingQuestion
+      ? `${pendingFavoriteBookingQuestion}\nДата, сообщённая пользователем: ${effectiveUserText}`
+      : effectiveUserText;
+    const inheritedFavoriteScope = Boolean(pendingFavoriteBookingQuestion)
+      || (priorFavoriteListContext && isMySupplierFollowupRequest(effectiveUserText));
     const supplierDirectoryResult = await handleMySupplierAndDirectoryCommand(
-      userDataClient, userId, role, effectiveUserText, conversationId!,
+      userDataClient, userId, role, favoriteSupplierOperationalText, conversationId!,
       Boolean(settingsRow.live_data_enabled), Boolean(settingsRow.booking_details_enabled), userTablePermissions,
+      inheritedFavoriteScope,
     );
     if (supplierDirectoryResult) return directAssistantReply(supplierDirectoryResult.response);
 
@@ -5730,7 +5813,7 @@ Deno.serve(async (req: Request) => {
     const reasoningBlock = agentPlan?.complexity === "deep"
       ? "\n\nРЕЖИМ СЛОЖНОЙ ЗАДАЧИ: разбей работу на этапы, проверь промежуточные выводы, единицы измерения и арифметику. Отделяй подтверждённые факты, расчёты и гипотезы. Явно указывай ограничения исходных данных."
       : "";
-    const promptPrefix = `Роль пользователя в DockSlot: ${role}. Текущий раздел интерфейса: ${page}${liveBlock}${inputRecoveryBlock}${planBlock}${reasoningBlock}`;
+    const promptPrefix = `Роль пользователя в DockSlot: ${role}. Текущий раздел интерфейса: ${page}. Текущая дата DockSlot: ${moscowTodayISO()} (Europe/Moscow, MSK). Календарная неделя начинается в понедельник и заканчивается в воскресенье. Для слов «сегодня», «завтра», «на этой неделе» и «на следующей неделе» используй эту серверную дату; не спрашивай пользователя о текущей дате, если она уже передана в контекст. Отвечай на вопрос действием или результатом, а не обещанием выполнить проверку позже.${liveBlock}${inputRecoveryBlock}${planBlock}${reasoningBlock}`;
     const summaryBlock = summary ? `\n\nКРАТКОЕ РЕЗЮМЕ ПРЕДЫДУЩЕЙ ЧАСТИ ЭТОГО ДИАЛОГА (используй для сохранения контекста, если оно относится к текущему вопросу):\n${summary.slice(0, MAX_SUMMARY_CHARS)}\n` : "";
     const memoryBlock = personalMemoryContext ? `\n\n${personalMemoryContext.slice(0, MAX_MEMORY_CONTEXT_CHARS)}\n` : "";
     const knowledgeBlock = knowledgeContext ? `\n\n${knowledgeContext.slice(0, MAX_KNOWLEDGE_CONTEXT_CHARS)}\n` : "";
