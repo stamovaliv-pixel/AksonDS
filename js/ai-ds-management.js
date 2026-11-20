@@ -90,7 +90,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const invoke = async (body) => {
     const { data, error } = await sb.functions.invoke('doxi-chat', { body });
-    if (error) throw new Error(error.message || 'Не удалось обратиться к серверу Докси.');
+    if (error) {
+      // Supabase FunctionsHttpError keeps the Edge Function response in error.context.
+      // Preserve the server's real JSON error instead of showing only the generic
+      // "Edge Function returned a non-2xx status code" wrapper message.
+      let serverPayload = null;
+      let httpStatus = Number(error?.context?.status || 0);
+      try {
+        const response = error?.context;
+        if (response && typeof response.clone === 'function') {
+          const clone = response.clone();
+          const contentType = String(clone.headers?.get('content-type') || '');
+          if (contentType.includes('application/json')) serverPayload = await clone.json();
+          else {
+            const text = await clone.text();
+            if (text) serverPayload = { error: text.slice(0, 700) };
+          }
+        }
+      } catch (_) { /* Keep the Supabase error as a fallback. */ }
+      const serverMessage = String(serverPayload?.error || serverPayload?.message || '').trim();
+      const serverCode = String(serverPayload?.error_code || serverPayload?.code || '').trim();
+      const suffix = [httpStatus ? `HTTP ${httpStatus}` : '', serverCode].filter(Boolean).join(' · ');
+      const message = serverMessage || error.message || 'Не удалось обратиться к серверу Докси.';
+      throw new Error(suffix ? `${message} (${suffix})` : message);
+    }
     if (!data) throw new Error('Сервер Докси вернул пустой ответ.');
     if (data.error) throw new Error(data.error);
     return data;
