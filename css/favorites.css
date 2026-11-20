@@ -86,6 +86,18 @@
   outline-offset: 2px;
 }
 
+/* Admin calendar uses shorter native filter fields than the overview page.
+   Match the star control to that row so it does not sit higher than the fields. */
+.admin-calendar-page .filters-card > .favorite-filter-mount {
+  height: 36px;
+  min-height: 36px;
+}
+.admin-calendar-page .filters-card > .favorite-filter-mount > .favorite-filter-btn {
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+}
+
 /* Tooltip is drawn above the star; it cannot occupy space in the filter row. */
 .favorite-filter-btn::after {
   content: attr(data-tooltip);
