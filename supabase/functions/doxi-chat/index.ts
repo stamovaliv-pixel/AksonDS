@@ -2234,7 +2234,7 @@ function parseAgentPlan(raw: string, accessibleSchema: DoxiAccessibleTable[] = [
     };
     const values = readObject(mutationRaw.values, operationColumns);
     const primaryKey = readObject(mutationRaw.primary_key, new Set<string>(primaryKeys));
-    const safeTable = schema && !["doxi_action_drafts", "doxi_generic_action_drafts", "doxi_settings", "doxi_table_permissions", "doxi_generic_action_audit", "doxi_action_audit", "audit_log", "load_control_audit_legacy", "push_subscriptions"].includes(tableName);
+    const safeTable = schema && !["doxi_action_drafts", "doxi_generic_action_drafts", "doxi_learning_cases", "doxi_settings", "doxi_table_permissions", "doxi_generic_action_audit", "doxi_action_audit", "audit_log", "load_control_audit_legacy", "push_subscriptions"].includes(tableName);
     const hasPrimaryKey = primaryKeys.length > 0 && primaryKeys.every((key) => Object.prototype.hasOwnProperty.call(primaryKey, key)
       && primaryKey[key] !== null && ["string", "number", "boolean"].includes(typeof primaryKey[key]));
     const insertableColumns = new Set((schema?.columns || []).filter((column: any) => column.can_insert === true && column.is_identity !== "YES" && column.is_generated !== "ALWAYS").map((column) => column.column_name));
@@ -2819,7 +2819,7 @@ async function prepareGenericTableMutation(
   accessibleSchema: DoxiAccessibleTable[],
 ): Promise<{ response: string; pending_action?: any }> {
   const schema = accessibleSchema.find((item) => item.table_name === mutation.table_name);
-  const forbiddenTables = new Set(["doxi_action_drafts", "doxi_generic_action_drafts", "doxi_settings", "doxi_table_permissions", "doxi_generic_action_audit", "doxi_action_audit", "audit_log", "load_control_audit_legacy", "push_subscriptions"]);
+  const forbiddenTables = new Set(["doxi_action_drafts", "doxi_generic_action_drafts", "doxi_learning_cases", "doxi_settings", "doxi_table_permissions", "doxi_generic_action_audit", "doxi_action_audit", "audit_log", "load_control_audit_legacy", "push_subscriptions"]);
   if (!schema || forbiddenTables.has(mutation.table_name)) return { response: "Не могу подготовить операцию: таблица недоступна в контексте вашей сессии или относится к защищённым внутренним данным." };
   const permission = mutation.operation === "insert" ? schema.can_insert : mutation.operation === "update" ? schema.can_update : schema.can_delete;
   if (!permission) return { response: `PostgreSQL не предоставил текущему пользователю право ${mutation.operation.toUpperCase()} для таблицы ${mutation.table_name}.` };
@@ -2870,7 +2870,7 @@ async function commitGenericTableMutation(
   const actualHash = await sha256Hex(confirmationToken);
   if (!expectedHash || !constantTimeStringEqual(expectedHash, actualHash)) return { ok: false, response: "Подтверждение не прошло проверку. Операция не выполнена." };
   if (!schema || !["insert", "update", "delete"].includes(operation)
-      || !["doxi_action_drafts", "doxi_generic_action_drafts", "doxi_settings", "doxi_table_permissions", "doxi_generic_action_audit", "doxi_action_audit", "audit_log", "load_control_audit_legacy", "push_subscriptions"].every((name) => name !== tableName)) {
+      || !["doxi_action_drafts", "doxi_generic_action_drafts", "doxi_learning_cases", "doxi_settings", "doxi_table_permissions", "doxi_generic_action_audit", "doxi_action_audit", "audit_log", "load_control_audit_legacy", "push_subscriptions"].every((name) => name !== tableName)) {
     return { ok: false, response: "Таблица или операция больше не доступны в текущем пользовательском контексте." };
   }
   const permitted = operation === "insert" ? schema.can_insert : operation === "update" ? schema.can_update : schema.can_delete;
@@ -3572,7 +3572,7 @@ function detectLearningReason(question: string, answer: string, liveContext: str
   if (/(уточните|нужно уточнить|не указали|не указана дата|не хватает контекста|не передали контекст)/iu.test(a) && q.length < 500) return "missing_context";
   return null;
 }
-async function captureLearningCase(userDataClient: any, details: {
+async function captureLearningCase(learningJournalClient: any, details: {
   userId: string; role: string; page: string; conversationId: string; questionMessageId: unknown;
   question: string; answer: string; liveContext: string | null; selectedTableContext: string | null;
 }): Promise<void> {
@@ -3582,7 +3582,7 @@ async function captureLearningCase(userDataClient: any, details: {
   const answer = redactLearningText(details.answer, 3_500);
   if (!question || !answer) return;
   const now = new Date().toISOString();
-  const { error } = await userDataClient.from("doxi_learning_cases").insert({
+  const { error } = await learningJournalClient.from("doxi_learning_cases").insert({
     question_message_id: details.questionMessageId,
     conversation_id: details.conversationId,
     user_id: details.userId,
@@ -4554,8 +4554,10 @@ Deno.serve(async (req: Request) => {
     }
 
     // Business-data reads and the universal CRUD engine use the caller's JWT.
-    // The server-only client below remains for Doxi internals and the existing
-    // transactional booking RPC orchestration; it is not the generic data client.
+    // The service-role client is reserved for Doxi internal control-plane tables,
+    // protected by server-side action checks. The learning journal is a specific
+    // exception: SQL explicitly revokes it from authenticated and grants service_role only.
+    // Never route normal DockSlot tables, user notes, reminders, supplier data or generic CRUD here.
     const userDataClient = createClient(supabaseUrl, publishableKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       global: { headers: { Authorization: `Bearer ${accessToken}` } },
@@ -4564,6 +4566,12 @@ Deno.serve(async (req: Request) => {
     const adminClient = createClient(supabaseUrl, secretKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });
+    // Narrow service-role adapter for the internal learning queue only.
+    // This table is intentionally denied to anon/authenticated by migration 20261118_doxi_learning_loop.sql.
+    // Ordinary DockSlot/business data and user-context CRUD MUST continue through userDataClient.
+    const learningJournalClient = {
+      from: (tableName: "doxi_learning_cases") => adminClient.from(tableName),
+    };
     const { data: profile, error: profileError } = await adminClient
       .from("profiles").select("role, is_blocked, company_name").eq("id", userId).maybeSingle();
     if (profileError) {
@@ -4835,14 +4843,23 @@ Deno.serve(async (req: Request) => {
 
     if (action === "admin_learning_dashboard") {
       const [totalResult, pendingResult, trainedResult, dismissedResult, contextResult] = await Promise.all([
-        userDataClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }),
-        userDataClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        userDataClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }).eq("status", "trained"),
-        userDataClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }).eq("status", "dismissed"),
-        userDataClient.from("doxi_learning_cases").select("context_type").eq("status", "trained").limit(5_000),
+        learningJournalClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }),
+        learningJournalClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        learningJournalClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }).eq("status", "trained"),
+        learningJournalClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }).eq("status", "dismissed"),
+        learningJournalClient.from("doxi_learning_cases").select("context_type").eq("status", "trained").limit(5_000),
       ]);
       const queryError = totalResult.error || pendingResult.error || trainedResult.error || dismissedResult.error || contextResult.error;
-      if (queryError) return jsonResponse({ error: "Не удалось загрузить журнал обучения. Проверьте SQL-миграцию doxi_learning_cases." }, 503, cors.headers);
+      if (queryError) {
+        console.error("[doxi-chat] Learning dashboard query failed:", {
+          total: totalResult.error?.code || null,
+          pending: pendingResult.error?.code || null,
+          trained: trainedResult.error?.code || null,
+          dismissed: dismissedResult.error?.code || null,
+          contexts: contextResult.error?.code || null,
+        });
+        return jsonResponse({ error: "Не удалось загрузить журнал обучения. Проверьте серверный доступ к doxi_learning_cases." }, 503, cors.headers);
+      }
       const contexts = [...new Set<string>((contextResult.data || []).map((row: any) => String(row.context_type || "general")))];
       return jsonResponse({
         stats: {
@@ -4854,10 +4871,13 @@ Deno.serve(async (req: Request) => {
     }
     if (action === "admin_learning_list" || action === "admin_learning_export") {
       const limit = action === "admin_learning_export" ? 5_000 : 300;
-      const { data, error } = await userDataClient.from("doxi_learning_cases")
+      const { data, error } = await learningJournalClient.from("doxi_learning_cases")
         .select("id,question,assistant_answer,reason_type,context_type,status,source,page_name,occurrences,first_seen_at,last_seen_at,solution_title,solution_content,knowledge_category")
         .order("last_seen_at", { ascending: false }).limit(limit);
-      if (error) return jsonResponse({ error: "Не удалось загрузить журнал обучения. Проверьте SQL-миграцию doxi_learning_cases." }, 503, cors.headers);
+      if (error) {
+        console.error("[doxi-chat] Learning list query failed:", error.code || "DB_ERROR");
+        return jsonResponse({ error: "Не удалось загрузить журнал обучения. Проверьте серверный доступ к doxi_learning_cases." }, 503, cors.headers);
+      }
       return jsonResponse({ cases: data || [], limit, truncated: (data || []).length >= limit }, 200, cors.headers);
     }
     if (action === "admin_learning_add_case") {
@@ -4865,7 +4885,7 @@ Deno.serve(async (req: Request) => {
       const contextType = String(body.context_type || "general");
       if (question.length < 8) return jsonResponse({ error: "Вопрос должен содержать не менее 8 символов." }, 400, cors.headers);
       if (!Object.hasOwn(LEARNING_CONTEXT_LABELS, contextType)) return jsonResponse({ error: "Выберите корректный тип контекста." }, 400, cors.headers);
-      const { data, error } = await userDataClient.from("doxi_learning_cases").insert({
+      const { data, error } = await learningJournalClient.from("doxi_learning_cases").insert({
         question, assistant_answer: "", reason_type: "manual", context_type: contextType,
         source: "manual", status: "pending", user_id: userId, user_role: role,
         page_name: "Управление Докси", occurrences: 1,
@@ -4877,7 +4897,7 @@ Deno.serve(async (req: Request) => {
     if (action === "admin_learning_dismiss_case") {
       const caseId = String(body.case_id || "");
       if (!UUID_PATTERN.test(caseId)) return jsonResponse({ error: "Некорректный идентификатор вопроса." }, 400, cors.headers);
-      const { data, error } = await userDataClient.from("doxi_learning_cases").update({ status: "dismissed", updated_at: new Date().toISOString() })
+      const { data, error } = await learningJournalClient.from("doxi_learning_cases").update({ status: "dismissed", updated_at: new Date().toISOString() })
         .eq("id", caseId).neq("status", "trained").select("id").maybeSingle();
       if (error || !data) return jsonResponse({ error: "Вопрос не найден или уже загружен в базу знаний." }, 409, cors.headers);
       return jsonResponse({ ok: true }, 200, cors.headers);
@@ -4922,7 +4942,7 @@ Deno.serve(async (req: Request) => {
         prepared.push({ caseId, title, category, contextType, questions, content, documentContent, sourceName: `doxi-learning:${caseId}` });
       }
       const caseIds = prepared.map((item) => item.caseId);
-      const { data: matchedCases, error: matchedError } = await userDataClient.from("doxi_learning_cases")
+      const { data: matchedCases, error: matchedError } = await learningJournalClient.from("doxi_learning_cases")
         .select("id,question,status,knowledge_document_id").in("id", caseIds);
       if (matchedError) return jsonResponse({ error: "Не удалось сопоставить решения с вопросами журнала." }, 503, cors.headers);
       const caseMap = new Map((matchedCases || []).map((row: any) => [String(row.id), row]));
@@ -4964,7 +4984,7 @@ Deno.serve(async (req: Request) => {
           documentId = String(insertedDoc.id);
           imported++;
         }
-        const { error: caseUpdateError } = await userDataClient.from("doxi_learning_cases").update({
+        const { error: caseUpdateError } = await learningJournalClient.from("doxi_learning_cases").update({
           status: "trained", solution_title: item.title, solution_content: item.content,
           knowledge_category: item.category, context_type: item.contextType, knowledge_document_id: documentId,
           learned_at: new Date().toISOString(), updated_at: new Date().toISOString(),
@@ -5885,7 +5905,7 @@ Deno.serve(async (req: Request) => {
       });
       if (assistantInsertError) console.error("[doxi-chat] Assistant message logging failed:", assistantInsertError.code || "DB_ERROR");
       try {
-        await captureLearningCase(userDataClient, {
+        await captureLearningCase(learningJournalClient, {
           userId, role, page, conversationId, questionMessageId: insertedUserMessage?.id,
           question: effectiveUserText, answer: safeResponse, liveContext, selectedTableContext,
         });
