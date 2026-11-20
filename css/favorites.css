@@ -1,1 +1,10 @@
-.favorite-star-btn{border:0;background:transparent;color:#94a3b8;font-size:25px;line-height:1;padding:3px 7px;cursor:pointer;border-radius:7px;transition:color .15s ease,background .15s ease;flex:0 0 auto}.favorite-star-btn:hover{background:rgba(234,179,8,.10);color:#ca8a04}.favorite-star-btn.is-favorite{color:#d4a017;text-shadow:0 1px 2px rgba(180,120,0,.22)}.favorite-filter-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--color-border,#cbd5e1);border-radius:8px;background:transparent;color:var(--color-text-main,#334155);font:inherit;font-size:13px;white-space:nowrap;cursor:pointer}.favorite-filter-btn .favorite-filter-star{font-size:18px;line-height:1;color:#94a3b8}.favorite-filter-btn.is-active{border-color:rgba(212,160,23,.55);background:rgba(212,160,23,.08)}.favorite-filter-btn.is-active .favorite-filter-star{color:#d4a017}.favorite-filter-mount{display:flex;align-items:center;gap:6px}
+.favorite-star-btn{border:0;background:transparent;color:#94a3b8;font-size:25px;line-height:1;padding:3px 7px;cursor:pointer;border-radius:7px;transition:color .15s ease,background .15s ease;flex:0 0 auto}
+.favorite-star-btn:hover{background:rgba(234,179,8,.10);color:#ca8a04}
+.favorite-star-btn.is-favorite{color:#d4a017;text-shadow:0 1px 2px rgba(180,120,0,.22)}
+.favorite-filter-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:34px;min-width:36px;padding:0;border:1px solid var(--color-border,#cbd5e1);border-radius:8px;background:transparent;color:var(--color-text-main,#334155);font:inherit;font-size:22px;line-height:1;white-space:nowrap;cursor:pointer;transition:border-color .15s ease,background .15s ease,color .15s ease}
+.favorite-filter-btn .favorite-filter-star{display:block;font-size:21px;line-height:1;color:#94a3b8}
+.favorite-filter-btn:hover{border-color:rgba(212,160,23,.55);background:rgba(234,179,8,.08)}
+.favorite-filter-btn.is-active{border-color:rgba(212,160,23,.65);background:rgba(212,160,23,.10)}
+.favorite-filter-btn.is-active .favorite-filter-star{color:#d4a017;text-shadow:0 1px 2px rgba(180,120,0,.18)}
+.favorite-filter-btn:focus-visible{outline:2px solid var(--color-primary,#3b82f6);outline-offset:2px}
+.favorite-filter-mount{display:flex;align-items:center;gap:6px}
