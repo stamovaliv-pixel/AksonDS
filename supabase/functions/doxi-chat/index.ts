@@ -3014,7 +3014,7 @@ async function handleMySupplierVerificationReminder(
   if (!remindersEnabled) return { response: "Функция напоминаний Докси временно отключена суперадминистратором." };
   if (!liveDataEnabled) return { response: "Чтение актуальных данных DockSlot отключено в настройках Докси. Напоминание по записи не создано." };
   if (!detailsEnabled) return { response: "Чтобы поставить напоминание перед конкретным слотом, включите чтение подробных записей в настройках Докси." };
-  for (const [tableName, operation] of [["doxi_user_memory", "select"], ["bookings", "select"], ["booking_verification", "select"], ["admin_personal_reminders", "insert"], ["admin_personal_reminders", "select"]] as Array<[string, DoxiTableOperation]>) {
+  for (const [tableName, operation] of [["bookings", "select"], ["booking_verification", "select"], ["admin_personal_reminders", "insert"], ["admin_personal_reminders", "select"]] as Array<[string, DoxiTableOperation]>) {
     if (!hasDoxiTablePermission(tablePermissions, tableName, operation)) return { response: `Для этого действия требуется разрешить ${operation === "select" ? "чтение" : "создание"} таблицы ${tableName} в матрице доступа Докси.` };
   }
   let state = await getMySupplierMemoryState(adminClient, userId, tablePermissions);
@@ -3495,14 +3495,43 @@ function buildMemoryContext(rows: any[], question: string, extraTerms: string[] 
   }
   return output.length > 170 ? output : null;
 }
+function isLegacyMySupplierMemoryRow(row: any): boolean {
+  const title = String(row?.title || "").trim().toLocaleLowerCase("ru-RU");
+  const content = String(row?.content || "");
+
+  // Canonical rows written by the former personal supplier-list implementation.
+  if (title.startsWith("мой поставщик: ") || content.includes("doxi-my-supplier-v1")) return true;
+
+  // Older installations used one aggregate row for the whole list. Match only
+  // the known list titles so ordinary notes that merely mention suppliers stay.
+  return new Set([
+    "мои поставщики",
+    "мой список поставщиков",
+    "личный список поставщиков",
+    "список моих поставщиков",
+  ]).has(title);
+}
+
 async function listUserMemory(adminClient: any, userId: string, tablePermissions: DoxiTablePermissionMap): Promise<any[]> {
   if (!hasDoxiTablePermission(tablePermissions, "doxi_user_memory", "select")) return [];
   const { data, error } = await adminClient.from("doxi_user_memory")
     .select("id,title,category,content,importance,created_at,updated_at")
     .eq("user_id", userId).order("importance", { ascending: false })
-    .order("updated_at", { ascending: false }).limit(MAX_USER_MEMORY_ITEMS);
+    .order("updated_at", { ascending: false }).limit(1_000);
   if (error) throw new Error("Не удалось загрузить личную память. Проверьте миграцию Докси v1.10.");
-  return data || [];
+
+  // Never put the former supplier directory into personal-memory UI or prompt.
+  // Filter before applying the 50-item limit so legacy rows do not consume slots.
+  return (data || []).filter((row: any) => !isLegacyMySupplierMemoryRow(row)).slice(0, MAX_USER_MEMORY_ITEMS);
+}
+
+async function countPersonalMemoryRows(adminClient: any, userId: string): Promise<number> {
+  // The memory table is capped at 50 ordinary entries. Read enough rows to
+  // exclude old supplier-list records while preserving the existing quota.
+  const { data, error } = await adminClient.from("doxi_user_memory")
+    .select("id,title,content").eq("user_id", userId).limit(1_000);
+  if (error) throw new Error("Не удалось проверить объём личной памяти.");
+  return (data || []).filter((row: any) => !isLegacyMySupplierMemoryRow(row)).length;
 }
 
 async function handleMemoryCommand(adminClient: any, userId: string, text: string, conversationId: string, tablePermissions: DoxiTablePermissionMap): Promise<{ response: string } | null> {
@@ -3512,9 +3541,8 @@ async function handleMemoryCommand(adminClient: any, userId: string, text: strin
     if (content.length < 5) return { response: "Укажите, пожалуйста, что именно сохранить. Например: «Запомни: предпочитаю короткие отчёты с цифрами»." };
     if (containsSensitiveMemoryData(content)) return { response: "Я не сохраняю пароли, ключи, токены, финансовые реквизиты и чувствительные личные сведения. Могу запомнить рабочие предпочтения, договорённости и задачи без таких данных." };
     if (!hasDoxiTablePermission(tablePermissions, "doxi_user_memory", "insert")) return { response: "Сохранение личной памяти запрещено матрицей доступа Докси." };
-    const { count, error: countError } = await adminClient.from("doxi_user_memory").select("id", { count: "exact", head: true }).eq("user_id", userId);
-    if (countError) throw new Error("Не удалось проверить объём личной памяти. Проверьте миграцию Докси v1.10.");
-    if (Number(count || 0) >= MAX_USER_MEMORY_ITEMS) return { response: `Личная память заполнена: максимум ${MAX_USER_MEMORY_ITEMS} записей. Удали устаревшую запись или отредактируй её на странице управления Докси.` };
+    const personalMemoryCount = await countPersonalMemoryRows(adminClient, userId);
+    if (personalMemoryCount >= MAX_USER_MEMORY_ITEMS) return { response: `Личная память заполнена: максимум ${MAX_USER_MEMORY_ITEMS} записей. Удали устаревшую запись или отредактируй её на странице управления Докси.` };
     const category = inferMemoryCategory(content);
     const title = memoryTitleFromContent(content);
     const { data, error } = await adminClient.from("doxi_user_memory").insert({
@@ -3742,72 +3770,16 @@ async function loadSupplierProfiles(adminClient: any, tablePermissions: DoxiTabl
 }
 
 async function upsertMySupplierProfiles(
-  adminClient: any, userId: string, profiles: any[], conversationId: string,
-  tablePermissions: DoxiTablePermissionMap,
+  _adminClient: any, _userId: string, _profiles: any[], _conversationId: string,
+  _tablePermissions: DoxiTablePermissionMap,
 ): Promise<{ added: number; updated: number; error: string | null }> {
-  if (!hasDoxiTablePermission(tablePermissions, "doxi_user_memory", "select")) {
-    return { added: 0, updated: 0, error: "Чтение личной памяти запрещено матрицей доступа Докси." };
-  }
-  const state = await getMySupplierMemoryState(adminClient, userId, tablePermissions);
-  const byProfileId = new Map(state.entries.map((entry) => [entry.profile_id, entry]));
-  const newProfiles: any[] = [];
-  const updates: Array<{ entry: MySupplierEntry; profile: any }> = [];
-  for (const profile of profiles) {
-    const profileId = String(profile?.id || "").trim();
-    const companyName = String(profile?.company_name || "").trim();
-    if (!profileId || !companyName) continue;
-    const existing = byProfileId.get(profileId);
-    if (existing) {
-      if (existing.company_name !== companyName || existing.inn !== String(profile.inn || "").replace(/\D/gu, "")) {
-        updates.push({ entry: existing, profile });
-      }
-    } else if (!newProfiles.some((item) => String(item.id) === profileId)) {
-      newProfiles.push(profile);
-    }
-  }
-  if (newProfiles.length && !hasDoxiTablePermission(tablePermissions, "doxi_user_memory", "insert")) {
-    return { added: 0, updated: 0, error: "Добавление записей в личную память запрещено матрицей доступа Докси." };
-  }
-  if (updates.length && !hasDoxiTablePermission(tablePermissions, "doxi_user_memory", "update")) {
-    // Existing canonical records stay valid even if the matrix disallows refreshing their cached label.
-    updates.length = 0;
-  }
-  if (state.rows.length + newProfiles.length > MAX_USER_MEMORY_ITEMS) {
-    return { added: 0, updated: 0, error: `В личной памяти достигнут лимит ${MAX_USER_MEMORY_ITEMS} записей. Удалите старые записи или освободите место.` };
-  }
-  let updated = 0;
-  for (const item of updates) {
-    const profile = item.profile;
-    const companyName = String(profile.company_name || item.entry.company_name).trim();
-    const inn = String(profile.inn || "").replace(/\D/gu, "");
-    const content = JSON.stringify({ schema: "doxi-my-supplier-v1", profile_id: item.entry.profile_id, company_name: companyName, inn, added_at: item.entry.added_at || new Date().toISOString() });
-    const { error } = await adminClient.from("doxi_user_memory").update({
-      title: `Мой поставщик: ${companyName}`.slice(0, 120), content, category: "profile", importance: 5, updated_at: new Date().toISOString(),
-    }).eq("id", item.entry.memory_id).eq("user_id", userId);
-    if (error) return { added: 0, updated, error: "Не удалось обновить сохранённые реквизиты поставщика в личной памяти." };
-    updated++;
-  }
-  let added = 0;
-  for (let index = 0; index < newProfiles.length; index += 20) {
-    const batch = newProfiles.slice(index, index + 20).map((profile) => {
-      const companyName = String(profile.company_name || "").trim();
-      const inn = String(profile.inn || "").replace(/\D/gu, "");
-      return {
-        user_id: userId,
-        title: `Мой поставщик: ${companyName}`.slice(0, 120),
-        category: "profile",
-        content: JSON.stringify({ schema: "doxi-my-supplier-v1", profile_id: String(profile.id), company_name: companyName, inn, added_at: new Date().toISOString() }),
-        importance: 5,
-        source_conversation_id: conversationId,
-      };
-    });
-    const { data, error } = await adminClient.from("doxi_user_memory").insert(batch).select("id");
-    if (error || !data || data.length !== batch.length) {
-      return { added, updated, error: "Не удалось полностью сохранить поставщиков в личной памяти. Проверьте список перед повторной отправкой." };
-    }
-    added += data.length;
-  }
-  return { added, updated, error: null };
+  // Legacy compatibility guard: supplier lists are no longer stored in
+  // doxi_user_memory. They are managed only via admin_favorite_suppliers.
+  return {
+    added: 0,
+    updated: 0,
+    error: "Избранные поставщики теперь управляются звёздочками на странице «Пользователи» и не сохраняются в личной памяти Докси.",
+  };
 }
 
 function isMySupplierScopeRequest(text: string): boolean {
@@ -4436,9 +4408,10 @@ Deno.serve(async (req: Request) => {
           const importance = Math.max(1, Math.min(5, Number.isInteger(body.importance) ? Number(body.importance) : 3));
           if (title.length < 2 || content.length < 5) return jsonResponse({ error: "Укажи название и содержание записи (не менее 5 символов)." }, 400, cors.headers);
           if (containsSensitiveMemoryData(`${title} ${content}`)) return jsonResponse({ error: "Нельзя сохранять пароли, ключи, токены, финансовые реквизиты и чувствительные личные сведения." }, 400, cors.headers);
-          const { count, error: countError } = await adminClient.from("doxi_user_memory").select("id", { count: "exact", head: true }).eq("user_id", userId);
-          if (countError) return jsonResponse({ error: "Не удалось проверить лимит личной памяти." }, 503, cors.headers);
-          if (Number(count || 0) >= MAX_USER_MEMORY_ITEMS) return jsonResponse({ error: `Достигнут лимит ${MAX_USER_MEMORY_ITEMS} записей личной памяти.` }, 409, cors.headers);
+          let personalMemoryCount = 0;
+          try { personalMemoryCount = await countPersonalMemoryRows(adminClient, userId); }
+          catch { return jsonResponse({ error: "Не удалось проверить лимит личной памяти." }, 503, cors.headers); }
+          if (personalMemoryCount >= MAX_USER_MEMORY_ITEMS) return jsonResponse({ error: `Достигнут лимит ${MAX_USER_MEMORY_ITEMS} записей личной памяти.` }, 409, cors.headers);
           const { data, error } = await adminClient.from("doxi_user_memory").insert({ user_id: userId, title, content, category, importance })
             .select("id,title,content,category,importance,created_at,updated_at").single();
           if (error || !data) return jsonResponse({ error: "Не удалось сохранить запись личной памяти." }, 503, cors.headers);
