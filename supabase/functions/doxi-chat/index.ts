@@ -237,6 +237,29 @@ function hasUserTablePrivilege(permissions: DoxiTablePermissionMap, tableName: s
   return permission[key] === true;
 }
 
+// Server-managed Doxi system tables are not exposed to the authenticated role.
+// Their access is controlled by the Super Admin matrix and executed only by adminClient.
+async function loadDoxiTablePermissions(adminClient: any): Promise<DoxiTablePermissionMap> {
+  const { data, error } = await adminClient.from("doxi_table_permissions")
+    .select("table_name,can_select,can_insert,can_update,can_delete,scope_mode,max_rows");
+  if (error) {
+    console.error("[doxi-chat] Doxi table access matrix unavailable:", error.code || "DB_ERROR");
+    return new Map(); // Fail closed: missing matrix grants no system-table access.
+  }
+  return new Map((data || []).map((row: any) => [String(row.table_name), row as DoxiTablePermission]));
+}
+
+function hasDoxiTablePermission(permissions: DoxiTablePermissionMap, tableName: string, operation: DoxiTableOperation): boolean {
+  const definition = DOXI_TABLE_CATALOG_BY_NAME.get(tableName);
+  const permission = permissions.get(tableName);
+  if (!definition || !permission) return false;
+  if (definition.read_locked && operation === "select") return false;
+  if (definition.write_locked && operation !== "select") return false;
+  if (definition.read_only && operation !== "select") return false;
+  if (operation !== "select" && !DOXI_SUPPORTED_WRITES.get(tableName)?.has(operation)) return false;
+  return permission[`can_${operation}`] === true;
+}
+
 function detectRequestedDoxiTables(text: string): string[] {
   const value = String(text || "").toLocaleLowerCase("ru-RU");
   const found = new Set<string>();
@@ -2234,7 +2257,7 @@ function parseAgentPlan(raw: string, accessibleSchema: DoxiAccessibleTable[] = [
     };
     const values = readObject(mutationRaw.values, operationColumns);
     const primaryKey = readObject(mutationRaw.primary_key, new Set<string>(primaryKeys));
-    const safeTable = schema && !["doxi_action_drafts", "doxi_generic_action_drafts", "doxi_learning_cases", "doxi_settings", "doxi_table_permissions", "doxi_generic_action_audit", "doxi_action_audit", "audit_log", "load_control_audit_legacy", "push_subscriptions"].includes(tableName);
+    const safeTable = schema && !["doxi_action_drafts", "doxi_generic_action_drafts", "doxi_settings", "doxi_table_permissions", "doxi_generic_action_audit", "doxi_action_audit", "audit_log", "load_control_audit_legacy", "push_subscriptions"].includes(tableName);
     const hasPrimaryKey = primaryKeys.length > 0 && primaryKeys.every((key) => Object.prototype.hasOwnProperty.call(primaryKey, key)
       && primaryKey[key] !== null && ["string", "number", "boolean"].includes(typeof primaryKey[key]));
     const insertableColumns = new Set((schema?.columns || []).filter((column: any) => column.can_insert === true && column.is_identity !== "YES" && column.is_generated !== "ALWAYS").map((column) => column.column_name));
@@ -2819,7 +2842,7 @@ async function prepareGenericTableMutation(
   accessibleSchema: DoxiAccessibleTable[],
 ): Promise<{ response: string; pending_action?: any }> {
   const schema = accessibleSchema.find((item) => item.table_name === mutation.table_name);
-  const forbiddenTables = new Set(["doxi_action_drafts", "doxi_generic_action_drafts", "doxi_learning_cases", "doxi_settings", "doxi_table_permissions", "doxi_generic_action_audit", "doxi_action_audit", "audit_log", "load_control_audit_legacy", "push_subscriptions"]);
+  const forbiddenTables = new Set(["doxi_action_drafts", "doxi_generic_action_drafts", "doxi_settings", "doxi_table_permissions", "doxi_generic_action_audit", "doxi_action_audit", "audit_log", "load_control_audit_legacy", "push_subscriptions"]);
   if (!schema || forbiddenTables.has(mutation.table_name)) return { response: "Не могу подготовить операцию: таблица недоступна в контексте вашей сессии или относится к защищённым внутренним данным." };
   const permission = mutation.operation === "insert" ? schema.can_insert : mutation.operation === "update" ? schema.can_update : schema.can_delete;
   if (!permission) return { response: `PostgreSQL не предоставил текущему пользователю право ${mutation.operation.toUpperCase()} для таблицы ${mutation.table_name}.` };
@@ -2870,7 +2893,7 @@ async function commitGenericTableMutation(
   const actualHash = await sha256Hex(confirmationToken);
   if (!expectedHash || !constantTimeStringEqual(expectedHash, actualHash)) return { ok: false, response: "Подтверждение не прошло проверку. Операция не выполнена." };
   if (!schema || !["insert", "update", "delete"].includes(operation)
-      || !["doxi_action_drafts", "doxi_generic_action_drafts", "doxi_learning_cases", "doxi_settings", "doxi_table_permissions", "doxi_generic_action_audit", "doxi_action_audit", "audit_log", "load_control_audit_legacy", "push_subscriptions"].every((name) => name !== tableName)) {
+      || !["doxi_action_drafts", "doxi_generic_action_drafts", "doxi_settings", "doxi_table_permissions", "doxi_generic_action_audit", "doxi_action_audit", "audit_log", "load_control_audit_legacy", "push_subscriptions"].every((name) => name !== tableName)) {
     return { ok: false, response: "Таблица или операция больше не доступны в текущем пользовательском контексте." };
   }
   const permitted = operation === "insert" ? schema.can_insert : operation === "update" ? schema.can_update : schema.can_delete;
@@ -3572,7 +3595,7 @@ function detectLearningReason(question: string, answer: string, liveContext: str
   if (/(уточните|нужно уточнить|не указали|не указана дата|не хватает контекста|не передали контекст)/iu.test(a) && q.length < 500) return "missing_context";
   return null;
 }
-async function captureLearningCase(learningJournalClient: any, details: {
+async function captureLearningCase(adminClient: any, details: {
   userId: string; role: string; page: string; conversationId: string; questionMessageId: unknown;
   question: string; answer: string; liveContext: string | null; selectedTableContext: string | null;
 }): Promise<void> {
@@ -3582,7 +3605,7 @@ async function captureLearningCase(learningJournalClient: any, details: {
   const answer = redactLearningText(details.answer, 3_500);
   if (!question || !answer) return;
   const now = new Date().toISOString();
-  const { error } = await learningJournalClient.from("doxi_learning_cases").insert({
+  const { error } = await adminClient.from("doxi_learning_cases").insert({
     question_message_id: details.questionMessageId,
     conversation_id: details.conversationId,
     user_id: details.userId,
@@ -3669,9 +3692,9 @@ function rankKnowledgeDocs(docs: any[], question: string, extraTerms: string[] =
     return { ...doc, score };
   }).sort((a,b) => b.score - a.score || String(b.updated_at || "").localeCompare(String(a.updated_at || "")));
 }
-async function getKnowledgeContext(userDataClient: any, question: string, userTablePermissions: DoxiTablePermissionMap, extraTerms: string[] = []): Promise<string | null> {
-  if (!hasUserTablePrivilege(userTablePermissions, "doxi_knowledge_documents", "select")) return null;
-  const { data, error } = await userDataClient.from("doxi_knowledge_documents")
+async function getKnowledgeContext(adminClient: any, question: string, tablePermissions: DoxiTablePermissionMap, extraTerms: string[] = []): Promise<string | null> {
+  if (!hasDoxiTablePermission(tablePermissions, "doxi_knowledge_documents", "select")) return null;
+  const { data, error } = await adminClient.from("doxi_knowledge_documents")
     .select("title,category,content,source_name,updated_at").eq("is_active", true)
     .order("updated_at", { ascending: false }).limit(100);
   if (error) {
@@ -4048,8 +4071,11 @@ function isMySupplierScopeRequest(text: string): boolean {
 // current user's admin_favorite_suppliers rows; dialogue text never grants access.
 function isMySupplierFollowupRequest(text: string): boolean {
   const value = String(text || "").toLocaleLowerCase("ru-RU");
-  const refersBack = /(?:из\s+них|по\s+ним|у\s+них|этих?\s+поставщик[а-яё]*|кто\s+из\s+них|какие\s+из\s+них)/iu.test(value);
-  const asksOperational = /(?:запис|бронир|слот|заявк|прибыл|приехал|верификац|следующ[а-яё]*\s+недел|эт[а-яё]*\s+недел)/iu.test(value);
+  // Pronouns and elliptical date questions must inherit the favorite-supplier
+  // scope only when hasPriorMySupplierListContext() confirms a real list in
+  // this same conversation. This covers «в какой день они записаны?».
+  const refersBack = /(?:из\s+них|по\s+ним|у\s+них|(?:^|[^а-яё])они(?:$|[^а-яё])|(?:^|[^а-яё])их(?:$|[^а-яё])|(?:^|[^а-яё])эти(?:$|[^а-яё])|этих?\s+поставщик[а-яё]*|кто\s+из\s+них|какие\s+из\s+них)/iu.test(value);
+  const asksOperational = /(?:запис|брониров|слот|заявк|прибыл|приехал|верификац|следующ[а-яё]*\s+недел|эт[а-яё]*\s+недел|когда|день|дат[а-яё]*|числ[а-яё]*)/iu.test(value);
   return refersBack && asksOperational;
 }
 
@@ -4098,8 +4124,8 @@ function classifyMySupplierReportRequest(text: string, inheritedFavoriteScope = 
   if (/(?:верификац|верифицир|проверен)/iu.test(value)
     && /(?:кто|какие|список|покажи|не\s+име|не\s+верифицир|не\s+проверен|без\s+верификац|не\s+прош|требу)/iu.test(value)) return "unverified";
   if (/(?:не\s+прибыл|не\s+приехал|не\s+заехал|без\s+отметк[а-яё]*\s+(?:о\s+)?прибыт|ещ[её]\s+не\s+прибыл|пока\s+не\s+прибыл)/iu.test(value)) return "not_arrived";
-  if (/(?:записан|записал[а-яё]*|записывал|есть\s+запис|слот|бронир|заявк)/iu.test(value)
-    && /(?:кто|какие|покажи|список|перечисл|есть)/iu.test(value)) return "booked";
+  if (/(?:запис\w*|брони\w*|слот\w*|заявк\w*|приезжа\w*)/iu.test(value)
+    && /(?:кто|какой|какая|какие|каким|какими|какую|покажи|список|перечисл|есть|когда|день|дням|дат[а-яё]*|числ[а-яё]*)/iu.test(value)) return "booked";
   return null;
 }
 
@@ -4554,10 +4580,8 @@ Deno.serve(async (req: Request) => {
     }
 
     // Business-data reads and the universal CRUD engine use the caller's JWT.
-    // The service-role client is reserved for Doxi internal control-plane tables,
-    // protected by server-side action checks. The learning journal is a specific
-    // exception: SQL explicitly revokes it from authenticated and grants service_role only.
-    // Never route normal DockSlot tables, user notes, reminders, supplier data or generic CRUD here.
+    // The server-only client below remains for Doxi internals and the existing
+    // transactional booking RPC orchestration; it is not the generic data client.
     const userDataClient = createClient(supabaseUrl, publishableKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       global: { headers: { Authorization: `Bearer ${accessToken}` } },
@@ -4566,12 +4590,6 @@ Deno.serve(async (req: Request) => {
     const adminClient = createClient(supabaseUrl, secretKey, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     });
-    // Narrow service-role adapter for the internal learning queue only.
-    // This table is intentionally denied to anon/authenticated by migration 20261118_doxi_learning_loop.sql.
-    // Ordinary DockSlot/business data and user-context CRUD MUST continue through userDataClient.
-    const learningJournalClient = {
-      from: (tableName: "doxi_learning_cases") => adminClient.from(tableName),
-    };
     const { data: profile, error: profileError } = await adminClient
       .from("profiles").select("role, is_blocked, company_name").eq("id", userId).maybeSingle();
     if (profileError) {
@@ -4641,6 +4659,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Loaded once per request. A missing or unavailable matrix grants no table access.
+    const tablePermissions = await loadDoxiTablePermissions(adminClient);
 
     if (action === "get_chat_access") {
       const allowedRoles = normalizeAllowedRoles(settingsRow.allowed_roles) || ["super_admin"];
@@ -4843,23 +4862,14 @@ Deno.serve(async (req: Request) => {
 
     if (action === "admin_learning_dashboard") {
       const [totalResult, pendingResult, trainedResult, dismissedResult, contextResult] = await Promise.all([
-        learningJournalClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }),
-        learningJournalClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        learningJournalClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }).eq("status", "trained"),
-        learningJournalClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }).eq("status", "dismissed"),
-        learningJournalClient.from("doxi_learning_cases").select("context_type").eq("status", "trained").limit(5_000),
+        adminClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }),
+        adminClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        adminClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }).eq("status", "trained"),
+        adminClient.from("doxi_learning_cases").select("id", { count: "exact", head: true }).eq("status", "dismissed"),
+        adminClient.from("doxi_learning_cases").select("context_type").eq("status", "trained").limit(5_000),
       ]);
       const queryError = totalResult.error || pendingResult.error || trainedResult.error || dismissedResult.error || contextResult.error;
-      if (queryError) {
-        console.error("[doxi-chat] Learning dashboard query failed:", {
-          total: totalResult.error?.code || null,
-          pending: pendingResult.error?.code || null,
-          trained: trainedResult.error?.code || null,
-          dismissed: dismissedResult.error?.code || null,
-          contexts: contextResult.error?.code || null,
-        });
-        return jsonResponse({ error: "Не удалось загрузить журнал обучения. Проверьте серверный доступ к doxi_learning_cases." }, 503, cors.headers);
-      }
+      if (queryError) return jsonResponse({ error: "Не удалось загрузить журнал обучения. Проверьте SQL-миграцию doxi_learning_cases." }, 503, cors.headers);
       const contexts = [...new Set<string>((contextResult.data || []).map((row: any) => String(row.context_type || "general")))];
       return jsonResponse({
         stats: {
@@ -4871,13 +4881,10 @@ Deno.serve(async (req: Request) => {
     }
     if (action === "admin_learning_list" || action === "admin_learning_export") {
       const limit = action === "admin_learning_export" ? 5_000 : 300;
-      const { data, error } = await learningJournalClient.from("doxi_learning_cases")
+      const { data, error } = await adminClient.from("doxi_learning_cases")
         .select("id,question,assistant_answer,reason_type,context_type,status,source,page_name,occurrences,first_seen_at,last_seen_at,solution_title,solution_content,knowledge_category")
         .order("last_seen_at", { ascending: false }).limit(limit);
-      if (error) {
-        console.error("[doxi-chat] Learning list query failed:", error.code || "DB_ERROR");
-        return jsonResponse({ error: "Не удалось загрузить журнал обучения. Проверьте серверный доступ к doxi_learning_cases." }, 503, cors.headers);
-      }
+      if (error) return jsonResponse({ error: "Не удалось загрузить журнал обучения. Проверьте SQL-миграцию doxi_learning_cases." }, 503, cors.headers);
       return jsonResponse({ cases: data || [], limit, truncated: (data || []).length >= limit }, 200, cors.headers);
     }
     if (action === "admin_learning_add_case") {
@@ -4885,7 +4892,7 @@ Deno.serve(async (req: Request) => {
       const contextType = String(body.context_type || "general");
       if (question.length < 8) return jsonResponse({ error: "Вопрос должен содержать не менее 8 символов." }, 400, cors.headers);
       if (!Object.hasOwn(LEARNING_CONTEXT_LABELS, contextType)) return jsonResponse({ error: "Выберите корректный тип контекста." }, 400, cors.headers);
-      const { data, error } = await learningJournalClient.from("doxi_learning_cases").insert({
+      const { data, error } = await adminClient.from("doxi_learning_cases").insert({
         question, assistant_answer: "", reason_type: "manual", context_type: contextType,
         source: "manual", status: "pending", user_id: userId, user_role: role,
         page_name: "Управление Докси", occurrences: 1,
@@ -4897,7 +4904,7 @@ Deno.serve(async (req: Request) => {
     if (action === "admin_learning_dismiss_case") {
       const caseId = String(body.case_id || "");
       if (!UUID_PATTERN.test(caseId)) return jsonResponse({ error: "Некорректный идентификатор вопроса." }, 400, cors.headers);
-      const { data, error } = await learningJournalClient.from("doxi_learning_cases").update({ status: "dismissed", updated_at: new Date().toISOString() })
+      const { data, error } = await adminClient.from("doxi_learning_cases").update({ status: "dismissed", updated_at: new Date().toISOString() })
         .eq("id", caseId).neq("status", "trained").select("id").maybeSingle();
       if (error || !data) return jsonResponse({ error: "Вопрос не найден или уже загружен в базу знаний." }, 409, cors.headers);
       return jsonResponse({ ok: true }, 200, cors.headers);
@@ -4906,7 +4913,7 @@ Deno.serve(async (req: Request) => {
       if (!uploadFile) return jsonResponse({ error: "Выберите JSON-файл с решениями." }, 400, cors.headers);
       if (uploadFile.size <= 0 || uploadFile.size > 2 * 1024 * 1024) return jsonResponse({ error: "Файл решений должен быть размером от 1 байта до 2 МБ." }, 413, cors.headers);
       if (!String(uploadFile.name || "").toLowerCase().endsWith(".json")) return jsonResponse({ error: "Для загрузки решений используйте JSON-файл." }, 415, cors.headers);
-      if (!hasUserTablePrivilege(userTablePermissions, "doxi_knowledge_documents", "insert")) return jsonResponse({ error: "Добавление материалов не разрешено PostgreSQL для текущего пользователя." }, 403, cors.headers);
+      if (!hasDoxiTablePermission(tablePermissions, "doxi_knowledge_documents", "insert")) return jsonResponse({ error: "Добавление материалов не разрешено PostgreSQL для текущего пользователя." }, 403, cors.headers);
       let importedText = "";
       try { importedText = new TextDecoder("utf-8", { fatal: true }).decode(await uploadFile.arrayBuffer()); }
       catch { return jsonResponse({ error: "Файл должен быть в кодировке UTF-8." }, 415, cors.headers); }
@@ -4942,17 +4949,17 @@ Deno.serve(async (req: Request) => {
         prepared.push({ caseId, title, category, contextType, questions, content, documentContent, sourceName: `doxi-learning:${caseId}` });
       }
       const caseIds = prepared.map((item) => item.caseId);
-      const { data: matchedCases, error: matchedError } = await learningJournalClient.from("doxi_learning_cases")
+      const { data: matchedCases, error: matchedError } = await adminClient.from("doxi_learning_cases")
         .select("id,question,status,knowledge_document_id").in("id", caseIds);
       if (matchedError) return jsonResponse({ error: "Не удалось сопоставить решения с вопросами журнала." }, 503, cors.headers);
       const caseMap = new Map((matchedCases || []).map((row: any) => [String(row.id), row]));
       const missingCase = caseIds.find((id) => !caseMap.has(id));
       if (missingCase) return jsonResponse({ error: "В журнале не найден один из case_id. Скачайте свежий шаблон решений и повторите импорт." }, 409, cors.headers);
       if ((matchedCases || []).some((row: any) => row.status === "dismissed")) return jsonResponse({ error: "В файле есть вопрос, который уже перемещён в архив. Скачайте свежий шаблон решений." }, 409, cors.headers);
-      const { count: docsCount, error: docsCountError } = await userDataClient.from("doxi_knowledge_documents").select("id", { count: "exact", head: true });
+      const { count: docsCount, error: docsCountError } = await adminClient.from("doxi_knowledge_documents").select("id", { count: "exact", head: true });
       if (docsCountError) return jsonResponse({ error: "Не удалось проверить лимит базы знаний." }, 503, cors.headers);
       const sourceNames = prepared.map((item) => item.sourceName);
-      const { data: existingLearningDocs, error: existingDocsError } = await userDataClient.from("doxi_knowledge_documents")
+      const { data: existingLearningDocs, error: existingDocsError } = await adminClient.from("doxi_knowledge_documents")
         .select("id,source_name,title,category,content").in("source_name", sourceNames);
       if (existingDocsError) return jsonResponse({ error: "Не удалось проверить уже загруженные решения." }, 503, cors.headers);
       const existingBySource = new Map<string, any>((existingLearningDocs || []).map((row: any) => [String(row.source_name), row] as [string, any]));
@@ -4974,7 +4981,7 @@ Deno.serve(async (req: Request) => {
           documentId = String(existingDoc.id);
           alreadyPresent++;
         } else {
-          const { data: insertedDoc, error: insertDocError } = await userDataClient.from("doxi_knowledge_documents").insert({
+          const { data: insertedDoc, error: insertDocError } = await adminClient.from("doxi_knowledge_documents").insert({
             title: item.title, category: item.category, content: item.documentContent, source_name: item.sourceName,
             created_by: userId, is_active: true, updated_at: new Date().toISOString(),
           }).select("id").single();
@@ -4984,7 +4991,7 @@ Deno.serve(async (req: Request) => {
           documentId = String(insertedDoc.id);
           imported++;
         }
-        const { error: caseUpdateError } = await learningJournalClient.from("doxi_learning_cases").update({
+        const { error: caseUpdateError } = await adminClient.from("doxi_learning_cases").update({
           status: "trained", solution_title: item.title, solution_content: item.content,
           knowledge_category: item.category, context_type: item.contextType, knowledge_document_id: documentId,
           learned_at: new Date().toISOString(), updated_at: new Date().toISOString(),
@@ -4995,14 +5002,14 @@ Deno.serve(async (req: Request) => {
     }
 
     if (action === "admin_list_knowledge") {
-      if (!hasUserTablePrivilege(userTablePermissions, "doxi_knowledge_documents", "select")) return jsonResponse({ error: "Чтение базы знаний не разрешено PostgreSQL для текущего пользователя." }, 403, cors.headers);
-      const { data, error } = await userDataClient.from("doxi_knowledge_documents")
+      if (!hasDoxiTablePermission(tablePermissions, "doxi_knowledge_documents", "select")) return jsonResponse({ error: "Чтение базы знаний не разрешено PostgreSQL для текущего пользователя." }, 403, cors.headers);
+      const { data, error } = await adminClient.from("doxi_knowledge_documents")
         .select("id,title,category,source_name,updated_at,is_active").order("updated_at", { ascending:false }).limit(100);
       if (error) return jsonResponse({ error:"Не удалось загрузить базу знаний. Проверьте миграцию v1.9.3." }, 503, cors.headers);
       return jsonResponse({ documents:(data || []).map((doc:any) => ({ ...doc, category_label: KNOWLEDGE_CATEGORY_LABELS[doc.category] || doc.category })) }, 200, cors.headers);
     }
     if (action === "admin_upload_knowledge") {
-      if (!hasUserTablePrivilege(userTablePermissions, "doxi_knowledge_documents", "insert")) return jsonResponse({ error: "Добавление документов не разрешено PostgreSQL для текущего пользователя." }, 403, cors.headers);
+      if (!hasDoxiTablePermission(tablePermissions, "doxi_knowledge_documents", "insert")) return jsonResponse({ error: "Добавление документов не разрешено PostgreSQL для текущего пользователя." }, 403, cors.headers);
       if (!uploadFile) return jsonResponse({ error:"Выберите файл базы знаний." }, 400, cors.headers);
       if (uploadFile.size <= 0 || uploadFile.size > MAX_KNOWLEDGE_UPLOAD_BYTES) return jsonResponse({ error:"Размер справочного файла должен быть от 1 байта до 1 МБ." }, 413, cors.headers);
       const fileName = String(uploadFile.name || "knowledge.txt").slice(0,180);
@@ -5021,20 +5028,20 @@ Deno.serve(async (req: Request) => {
       if (!Object.hasOwn(KNOWLEDGE_CATEGORY_LABELS, category)) return jsonResponse({ error:"Выбран неизвестный раздел базы знаний." }, 400, cors.headers);
       const requestedTitle = typeof body.title === "string" ? body.title.trim() : "";
       const title = (requestedTitle || fileName.replace(/\.[^.]+$/, "")).slice(0,120);
-      const { count, error: countError } = await userDataClient.from("doxi_knowledge_documents").select("id", { count:"exact", head:true });
+      const { count, error: countError } = await adminClient.from("doxi_knowledge_documents").select("id", { count:"exact", head:true });
       if (countError) return jsonResponse({ error:"Не удалось проверить размер базы знаний." }, 503, cors.headers);
       if (Number(count || 0) >= 100) return jsonResponse({ error:"В базе знаний достигнут лимит 100 документов. Удалите устаревшие материалы." }, 409, cors.headers);
-      const { data, error } = await userDataClient.from("doxi_knowledge_documents").insert({
+      const { data, error } = await adminClient.from("doxi_knowledge_documents").insert({
         title, category, content, source_name:fileName, created_by:userId, is_active:true, updated_at:new Date().toISOString()
       }).select("id,title,category,source_name,updated_at").single();
       if (error || !data) return jsonResponse({ error:"Не удалось сохранить документ базы знаний." }, 503, cors.headers);
       return jsonResponse({ ok:true, document:{ ...data, category_label:KNOWLEDGE_CATEGORY_LABELS[data.category] || data.category } }, 200, cors.headers);
     }
     if (action === "admin_delete_knowledge") {
-      if (!hasUserTablePrivilege(userTablePermissions, "doxi_knowledge_documents", "delete")) return jsonResponse({ error: "Удаление документов не разрешено PostgreSQL для текущего пользователя." }, 403, cors.headers);
+      if (!hasDoxiTablePermission(tablePermissions, "doxi_knowledge_documents", "delete")) return jsonResponse({ error: "Удаление документов не разрешено PostgreSQL для текущего пользователя." }, 403, cors.headers);
       const documentId = typeof body.document_id === "string" ? body.document_id : "";
       if (!UUID_PATTERN.test(documentId)) return jsonResponse({ error:"Некорректный идентификатор документа." }, 400, cors.headers);
-      const { data, error } = await userDataClient.from("doxi_knowledge_documents").delete().eq("id", documentId).select("id").maybeSingle();
+      const { data, error } = await adminClient.from("doxi_knowledge_documents").delete().eq("id", documentId).select("id").maybeSingle();
       if (error || !data) return jsonResponse({ error:"Документ не найден или не удалось его удалить." }, 404, cors.headers);
       return jsonResponse({ ok:true }, 200, cors.headers);
     }
@@ -5754,7 +5761,7 @@ Deno.serve(async (req: Request) => {
     let liveContext: string | null = null;
     let knowledgeContext: string | null = null;
     let personalMemoryContext: string | null = null;
-    try { knowledgeContext = await getKnowledgeContext(userDataClient, effectiveUserText, userTablePermissions, agentPlan?.search_terms || []); }
+    try { knowledgeContext = await getKnowledgeContext(adminClient, effectiveUserText, tablePermissions, agentPlan?.search_terms || []); }
     catch (error) { console.error("[doxi-chat] Knowledge query failed:", error?.name || "DB_ERROR"); }
     personalMemoryContext = await getUserMemoryContext(userDataClient, userId, effectiveUserText, userTablePermissions, agentPlan?.search_terms || []);
     const shouldFetchLiveData = asksAboutLiveData(effectiveUserText) || Boolean(agentPlan?.tools.includes("live_data_lookup")) || Boolean(agentPlan?.data_tables.length);
@@ -5905,7 +5912,7 @@ Deno.serve(async (req: Request) => {
       });
       if (assistantInsertError) console.error("[doxi-chat] Assistant message logging failed:", assistantInsertError.code || "DB_ERROR");
       try {
-        await captureLearningCase(learningJournalClient, {
+        await captureLearningCase(adminClient, {
           userId, role, page, conversationId, questionMessageId: insertedUserMessage?.id,
           question: effectiveUserText, answer: safeResponse, liveContext, selectedTableContext,
         });
