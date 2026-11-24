@@ -230,15 +230,14 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       decorateActive(menu.trigger, normalized);
     } else if (['operator', 'viewer'].includes(normalized)) {
-      // Для оператора и наблюдателя тема стоит первой, затем только их штатные пункты.
-      // Порядок остальных ролей не затрагивается.
-      nav.insertBefore(themeButton, right);
+      // У оператора уведомления остаются первым значком навигации; переключатель темы стоит в конце ряда.
       right.append(
         makeLink('admin_calendar.html', 'Календарь', 'calendar', 'admin_calendar.html'),
         ...(['operator'].includes(normalized) ? [makeLink('load_management.html', 'Управление нагрузкой', 'load', 'load_management.html')] : []),
         makeLink('help.html', 'Помощь', 'help', 'help.html'),
         logout
       );
+      nav.append(themeButton);
       decorateActive();
     } else if (normalized === 'supplier') {
       // Порядок навигации поставщика: тема, календарь, кабинет, помощь, выход.
@@ -256,6 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
       right.append(makeLink('admin_calendar.html', 'Календарь', 'calendar', 'admin_calendar.html'), logout);
       decorateActive();
     }
+    document.dispatchEvent(new CustomEvent('dockslot:navigation-ready', { detail: { role: normalized } }));
   };
 
   if (!sb) return;

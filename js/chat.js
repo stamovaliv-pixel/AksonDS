@@ -1,4 +1,4 @@
-/* DockSlot Messenger v1.2 — groups, six-month history, files, edits, forwarding and reactions. */
+/* DockSlot Messenger v1.4 — message actions, search, nav notifications and soft launcher glow. */
 document.addEventListener('DOMContentLoaded', () => {
   'use strict';
 
@@ -11,11 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const roleLabels = {
     admin: 'УТЗ',
     operator: 'РЦ',
-    super_admin: 'Суперадминистратор'
+    super_admin: 'Администратор'
   };
   const reactionDefs = [
-    ['heart', '🫶', 'Сердце'], ['like', '👍', 'Нравится'], ['cry', '🥹', 'Трогает'],
-    ['laugh', '😄', 'Смеюсь'], ['rofl', '🤣', 'Очень смешно'], ['strong', '💪', 'Сила'], ['fire', '🔥', 'Огонь']
+    ['heart', '❤️', 'Сердце'], ['like', '👍', 'Класс'], ['cry', '🥹', 'Трогает'],
+    ['laugh', '😄', 'Смеюсь'], ['rofl', '🤣', 'Ржу'], ['strong', '💪', 'Сила'], ['fire', '🔥', 'Огонь']
   ];
   const allowedExtensions = new Set(['jpg','jpeg','png','gif','webp','heic','heif','pdf','doc','docx','xls','xlsx','csv']);
   const mimeByExtension = {
@@ -24,7 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', csv:'text/csv'
   };
   const icons = {
-    chat: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.3 4.1A6.8 6.8 0 0 1 20 10.7a6.4 6.4 0 0 1-1.7 4.4l.4 2.7-2.7-.9a7.7 7.7 0 0 1-2.6.5"/><path d="M10.2 7.2c-3.7 0-6.7 2.6-6.7 5.8 0 1.5.6 2.8 1.7 3.9L4.4 20l3.2-1.1c.8.3 1.7.4 2.6.4 3.7 0 6.7-2.6 6.7-5.8s-3-6.3-6.7-6.3Z"/><path d="M8 12.8h.1m2.3 0h.1m2.3 0h.1"/></svg>',
+    chat: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.4a8.5 8.5 0 0 1-8.7 8.1 9.5 9.5 0 0 1-3.8-.8L3 20l1.4-4.3a7.8 7.8 0 0 1-1.1-4.3A8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 8.5 8.4Z"/><path d="M8 11.5h.1m3.9 0h.1m3.9 0h.1"/></svg>',
+    search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg>',
     send: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 3-7.2 18-3.6-7.2L3 10.2 21 3Z"/><path d="M10.2 13.8 15 9"/></svg>',
     close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>',
     attach: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12.5 14.8 5.7a3.2 3.2 0 0 1 4.5 4.5l-8.8 8.9a5 5 0 0 1-7.1-7.1l8.5-8.5"/></svg>',
@@ -41,6 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedFiles = [], selectedMessageIds = new Set(), selectedRecipientIds = new Set();
   let pickerBookings = [], pickerMode = '', presetGroupTitle = null, editingMessageId = null;
   let hasOlderMessages = false, olderMessagesLoading = false;
+  let chatSearchTimer = null, chatSearchRows = [];
   let realtimeChannel = null, pollTimer = null, bookingObserver = null;
   let isOpen = false, isSending = false, loading = false;
   let refreshDebounceTimer = null, queuedRefreshThread = false;
@@ -165,9 +167,9 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="ak-chat-sidebar-foot"><span class="ak-chat-online-dot"></span> Вы вошли как <strong>${escapeHtml(roleLabels[role] || role)}</strong></div>
         </aside>
         <section class="ak-chat-thread">
-          <header class="ak-chat-thread-head"><div class="ak-chat-thread-avatar" id="akChatThreadAvatar">${icons.group}</div><div class="ak-chat-thread-title"><strong id="akChatThreadName">Общий чат</strong><span id="akChatThreadMeta">Все сотрудники с доступом к мессенджеру</span></div><button type="button" class="ak-chat-icon-btn" id="akChatClose" aria-label="Закрыть чат">${icons.close}</button></header>
+          <header class="ak-chat-thread-head"><div class="ak-chat-thread-avatar" id="akChatThreadAvatar">${icons.group}</div><div class="ak-chat-thread-title"><strong id="akChatThreadName">Общий чат</strong><span id="akChatThreadMeta">Все сотрудники с доступом к мессенджеру</span></div><button type="button" class="ak-chat-icon-btn ak-chat-search-toggle" id="akChatSearchToggle" aria-label="Поиск по сообщениям" title="Поиск по сообщениям">${icons.search}</button><button type="button" class="ak-chat-icon-btn" id="akChatClose" aria-label="Закрыть чат">${icons.close}</button></header>
+          <div class="ak-chat-search-panel" id="akChatSearchPanel" hidden><div class="ak-chat-search-input-wrap"><input id="akChatSearchInput" type="search" placeholder="Найти сообщение в этой переписке…" autocomplete="off"><button type="button" id="akChatSearchClear" aria-label="Закрыть поиск">×</button></div><div class="ak-chat-search-results" id="akChatSearchResults" hidden></div></div>
           <div class="ak-chat-notice" id="akChatNotice" hidden></div>
-          <div class="ak-chat-selection-bar" id="akChatSelectionBar" hidden><span id="akChatSelectedCount">Выбрано: 0</span><button type="button" id="akChatForwardSelected">Переслать</button><button type="button" class="is-quiet" id="akChatClearSelection">Отмена</button></div>
           <div class="ak-chat-message-list" id="akChatMessageList" aria-live="polite"><div class="ak-chat-loading">Загружаем переписку…</div></div>
           <div class="ak-chat-edit-panel" id="akChatEditPanel" hidden><span>Редактирование сообщения</span><button type="button" id="akChatEditCancel">Отменить</button><button type="button" id="akChatEditSave">Сохранить</button></div>
           <div class="ak-chat-composer-wrap">
@@ -215,14 +217,15 @@ document.addEventListener('DOMContentLoaded', () => {
       renderPickerList(); updatePickerCount();
     }));
     $('akChatEditCancel').addEventListener('click', cancelEditing); $('akChatEditSave').addEventListener('click', saveEditedMessage);
-    $('akChatForwardSelected').addEventListener('click', () => openPicker('forward'));
-    $('akChatClearSelection').addEventListener('click', clearMessageSelection);
+    $('akChatSearchToggle').addEventListener('click', toggleChatSearch);
+    $('akChatSearchClear').addEventListener('click', closeChatSearch);
+    $('akChatSearchInput').addEventListener('input', onChatSearchInput);
+    $('akChatSearchInput').addEventListener('keydown', (event) => { if (event.key === 'Escape') closeChatSearch(); });
     overlay.querySelectorAll('[data-chat-filter]').forEach((button) => button.addEventListener('click', () => {
       overlay.querySelectorAll('[data-chat-filter]').forEach((item) => item.classList.toggle('is-active', item === button));
       renderConversationList(button.dataset.chatFilter || 'all');
     }));
     $('akChatMessageList').addEventListener('click', onMessageListClick);
-    $('akChatMessageList').addEventListener('change', onMessageListChange);
     document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && isOpen) { if (!$('akChatPicker').hidden) closePicker(); else closeChat(); } });
   };
 
@@ -334,7 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const unread=Number(unreadByConversation.get(conversation.id)||0);
       const typeLabel=conversation.kind==='group'?'Групповой чат':(conversation.kind==='general'?'Командный канал':(roleLabels[getOtherUser(conversation.id)?.role]||'Личная переписка'));
       button.innerHTML=`<span class="ak-chat-list-avatar ${conversation.kind==='general'?'is-general':''}">${avatar}</span><span class="ak-chat-conversation-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(preview?.body?.trim()||typeLabel)}</small></span><span class="ak-chat-conversation-meta"><time>${escapeHtml(preview?fmtTime(preview.created_at):'')}</time>${unread?`<b>${unread>99?'99+':unread}</b>`:''}</span>`;
-      button.addEventListener('click',async()=>{selectedConversationId=conversation.id;setSelectedBooking(null);clearMessageSelection();cancelEditing();closePicker();renderConversationList(filter);await renderSelectedConversation();});
+      button.addEventListener('click',async()=>{selectedConversationId=conversation.id;setSelectedBooking(null);clearMessageSelection();cancelEditing();closePicker();closeChatSearch();renderConversationList(filter);await renderSelectedConversation();});
       list.appendChild(button);
     });
   };
@@ -467,7 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const day=fmtDate(message.created_at);
       if(day!==previousDay){const divider=document.createElement('div');divider.className='ak-chat-date-divider';divider.innerHTML=`<span>${escapeHtml(day)}</span>`;list.appendChild(divider);previousDay=day;}
       const own=message.sender_id===user.id, bubble=document.createElement('article');
-      bubble.className=`ak-chat-message${own?' is-own':''}${selectedMessageIds.has(message.id)?' is-selected':''}`;
+      bubble.className=`ak-chat-message${own?' is-own':''}`;bubble.dataset.messageId=message.id;
       const sender=own?'Вы':displayName(message.sender_id), senderRole=own?roleLabels[role]:(roleLabels[usersById.get(message.sender_id)?.role]||'');
       const linked=message.booking_id?bookingsById.get(message.booking_id):null;
       const booking=message.booking_id?`<button type="button" class="ak-chat-message-booking" data-chat-message-booking="${escapeHtml(message.booking_id)}">▧ <span>${escapeHtml(linked?bookingLabel(linked):'Запись слота')}</span></button>`:'';
@@ -485,7 +488,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const forwarded=message.forwarded_from_message_id?'<div class="ak-chat-forwarded-label">↗ Пересланное сообщение</div>':'';
       const age=Date.now()-new Date(message.created_at).getTime();
       const canEdit=own&&age<=10*60*1000&&(String(message.body||'').length>0||fileRows.length>0);
-      const ownActions=own?`<button type="button" data-chat-edit="${message.id}" ${canEdit?'':'hidden'}>Изменить</button>`:'';
       const reactionRows = reactionDefs.map(([key, emoji, label]) => {
         const rows = reactions.filter((r) => r.message_id === message.id && r.reaction_key === key);
         const mine = rows.some((r) => r.user_id === user.id);
@@ -495,21 +497,19 @@ document.addEventListener('DOMContentLoaded', () => {
         `<button type="button" class="ak-chat-reaction${item.mine?' is-mine':''}" data-chat-reaction="${item.key}" data-chat-message="${message.id}" title="${item.label}" aria-pressed="${item.mine}">${item.emoji}<small>${item.count}</small></button>`
       ).join('');
       const reactionPickerHtml = `<div class="ak-chat-reaction-control">
-        <button type="button" class="ak-chat-reaction-trigger" data-chat-reaction-toggle aria-label="Добавить реакцию" title="Добавить реакцию">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.2s1.2 2 3.5 2 3.5-2 3.5-2M9 9.5h.01M15 9.5h.01"/></svg>
-        </button>
+        <button type="button" class="ak-chat-reaction-trigger" data-chat-reaction-toggle aria-label="Добавить реакцию" title="Добавить реакцию">🔥</button>
         <div class="ak-chat-reaction-menu" role="group" aria-label="Выбор реакции">
           ${reactionRows.map((item) => `<button type="button" data-chat-reaction="${item.key}" data-chat-message="${message.id}" title="${item.label}" aria-label="${item.label}">${item.emoji}</button>`).join('')}
         </div>
       </div>`;
+      const messageMenu=message.client_pending?'':`<div class="ak-chat-message-menu-wrap"><button type="button" class="ak-chat-message-menu-trigger" data-chat-message-menu-toggle aria-label="Действия с сообщением" title="Действия">···</button><div class="ak-chat-message-menu" role="menu"><button type="button" role="menuitem" data-chat-forward="${escapeHtml(message.id)}">Переслать</button><button type="button" role="menuitem" data-chat-edit="${escapeHtml(message.id)}" ${canEdit?'':'hidden'}>Редактировать</button></div></div>`;
       bubble.innerHTML=`
-        <label class="ak-chat-message-select" title="Выбрать сообщение"><input type="checkbox" data-chat-select="${message.id}" ${selectedMessageIds.has(message.id)?'checked':''}><span></span></label>
         <div class="ak-chat-message-content">
-          <div class="ak-chat-message-top"><strong>${escapeHtml(sender)}</strong>${senderRole?`<span>${escapeHtml(senderRole)}</span>`:''}${ownActions}</div>
+          <div class="ak-chat-message-top"><strong>${escapeHtml(sender)}</strong>${senderRole?`<span>${escapeHtml(senderRole)}</span>`:''}${messageMenu}</div>
           ${forwarded}${booking}
           ${message.body?`<div class="ak-chat-message-text">${escapeHtml(message.body).replace(/\n/g,'<br>')}</div>`:''}
           ${fileHtml?`<div class="ak-chat-message-attachments">${fileHtml}</div>`:''}
-          <div class="ak-chat-message-reaction-row">${reactionPickerHtml}<div class="ak-chat-reactions">${activeReactionHtml}</div></div>
+          <div class="ak-chat-message-reaction-row"><div class="ak-chat-reactions">${activeReactionHtml}</div>${reactionPickerHtml}</div>
           <div class="ak-chat-message-bottom"><time>${escapeHtml(fmtTime(message.created_at))}</time>${edited}${status}</div>
         </div>`;
       list.appendChild(bubble);
@@ -620,7 +620,79 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
+  const toggleChatSearch=()=>{
+    const panel=$('akChatSearchPanel');if(!panel)return;
+    panel.hidden=!panel.hidden;
+    if(!panel.hidden){$('akChatSearchInput').value='';$('akChatSearchResults').hidden=true;$('akChatSearchInput').focus();}
+    else closeChatSearch();
+  };
+  const closeChatSearch=()=>{
+    const panel=$('akChatSearchPanel');if(panel)panel.hidden=true;
+    if($('akChatSearchInput'))$('akChatSearchInput').value='';
+    if($('akChatSearchResults')){$('akChatSearchResults').hidden=true;$('akChatSearchResults').replaceChildren();}
+    chatSearchRows=[];window.clearTimeout(chatSearchTimer);
+  };
+  const onChatSearchInput=()=>{
+    window.clearTimeout(chatSearchTimer);
+    chatSearchTimer=window.setTimeout(()=>void runChatSearch(),260);
+  };
+  const runChatSearch=async()=>{
+    const query=String($('akChatSearchInput')?.value||'').trim();
+    const results=$('akChatSearchResults');if(!results)return;
+    if(query.length<2){results.hidden=true;results.replaceChildren();return;}
+    results.hidden=false;results.innerHTML='<div class="ak-chat-search-state">Ищем сообщения…</div>';
+    try{
+      const safeQuery=query.replace(/[\%_]/g,'\\$&');
+      const {data,error}=await sb.from('dockslot_chat_messages')
+        .select('id,conversation_id,sender_id,body,created_at,booking_id,edited_at,forwarded_from_message_id')
+        .eq('conversation_id',selectedConversationId).gte('created_at',sixMonthsAgo())
+        .ilike('body',`%${safeQuery}%`).order('created_at',{ascending:false}).limit(50);
+      if(error)throw error;
+      chatSearchRows=data||[];results.replaceChildren();
+      if(!chatSearchRows.length){results.innerHTML='<div class="ak-chat-search-state">Совпадений не найдено.</div>';return;}
+      chatSearchRows.forEach((row)=>{
+        const button=document.createElement('button');button.type='button';button.className='ak-chat-search-result';
+        button.innerHTML=`<strong>${escapeHtml(displayName(row.sender_id))}</strong><span>${escapeHtml(String(row.body||'').slice(0,180))}</span><time>${escapeHtml(fmtDate(row.created_at))} · ${escapeHtml(fmtTime(row.created_at))}</time>`;
+        button.addEventListener('click',()=>void jumpToSearchResult(row));results.appendChild(button);
+      });
+    }catch(error){results.innerHTML=`<div class="ak-chat-search-state is-error">Ошибка поиска: ${escapeHtml(error?.message||'не удалось выполнить запрос')}</div>`;}
+  };
+  const jumpToSearchResult=async(hit)=>{
+    try{
+      const {data:before,error:beforeError}=await sb.from('dockslot_chat_messages')
+        .select('id,conversation_id,sender_id,body,booking_id,target_user_id,created_at,edited_at,forwarded_from_message_id')
+        .eq('conversation_id',selectedConversationId).gte('created_at',sixMonthsAgo()).lte('created_at',hit.created_at)
+        .order('created_at',{ascending:false}).limit(35);
+      if(beforeError)throw beforeError;
+      const {data:after,error:afterError}=await sb.from('dockslot_chat_messages')
+        .select('id,conversation_id,sender_id,body,booking_id,target_user_id,created_at,edited_at,forwarded_from_message_id')
+        .eq('conversation_id',selectedConversationId).gte('created_at',sixMonthsAgo()).gt('created_at',hit.created_at)
+        .order('created_at',{ascending:true}).limit(15);
+      if(afterError)throw afterError;
+      const merged=new Map([...(before||[]),...(after||[]),{...hit,target_user_id:null}].map(row=>[row.id,row]));
+      messages=[...merged.values()].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+      hasOlderMessages=(before||[]).length===35;bookingsById=new Map();
+      const ids=messages.map(row=>row.id), bookingIds=[...new Set(messages.map(row=>row.booking_id).filter(Boolean))];
+      const tasks=[
+        sb.from('dockslot_chat_message_reads').select('message_id,user_id,read_at').in('message_id',ids),
+        sb.from('dockslot_chat_attachments').select('id,message_id,storage_path,file_name,mime_type,file_size').in('message_id',ids),
+        sb.from('dockslot_chat_message_reactions').select('message_id,user_id,reaction_key').in('message_id',ids)
+      ];
+      if(bookingIds.length)tasks.push(sb.from('bookings').select('id,slot_date,slot_hour,order_number,profiles(company_name)').in('id',bookingIds));
+      const results=await Promise.all(tasks);results.forEach((result)=>{if(result.error)throw result.error;});
+      reads=results[0].data||[];attachments=results[1].data||[];reactions=results[2].data||[];signedFiles=new Map();
+      (results[3]?.data||[]).forEach(row=>bookingsById.set(row.id,row));
+      await Promise.all(attachments.map(async(file)=>{try{const {data,error}=await sb.storage.from('dockslot-chat-files').createSignedUrl(file.storage_path,3600);if(!error&&data?.signedUrl)signedFiles.set(file.id,data.signedUrl);}catch(_){}}));
+      closeChatSearch();renderMessages();
+      requestAnimationFrame(()=>{
+        const target=$('akChatMessageList')?.querySelector(`[data-message-id="${CSS.escape(String(hit.id))}"]`);
+        if(target){target.scrollIntoView({behavior:'smooth',block:'center'});target.classList.add('is-search-hit');window.setTimeout(()=>target.classList.remove('is-search-hit'),2400);}
+      });
+    }catch(error){toast(error?.message||'Не удалось открыть найденное сообщение.',true);}
+  };
+
   const onMessageListClick=async(event)=>{
+    if(!event.target.closest('[data-chat-message-menu-toggle],.ak-chat-message-menu-wrap')) $('akChatMessageList')?.querySelectorAll('.ak-chat-message-menu-wrap.is-open').forEach((node)=>node.classList.remove('is-open'));
     const olderButton=event.target.closest('#akChatLoadOlder');if(olderButton){void loadOlderMessages();return;}
     const bookingButton=event.target.closest('[data-chat-message-booking]');if(bookingButton){void openBookingFromMessage(bookingButton.dataset.chatMessageBooking);return;}
     const reactionToggle=event.target.closest('[data-chat-reaction-toggle]');
@@ -630,24 +702,28 @@ document.addEventListener('DOMContentLoaded', () => {
       $('akChatMessageList')?.querySelectorAll('.ak-chat-message.is-reaction-open').forEach((node)=>node.classList.remove('is-reaction-open'));
       bubble?.classList.toggle('is-reaction-open',opening);return;
     }
+    const menuToggle=event.target.closest('[data-chat-message-menu-toggle]');
+    if(menuToggle){
+      const wrap=menuToggle.closest('.ak-chat-message-menu-wrap');
+      const open=!wrap?.classList.contains('is-open');
+      $('akChatMessageList')?.querySelectorAll('.ak-chat-message-menu-wrap.is-open').forEach((node)=>node.classList.remove('is-open'));
+      wrap?.classList.toggle('is-open',open);return;
+    }
+    const forwardButton=event.target.closest('[data-chat-forward]');
+    if(forwardButton){
+      selectedMessageIds.clear();selectedMessageIds.add(forwardButton.dataset.chatForward);
+      forwardButton.closest('.ak-chat-message-menu-wrap')?.classList.remove('is-open');
+      await openPicker('forward');return;
+    }
     const reactionButton=event.target.closest('[data-chat-reaction]');if(reactionButton){
       const {chatReaction:key,chatMessage:id}=reactionButton.dataset;
       reactionButton.closest('.ak-chat-message')?.classList.remove('is-reaction-open');
       const {error}=await sb.rpc('dockslot_chat_toggle_reaction',{p_message_id:id,p_reaction_key:key});
       if(error)toast(error.message||'Не удалось поставить реакцию.',true);else await loadSelectedMessages({preserveHistory:true});return;
     }
-    const editButton=event.target.closest('[data-chat-edit]');if(editButton){const message=messages.find((m)=>m.id===editButton.dataset.chatEdit);if(message)startEditing(message);}
+    const editButton=event.target.closest('[data-chat-edit]');if(editButton){const message=messages.find((m)=>m.id===editButton.dataset.chatEdit);editButton.closest('.ak-chat-message-menu-wrap')?.classList.remove('is-open');if(message)startEditing(message);}
   };
-  const onMessageListChange=(event)=>{
-    const checkbox=event.target.closest('[data-chat-select]');if(!checkbox)return;
-    const id=checkbox.dataset.chatSelect;if(checkbox.checked)selectedMessageIds.add(id);else selectedMessageIds.delete(id);
-    checkbox.closest('.ak-chat-message')?.classList.toggle('is-selected',checkbox.checked);updateSelectionBar();
-  };
-  const updateSelectionBar=()=>{
-    const bar=$('akChatSelectionBar');if(!bar)return;bar.hidden=!selectedMessageIds.size;
-    $('akChatSelectedCount').textContent=`Выбрано сообщений: ${selectedMessageIds.size}`;
-  };
-  const clearMessageSelection=()=>{selectedMessageIds.clear();document.querySelectorAll('[data-chat-select]').forEach((input)=>{input.checked=false;input.closest('.ak-chat-message')?.classList.remove('is-selected');});updateSelectionBar();};
+  const clearMessageSelection=()=>{selectedMessageIds.clear();};
 
   const startEditing=(message)=>{
     if(message.sender_id!==user.id||Date.now()-new Date(message.created_at).getTime()>10*60*1000)return toast('Редактирование доступно только в течение 10 минут после отправки.',true);

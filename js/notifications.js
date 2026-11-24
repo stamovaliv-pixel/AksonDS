@@ -187,8 +187,24 @@ document.addEventListener('DOMContentLoaded', () => {
     bell.setAttribute('aria-expanded', 'false');
     bell.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span class="ak-notifications-badge" id="akNotificationsBadge" hidden></span>';
 
-    // Keep the notification control floating above the page, independent of navigation and scroll.
+    // The notification button is a regular first navigation icon (admins/operators only).
     document.body.appendChild(bell);
+    const placeBellInNavigation = () => {
+      const right = document.querySelector('.header-nav-right');
+      if (!right || !bell.isConnected) return false;
+      bell.classList.add('nav-icon');
+      bell.style.position = 'relative';
+      bell.style.right = 'auto'; bell.style.bottom = 'auto'; bell.style.zIndex = 'auto';
+      right.prepend(bell);
+      return true;
+    };
+    placeBellInNavigation();
+    document.addEventListener('dockslot:navigation-ready', placeBellInNavigation);
+    if (!placeBellInNavigation()) {
+      const navObserver = new MutationObserver(() => { if (placeBellInNavigation()) navObserver.disconnect(); });
+      navObserver.observe(document.body, { childList: true, subtree: true });
+      window.setTimeout(() => navObserver.disconnect(), 10000);
+    }
 
     const overlay = create('div', 'ak-notifications-overlay');
     overlay.id = 'akNotificationsOverlay';

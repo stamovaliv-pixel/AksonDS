@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   })[char]);
-  const archiveRoleLabels = { admin:'УТЗ', operator:'РЦ', super_admin:'Суперадминистратор' };
+  const archiveRoleLabels = { admin:'УТЗ', operator:'РЦ', super_admin:'Администратор' };
   const toast = (message, isError = false) => {
     const node = $('chatAdminToast'); node.textContent = message;
     node.classList.toggle('is-error', Boolean(isError)); node.classList.add('is-visible');
@@ -181,7 +181,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       const {data,error}=await sb.storage.from('dockslot-chat-files').createSignedUrl(file.storage_path,3600);
       if(!error&&data?.signedUrl)signed.set(file.id,data.signedUrl);
     }));
-    rows.forEach((row)=>{
+    const groups=new Map();
+    rows.forEach((row)=>{const key=String(row.sender_id||row.sender_name||'unknown');if(!groups.has(key))groups.set(key,{row,messages:[]});groups.get(key).messages.push(row);});
+    groups.forEach((group,key)=>{
+      const senderRow=group.row;
+      let section=list.querySelector(`[data-sender-id="${CSS.escape(key)}"]`);
+      if(!section){
+        section=document.createElement('section');section.className='chat-admin-archive-sender-group';section.dataset.senderId=key;
+        section.innerHTML=`<header><div><strong>${escapeHtml(senderRow.sender_name||'Сотрудник')}</strong><span>${escapeHtml(archiveRoleLabels[senderRow.sender_role]||senderRow.sender_role||'')}</span></div><b class="chat-admin-archive-sender-count">0 сообщ.</b></header>`;
+        list.appendChild(section);
+      }
+      const countNode=section.querySelector('.chat-admin-archive-sender-count');
+      if(countNode){const current=Number(section.dataset.messageCount||0)+group.messages.length;section.dataset.messageCount=String(current);countNode.textContent=`${current} сообщ.`;}
+      group.messages.forEach((row)=>{
       const card=document.createElement('article');card.className='chat-admin-archive-message';
       const when=new Date(row.created_at).toLocaleString('ru-RU',{timeZone:'Europe/Moscow',dateStyle:'short',timeStyle:'short'});
       const group=files.filter((file)=>file.message_id===row.message_id);
@@ -197,7 +209,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${fileHtml?`<div class="chat-admin-archive-files">${fileHtml}</div>`:''}
         ${reactionHtml?`<div class="chat-admin-archive-reactions">${reactionHtml}</div>`:''}
         ${row.booking_id?`<div class="chat-admin-archive-booking">Запись слота · ${escapeHtml(row.booking_id)}</div>`:''}`;
-      list.appendChild(card);
+      section.appendChild(card);
+      });
     });
   };
 });

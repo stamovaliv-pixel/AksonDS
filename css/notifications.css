@@ -281,3 +281,19 @@ html[data-theme="dark"] .ak-push-settings-status { border-color: #344150; backgr
 }
 
 html[data-theme="dark"] .ak-notification-item.is-system-highlight { border-color: rgba(96, 165, 250, .62); background: rgba(96, 165, 250, .14); box-shadow: 0 0 0 3px rgba(96, 165, 250, .10); }
+
+
+/* Messenger v1.4: notification control is the first header navigation icon, not a floating FAB. */
+.header-nav .ak-notifications-bell {
+  position:relative!important;right:auto!important;bottom:auto!important;z-index:auto!important;
+  margin:0;border:0!important;border-radius:10px;background:transparent!important;
+  color:var(--color-text-muted,#64748b)!important;box-shadow:none!important;
+  animation:none!important;transform:none!important;filter:none!important;cursor:pointer;
+}
+.header-nav .ak-notifications-bell:hover,.header-nav .ak-notifications-bell:focus-visible {
+  color:var(--color-text-main,#475569)!important;background:rgba(100,116,139,.09)!important;
+  transform:translateY(-1px)!important;outline:none;
+}
+.header-nav .ak-notifications-badge {
+  top:0;right:0;min-width:16px;height:16px;padding:0 3px;border-width:1.5px;transform:translate(65%,-65%);
+}
