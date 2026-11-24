@@ -1,4 +1,4 @@
-/* DockSlot Messenger v1.4 — message actions, search, nav notifications and soft launcher glow. */
+/* DockSlot Messenger v1.8 — reaction toggle state sync and 1-minute ambient launcher glow. */
 document.addEventListener('DOMContentLoaded', () => {
   'use strict';
 
@@ -404,7 +404,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const mergeUnique=(oldRows,newRows,keyOf)=>[...new Map([...oldRows,...(newRows||[])].map((row)=>[keyOf(row),row])).values()];
       reads=mergeUnique(previousReads,readRes.data,(row)=>`${row.message_id}:${row.user_id}`);
       attachments=mergeUnique(previousAttachments,attachRes.data,(row)=>row.id);
-      reactions=mergeUnique(previousReactions,reactionRes.data,(row)=>`${row.message_id}:${row.user_id}:${row.reaction_key}`);
+      // Replace reaction rows for messages refreshed in this batch. Merging them blindly
+      // kept deleted (toggled-off) reactions in memory forever, even after SQL removed them.
+      const refreshedMessageIds=new Set(ids.map(String));
+      reactions=[
+        ...previousReactions.filter((row)=>!refreshedMessageIds.has(String(row.message_id))),
+        ...(reactionRes.data||[])
+      ];
       await Promise.all((attachRes.data||[]).map(async(attachment)=>{
         try{const {data:link,error:linkError}=await sb.storage.from('dockslot-chat-files').createSignedUrl(attachment.storage_path,3600);if(!linkError&&link?.signedUrl)newSignedFiles.set(attachment.id,link.signedUrl);}catch(_){/* attachment remains listed without preview */}
       }));
@@ -759,8 +765,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const reactionButton=event.target.closest('[data-chat-reaction]');if(reactionButton){
       const {chatReaction:key,chatMessage:id}=reactionButton.dataset;
       reactionButton.closest('.ak-chat-message')?.classList.remove('is-reaction-open');
-      const {error}=await sb.rpc('dockslot_chat_toggle_reaction',{p_message_id:id,p_reaction_key:key});
-      if(error)toast(error.message||'Не удалось поставить реакцию.',true);else await loadSelectedMessages({preserveHistory:true});return;
+      const reactionIdentity=(row)=>String(row.message_id)===String(id)&&String(row.user_id)===String(user.id)&&row.reaction_key===key;
+      const {data:isActive,error}=await sb.rpc('dockslot_chat_toggle_reaction',{p_message_id:id,p_reaction_key:key});
+      if(error){toast(error.message||'Не удалось изменить реакцию.',true);return;}
+      // The RPC returns true when the reaction was added and false when it was removed.
+      // Apply that result immediately so the current user sees a reliable toggle without
+      // waiting for Realtime or a full thread reload.
+      reactions=reactions.filter((row)=>!reactionIdentity(row));
+      if(isActive===true)reactions.push({message_id:id,user_id:user.id,reaction_key:key});
+      renderMessages();
+      if(typeof isActive!=='boolean')await loadSelectedMessages({preserveHistory:true});
+      return;
     }
     const editButton=event.target.closest('[data-chat-edit]');if(editButton){const message=messages.find((m)=>m.id===editButton.dataset.chatEdit);editButton.closest('.ak-chat-message-menu-wrap')?.classList.remove('is-open');if(message)startEditing(message);}
   };

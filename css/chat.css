@@ -711,3 +711,16 @@ html[data-theme="dark"] .ak-chat-reaction-menu {
 html[data-theme="dark"] .ak-chat-message-menu { border-color:rgba(100,116,139,.42)!important;background:rgba(25,35,48,.97)!important; }
 html[data-theme="dark"] .ak-chat-message-menu button.ak-chat-message-menu-item { color:#e6edf5!important; }
 html[data-theme="dark"] .ak-chat-menu-item-icon { color:#a7b2c2!important; }
+
+
+/* DockSlot Messenger v1.8 — one-minute ambient sweep, 40% brighter.
+   The sweep keeps its 1.5-second rotation while the idle interval is 60 seconds. */
+.ak-chat-fab::before,.ak-chat-fab::after {
+  animation:ak-chat-soft-ambilight 60s linear infinite!important;
+}
+@keyframes ak-chat-soft-ambilight {
+  0%,.35% { opacity:0;transform:rotate(0deg); }
+  .5% { opacity:.644;transform:rotate(0deg); }
+  3% { opacity:.644;transform:rotate(360deg); }
+  3.35%,100% { opacity:0;transform:rotate(360deg); }
+}
