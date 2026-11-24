@@ -669,3 +669,45 @@ html[data-theme="dark"] .ak-chat-reaction-menu {
   .32%,100% { opacity:0;transform:rotate(360deg); }
 }
 @media(max-width:760px){.ak-chat-fab::before,.ak-chat-fab::after{animation:ak-chat-soft-ambilight 600s linear infinite!important;}}
+
+
+/* DockSlot Messenger v1.7 — compact, clean message actions menu. */
+.ak-chat-message-top { padding-right:21px!important; }
+.ak-chat-message-menu-wrap { top:-3px!important;right:-3px!important;z-index:24!important; }
+.ak-chat-message-menu-trigger {
+  width:18px!important;height:18px!important;min-width:18px!important;min-height:18px!important;
+  border:0!important;border-radius:5px!important;background:transparent!important;
+  font:700 16px/14px Arial,sans-serif!important;letter-spacing:0!important;
+  opacity:.30!important;color:var(--color-text-muted,#8a96a7)!important;
+}
+.ak-chat-message:hover .ak-chat-message-menu-trigger,
+.ak-chat-message-menu-wrap.is-open .ak-chat-message-menu-trigger,
+.ak-chat-message-menu-trigger:focus-visible {
+  opacity:.9!important;background:rgba(120,135,155,.09)!important;color:var(--color-text-main,#475569)!important;
+}
+.ak-chat-message-menu {
+  top:20px!important;right:0!important;min-width:126px!important;width:max-content!important;
+  padding:4px!important;gap:2px!important;border:1px solid rgba(148,163,184,.24)!important;
+  border-radius:9px!important;background:rgba(255,255,255,.97)!important;
+  box-shadow:0 7px 20px rgba(15,23,42,.13),0 1px 3px rgba(15,23,42,.06)!important;
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  z-index:35!important;
+}
+.ak-chat-message-menu button.ak-chat-message-menu-item {
+  display:flex!important;min-width:0!important;width:100%!important;min-height:28px!important;height:28px!important;
+  align-items:center!important;justify-content:flex-start!important;gap:8px!important;
+  padding:0 8px!important;border:0!important;border-radius:6px!important;
+  background:transparent!important;color:var(--color-text-main,#334155)!important;
+  text-align:left!important;font:550 10px/1.2 var(--font-main,Arial,sans-serif)!important;
+  white-space:nowrap!important;cursor:pointer!important;
+}
+.ak-chat-message-menu button.ak-chat-message-menu-item:hover:not(:disabled),
+.ak-chat-message-menu button.ak-chat-message-menu-item:focus-visible:not(:disabled) {
+  background:rgba(99,102,241,.075)!important;outline:none!important;
+}
+.ak-chat-menu-item-icon { display:inline-flex!important;width:13px!important;height:13px!important;flex:0 0 13px!important;align-items:center!important;justify-content:center!important;color:#738096!important; }
+.ak-chat-menu-item-icon svg { display:block!important;width:13px!important;height:13px!important;fill:none!important;stroke:currentColor!important;stroke-width:1.7!important;stroke-linecap:round!important;stroke-linejoin:round!important; }
+.ak-chat-message-menu button.ak-chat-message-menu-item:disabled { opacity:.38!important;cursor:not-allowed!important; }
+html[data-theme="dark"] .ak-chat-message-menu { border-color:rgba(100,116,139,.42)!important;background:rgba(25,35,48,.97)!important; }
+html[data-theme="dark"] .ak-chat-message-menu button.ak-chat-message-menu-item { color:#e6edf5!important; }
+html[data-theme="dark"] .ak-chat-menu-item-icon { color:#a7b2c2!important; }

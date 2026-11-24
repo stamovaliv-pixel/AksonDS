@@ -473,7 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
     messages.forEach((message)=>{
       const day=fmtDate(message.created_at);
       if(day!==previousDay){const divider=document.createElement('div');divider.className='ak-chat-date-divider';divider.innerHTML=`<span>${escapeHtml(day)}</span>`;list.appendChild(divider);previousDay=day;}
-      const own=message.sender_id===user.id, bubble=document.createElement('article');
+      const own=String(message.sender_id||'')===String(user.id||''), bubble=document.createElement('article');
       bubble.className=`ak-chat-message${own?' is-own':''}`;bubble.dataset.messageId=message.id;
       const sender=own?'Вы':displayName(message.sender_id), senderRole=own?roleLabels[role]:(roleLabels[usersById.get(message.sender_id)?.role]||'');
       const linked=message.booking_id?bookingsById.get(message.booking_id):null;
@@ -490,8 +490,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const status=own?(message.client_pending?'<span class="ak-chat-message-status is-pending">Отправляется…</span>':`<span class="ak-chat-message-status${readCount?' is-read':''}" title="${escapeHtml(statusLabel)}">${readCount?'✓✓':'✓'}</span>`):'';
       const edited=message.edited_at?'<span class="ak-chat-edited">изменено</span>':'';
       const forwarded=message.forwarded_from_message_id?'<div class="ak-chat-forwarded-label">↗ Пересланное сообщение</div>':'';
-      const age=Date.now()-new Date(message.created_at).getTime();
-      const canEdit=own&&age<=10*60*1000&&(String(message.body||'').length>0||fileRows.length>0);
+      const createdAtMs=Date.parse(message.created_at);
+      const ageMs=Date.now()-createdAtMs;
+      // The database RPC is authoritative; this client-side check only controls menu availability.
+      // A small negative tolerance avoids hiding Edit when the browser clock is slightly behind.
+      const withinEditWindow=Number.isFinite(createdAtMs)&&ageMs<=10*60*1000&&ageMs>=-2*60*1000;
+      const hasEditableContent=String(message.body||'').trim().length>0||fileRows.length>0;
+      const canEdit=own&&!message.client_pending&&withinEditWindow&&hasEditableContent;
       const reactionRows = reactionDefs.map(([key, emoji, label]) => {
         const rows = reactions.filter((r) => r.message_id === message.id && r.reaction_key === key);
         const mine = rows.some((r) => r.user_id === user.id);
@@ -506,7 +511,8 @@ document.addEventListener('DOMContentLoaded', () => {
           ${reactionRows.map((item) => `<button type="button" data-chat-reaction="${item.key}" data-chat-message="${message.id}" title="${item.label}" aria-label="${item.label}">${item.emoji}</button>`).join('')}
         </div>
       </div>`;
-      const messageMenu=message.client_pending?'':`<div class="ak-chat-message-menu-wrap"><button type="button" class="ak-chat-message-menu-trigger" data-chat-message-menu-toggle aria-label="Действия с сообщением" title="Действия">···</button><div class="ak-chat-message-menu" role="menu"><button type="button" role="menuitem" data-chat-forward="${escapeHtml(message.id)}">Переслать</button><button type="button" role="menuitem" data-chat-edit="${escapeHtml(message.id)}" ${canEdit?'':'hidden'}>Редактировать</button></div></div>`;
+      const editAction=own?`<button type="button" role="menuitem" class="ak-chat-message-menu-item" data-chat-edit="${escapeHtml(message.id)}" ${canEdit?'':'disabled title="Редактирование доступно в течение 10 минут после отправки."'}><span class="ak-chat-menu-item-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m4 16.5-.8 4.3 4.3-.8L19.8 7.7a2.1 2.1 0 0 0-3-3L4 16.5Z"/><path d="m15.4 6.1 3 3"/></svg></span><span>Редактировать</span></button>`:'';
+      const messageMenu=message.client_pending?'':`<div class="ak-chat-message-menu-wrap"><button type="button" class="ak-chat-message-menu-trigger" data-chat-message-menu-toggle aria-label="Действия с сообщением" title="Действия">⋯</button><div class="ak-chat-message-menu" role="menu"><button type="button" role="menuitem" class="ak-chat-message-menu-item" data-chat-forward="${escapeHtml(message.id)}"><span class="ak-chat-menu-item-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="m20 4-9 9"/><path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5"/></svg></span><span>Переслать</span></button>${editAction}</div></div>`;
       bubble.innerHTML=`
         <div class="ak-chat-message-content">
           <div class="ak-chat-message-top"><strong>${escapeHtml(sender)}</strong>${senderRole?`<span>${escapeHtml(senderRole)}</span>`:''}${messageMenu}</div>
@@ -761,7 +767,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const clearMessageSelection=()=>{selectedMessageIds.clear();};
 
   const startEditing=(message)=>{
-    if(message.sender_id!==user.id||Date.now()-new Date(message.created_at).getTime()>10*60*1000)return toast('Редактирование доступно только в течение 10 минут после отправки.',true);
+    const createdAtMs=Date.parse(message?.created_at);
+    const ageMs=Date.now()-createdAtMs;
+    if(String(message?.sender_id||'')!==String(user?.id||'')||!Number.isFinite(createdAtMs)||ageMs>10*60*1000||ageMs< -2*60*1000){
+      return toast('Редактировать своё сообщение можно только в течение 10 минут после отправки.',true);
+    }
     editingMessageId=message.id;$('akChatInput').value=message.body||'';$('akChatEditPanel').hidden=false;updateComposer();$('akChatInput').focus();
   };
   const cancelEditing=()=>{editingMessageId=null;if($('akChatEditPanel'))$('akChatEditPanel').hidden=true;if($('akChatInput'))$('akChatInput').value='';updateComposer();};
