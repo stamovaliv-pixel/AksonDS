@@ -336,7 +336,7 @@ html[data-theme="dark"] .ak-chat-message-select input:checked+span { border-colo
   .ak-chat-send-wrap>span { display:none; }
   .ak-chat-picker { top:65px; right:10px; width:calc(100% - 20px); max-height:calc(100% - 85px); }
   .ak-chat-files-row { max-height:60px; overflow:auto; }
-  .ak-chat-fab { width:54px; height:54px; }
+  .ak-chat-fab { width:58px; height:58px; }
 }
 @media (prefers-reduced-motion:reduce) {
   .ak-chat-fab::before,.ak-chat-fab::after { animation:none; }
@@ -357,3 +357,64 @@ html[data-theme="dark"] .ak-chat-load-older { border-color:#3a4959; background:#
 .ak-chat-picker-shortcuts{display:flex;gap:8px;padding:8px 12px;}
 .ak-chat-picker-shortcuts button{border:1px solid rgba(245,158,11,.35);background:rgba(245,158,11,.09);color:inherit;border-radius:999px;padding:6px 12px;cursor:pointer;font-weight:650;}
 .ak-chat-picker-shortcuts[hidden]{display:none!important;}
+
+
+/* DockSlot Messenger v1.3 — quieter blue-teal launcher, minute ambient sweep and compact reaction picker. */
+.ak-chat-fab {
+  width:58px;height:58px;isolation:isolate;overflow:visible;
+  background:linear-gradient(145deg,#287f91 0%,#286a9f 55%,#24549a 100%);
+  box-shadow:0 8px 24px rgba(37,91,145,.28),0 3px 8px rgba(15,23,42,.16),inset 0 1px 0 rgba(255,255,255,.28);
+}
+.ak-chat-fab::before,.ak-chat-fab::after {
+  content:'';position:absolute;z-index:-1;inset:-7px;border-radius:50%;pointer-events:none;
+  background:conic-gradient(from 0deg,transparent 0 24%,rgba(45,212,191,.95) 37%,rgba(56,189,248,.9) 52%,rgba(37,99,235,.82) 65%,transparent 79%);
+  opacity:0;transform:rotate(0deg);animation:ak-chat-ambient-sweep 60s linear infinite;
+}
+.ak-chat-fab::before { filter:blur(1px); }
+.ak-chat-fab::after { inset:-12px;filter:blur(10px);background:conic-gradient(from 0deg,transparent 0 24%,rgba(45,212,191,.8) 37%,rgba(56,189,248,.76) 52%,rgba(37,99,235,.68) 65%,transparent 79%); }
+@keyframes ak-chat-ambient-sweep {
+  0%,1% { opacity:0;transform:rotate(0deg); }
+  1.3% { opacity:.82;transform:rotate(0deg); }
+  3.8% { opacity:.82;transform:rotate(360deg); }
+  4.3%,100% { opacity:0;transform:rotate(360deg); }
+}
+.ak-chat-fab.has-unread { animation:ak-chat-float 3.6s ease-in-out infinite; }
+.ak-chat-fab svg { position:relative;z-index:1;width:25px;height:25px; }
+.ak-chat-fab-badge { z-index:2; }
+
+.ak-chat-message-reaction-row { display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:6px; }
+.ak-chat-reactions { display:flex;flex-wrap:wrap;gap:4px;margin:0 auto 0 0; }
+.ak-chat-reaction-control { position:relative;display:flex;align-items:center; }
+.ak-chat-reaction-trigger {
+  display:inline-flex;width:27px;height:27px;align-items:center;justify-content:center;padding:0;
+  border:1px solid var(--color-border,#e2e8f0);border-radius:50%;background:var(--color-surface,#fff);
+  color:var(--color-text-muted,#718096);cursor:pointer;transition:color .14s ease,border-color .14s ease,background .14s ease;
+}
+.ak-chat-reaction-trigger svg { width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round; }
+.ak-chat-reaction-trigger:hover,.ak-chat-message.is-reaction-open .ak-chat-reaction-trigger { color:#287f91;border-color:rgba(40,127,145,.42);background:rgba(40,127,145,.08); }
+.ak-chat-reaction-menu {
+  position:absolute;z-index:8;right:0;bottom:100%;display:flex;gap:3px;padding:5px;
+  border:1px solid rgba(148,163,184,.3);border-radius:999px;background:var(--color-surface,#fff);
+  box-shadow:0 9px 28px rgba(15,23,42,.16);opacity:0;visibility:hidden;transform:translateY(5px) scale(.97);
+  transform-origin:bottom right;transition:opacity .12s ease,transform .12s ease,visibility .12s ease;
+}
+.ak-chat-reaction-control:hover .ak-chat-reaction-menu,.ak-chat-reaction-control:focus-within .ak-chat-reaction-menu,.ak-chat-message.is-reaction-open .ak-chat-reaction-menu { opacity:1;visibility:visible;transform:translateY(0) scale(1); }
+.ak-chat-reaction-menu button {
+  display:inline-flex;width:30px;height:30px;align-items:center;justify-content:center;padding:0;border:0;border-radius:50%;
+  background:transparent;font:20px/1 "Apple Color Emoji","Segoe UI Emoji",sans-serif;cursor:pointer;transition:background .12s ease,transform .12s ease;
+}
+.ak-chat-reaction-menu button:hover,.ak-chat-reaction-menu button:focus-visible { background:rgba(40,127,145,.11);transform:translateY(-2px) scale(1.08);outline:none; }
+.ak-chat-reaction { min-width:27px;height:25px;font-size:13px; }
+.ak-chat-reaction small { font-size:9px; }
+.ak-chat-message-status.is-pending { color:var(--color-text-muted,#8491a3);font-size:8px; }
+html[data-theme="dark"] .ak-chat-reaction-trigger,html[data-theme="dark"] .ak-chat-reaction-menu { border-color:#3a4959;background:#18232f;color:#dbe4ef; }
+@media (max-width:600px) {
+  .ak-chat-fab { width:54px;height:54px; }
+  .ak-chat-fab::before,.ak-chat-fab::after { animation:ak-chat-ambient-sweep 60s linear infinite; }
+  .ak-chat-reaction-menu { right:0; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .ak-chat-fab,.ak-chat-fab.has-unread { animation:none!important; }
+  .ak-chat-fab::before,.ak-chat-fab::after { animation:none!important;opacity:0!important; }
+  .ak-chat-reaction-menu { transition:none; }
+}

@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   })[char]);
-  const archiveRoleLabels = { admin:'Менеджер УТЗ', operator:'Оператор / Руководитель РЦ', super_admin:'Суперадминистратор' };
+  const archiveRoleLabels = { admin:'УТЗ', operator:'РЦ', super_admin:'Суперадминистратор' };
   const toast = (message, isError = false) => {
     const node = $('chatAdminToast'); node.textContent = message;
     node.classList.toggle('is-error', Boolean(isError)); node.classList.add('is-visible');

@@ -9,13 +9,13 @@ document.addEventListener('DOMContentLoaded', () => {
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   })[char]);
   const roleLabels = {
-    admin: 'Менеджер УТЗ',
-    operator: 'Оператор / Руководитель РЦ',
+    admin: 'УТЗ',
+    operator: 'РЦ',
     super_admin: 'Суперадминистратор'
   };
   const reactionDefs = [
-    ['heart', '❤️', 'Сердце'], ['like', '👍', 'Класс'], ['cry', '😢', 'Плачу'],
-    ['laugh', '😂', 'Смеюсь'], ['rofl', '🤣', 'Ржу'], ['strong', '💪', 'Сила'], ['fire', '🔥', 'Огонь']
+    ['heart', '🫶', 'Сердце'], ['like', '👍', 'Нравится'], ['cry', '🥹', 'Трогает'],
+    ['laugh', '😄', 'Смеюсь'], ['rofl', '🤣', 'Очень смешно'], ['strong', '💪', 'Сила'], ['fire', '🔥', 'Огонь']
   ];
   const allowedExtensions = new Set(['jpg','jpeg','png','gif','webp','heic','heif','pdf','doc','docx','xls','xlsx','csv']);
   const mimeByExtension = {
@@ -39,10 +39,11 @@ document.addEventListener('DOMContentLoaded', () => {
   let unreadByConversation = new Map(), bookingUnread = [];
   let selectedConversationId = null, selectedBooking = null;
   let selectedFiles = [], selectedMessageIds = new Set(), selectedRecipientIds = new Set();
-  let pickerBookings = [], pickerMode = '', editingMessageId = null;
+  let pickerBookings = [], pickerMode = '', presetGroupTitle = null, editingMessageId = null;
   let hasOlderMessages = false, olderMessagesLoading = false;
   let realtimeChannel = null, pollTimer = null, bookingObserver = null;
   let isOpen = false, isSending = false, loading = false;
+  let refreshDebounceTimer = null, queuedRefreshThread = false;
 
   const getConversation = (id) => conversations.find((row) => row.id === id) || null;
   const getParticipants = (conversationId) => participants.filter((row) => row.conversation_id === conversationId);
@@ -73,6 +74,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!conversation) return 'Переписка';
     if (conversation.kind === 'general') return 'Общий чат';
     if (conversation.kind === 'direct') return getOtherUser(conversation.id)?.display_name || 'Личный диалог';
+    if (conversation.kind === 'group') {
+      const memberRoles = getParticipants(conversation.id).map((p) => usersById.get(p.user_id)?.role).filter(Boolean);
+      if (memberRoles.length && memberRoles.every((memberRole) => memberRole === 'admin')) return 'УТЗ';
+      if (memberRoles.length && memberRoles.every((memberRole) => memberRole === 'operator')) return 'РЦ';
+    }
     return conversation.title || getParticipants(conversation.id).filter((p) => p.user_id !== user?.id).map((p) => displayName(p.user_id)).join(', ') || 'Групповой чат';
   };
   const toast = (message, isError = false) => {
@@ -108,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return { ext, mime };
   };
 
-  const init = async () => {
+  const init = async (retry = 0) => {
     try {
       const authProfile = await window.dockslotGetAuthProfile?.();
       if (!authProfile?.user || authProfile.error || !authProfile.profile || authProfile.profile.is_blocked) return;
@@ -116,10 +122,16 @@ document.addEventListener('DOMContentLoaded', () => {
       role = String(authProfile.profile.role || '').toLowerCase();
       if (!['admin','operator','super_admin'].includes(role)) return;
       const { data: access, error: accessError } = await sb.rpc('dockslot_chat_self_enabled');
-      if (accessError || access !== true) return;
+      if (accessError) {
+        console.warn('[DockSlot chat] Access check temporarily failed; retrying without exposing the widget.', accessError.message || accessError);
+        if (retry < 2) window.setTimeout(() => void init(retry + 1), 1500 * (retry + 1));
+        return;
+      }
+      if (access !== true) return;
       const { data: config, error: settingsError } = await sb.from('dockslot_chat_settings').select('*').eq('id',1).maybeSingle();
       if (settingsError || !config) {
-        console.warn('[DockSlot chat] Settings unavailable. Apply the messenger SQL migration first.', settingsError?.message || 'No settings row');
+        console.warn('[DockSlot chat] Settings temporarily unavailable.', settingsError?.message || 'No settings row');
+        if (retry < 2) window.setTimeout(() => void init(retry + 1), 1500 * (retry + 1));
         return;
       }
       settings = config;
@@ -168,13 +180,13 @@ document.addEventListener('DOMContentLoaded', () => {
               <textarea id="akChatInput" rows="1" maxlength="${Number(settings.max_message_chars)||2000}" placeholder="Напишите сообщение…"></textarea>
               <div class="ak-chat-send-wrap"><span id="akChatCharCount">0/${Number(settings.max_message_chars)||2000}</span><button type="button" class="ak-chat-send-btn" id="akChatSend" aria-label="Отправить сообщение">${icons.send}</button></div>
             </div>
-            <div class="ak-chat-composer-hint">Enter — отправить · Shift + Enter — новая строка · История доступна за 6 месяцев</div>
+            <div class="ak-chat-composer-hint">Enter — отправить · Shift + Enter — новая строка</div>
           </div>
         </section>
         <div class="ak-chat-picker" id="akChatPicker" hidden>
           <div class="ak-chat-picker-head"><strong id="akChatPickerTitle">Выберите сотрудников</strong><button type="button" id="akChatPickerClose" aria-label="Закрыть">×</button></div>
           <input id="akChatPickerSearch" type="search" placeholder="Поиск по компании, сотруднику или роли…">
-          <div class="ak-chat-picker-shortcuts" id="akChatPickerShortcuts"><button type="button" data-role-group="admin">Вся УТЗ</button><button type="button" data-role-group="operator">Весь РЦ</button></div>
+          <div class="ak-chat-picker-shortcuts" id="akChatPickerShortcuts"><button type="button" data-role-group="admin">УТЗ</button><button type="button" data-role-group="operator">РЦ</button></div>
           <div id="akChatPickerList" class="ak-chat-picker-list"></div>
           <div class="ak-chat-picker-footer" id="akChatPickerFooter" hidden><span id="akChatPickerSelected">Выбрано: 0</span><button type="button" id="akChatPickerAction">Продолжить</button></div>
         </div>
@@ -199,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('akChatPickerClose').addEventListener('click', closePicker); $('akChatPickerSearch').addEventListener('input', renderPickerList);
     $('akChatPickerAction').addEventListener('click', pickerAction);
     $('akChatPickerShortcuts')?.querySelectorAll('[data-role-group]').forEach((button)=>button.addEventListener('click',()=>{
-      const targetRole=button.dataset.roleGroup; selectedRecipientIds=new Set(userRows.filter((row)=>row.role===targetRole&&row.user_id!==user.id).map((row)=>row.user_id));
+      const targetRole=button.dataset.roleGroup; presetGroupTitle=targetRole==='admin'?'УТЗ':'РЦ'; selectedRecipientIds=new Set(userRows.filter((row)=>row.role===targetRole&&row.user_id!==user.id).map((row)=>row.user_id));
       renderPickerList(); updatePickerCount();
     }));
     $('akChatEditCancel').addEventListener('click', cancelEditing); $('akChatEditSave').addEventListener('click', saveEditedMessage);
@@ -229,14 +241,24 @@ document.addEventListener('DOMContentLoaded', () => {
     window.setTimeout(() => { if (!isOpen && $('akChatOverlay')) $('akChatOverlay').hidden = true; },190);
     closePicker();
   };
-  const startPolling = () => { window.clearInterval(pollTimer); pollTimer = window.setInterval(() => { void refreshData(isOpen); },18000); };
+  const queueRefreshData = (refreshThread = false) => {
+    queuedRefreshThread = queuedRefreshThread || Boolean(refreshThread);
+    window.clearTimeout(refreshDebounceTimer);
+    refreshDebounceTimer = window.setTimeout(async () => {
+      if (loading) { queueRefreshData(queuedRefreshThread); return; }
+      const shouldRefreshThread = queuedRefreshThread;
+      queuedRefreshThread = false;
+      await refreshData(shouldRefreshThread);
+    }, 380);
+  };
+  const startPolling = () => { window.clearInterval(pollTimer); pollTimer = window.setInterval(() => queueRefreshData(isOpen),45000); };
   const setupRealtime = () => {
     if (!sb.channel || realtimeChannel) return;
     realtimeChannel = sb.channel(`dockslot-chat-${user.id}`)
-      .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_messages'},()=>void refreshData(isOpen))
-      .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_message_reads'},()=>void refreshData(isOpen))
-      .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_attachments'},()=>void refreshData(isOpen))
-      .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_message_reactions'},()=>void refreshData(isOpen))
+      .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_messages'},()=>queueRefreshData(isOpen))
+      .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_message_reads'},()=>queueRefreshData(isOpen))
+      .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_attachments'},()=>queueRefreshData(isOpen))
+      .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_message_reactions'},()=>queueRefreshData(isOpen))
       .subscribe((status)=>{ if(status==='CHANNEL_ERROR'||status==='TIMED_OUT') console.warn('[DockSlot chat] Realtime unavailable; polling remains active.'); });
   };
 
@@ -245,7 +267,12 @@ document.addEventListener('DOMContentLoaded', () => {
     loading = true;
     try {
       const { data: liveAccess, error: liveAccessError } = await sb.rpc('dockslot_chat_self_enabled');
-      if (liveAccessError || liveAccess !== true) { clearSession(); return; }
+      if (liveAccessError) {
+        console.warn('[DockSlot chat] Access check failed because of a temporary request error; keeping the existing chat control.', liveAccessError.message || liveAccessError);
+        return;
+      }
+      if (liveAccess === false) { clearSession(); return; }
+      if (liveAccess !== true) return;
       const { data: liveSettings, error: liveSettingsError } = await sb.from('dockslot_chat_settings').select('*').eq('id',1).maybeSingle();
       if (liveSettingsError || !liveSettings) throw liveSettingsError || new Error('Настройки мессенджера недоступны.');
       settings = liveSettings;
@@ -320,7 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('akChatThreadMeta').textContent=isGeneral?'Все сотрудники с доступом к мессенджеру':(c.kind==='direct'?(roleLabels[getOtherUser(c.id)?.role]||'Личная переписка'):`Участники: ${memberRows.length}`);
     $('akChatThreadAvatar').innerHTML=isGeneral||c.kind==='group'?icons.group:escapeHtml((title||'С')[0].toLocaleUpperCase('ru-RU'));
     $('akChatNotice').hidden=!isGeneral;
-    $('akChatNotice').textContent=isGeneral?'Общие сообщения видны всем сотрудникам, которым суперадминистратор открыл доступ к чату. История доступна за последние 6 месяцев.':'';
+    $('akChatNotice').textContent=isGeneral?'Общие сообщения видны всем сотрудникам.':'';
     const canLink=settings?.booking_chat_enabled && (c.kind==='direct'||c.kind==='group');
     $('akChatBookingButton').hidden=!settings?.booking_chat_enabled;
     $('akChatBookingButton').disabled=!canLink;
@@ -432,7 +459,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const renderMessages=()=>{
     const list=$('akChatMessageList');if(!list)return;
-    if(!messages.length){list.innerHTML='<div class="ak-chat-empty"><div class="ak-chat-empty-icon">✦</div><strong>Начните разговор</strong><span>Отправьте сообщение, фото или документ. Здесь хранится история за последние 6 месяцев.</span></div>';return;}
+    if(!messages.length){list.innerHTML='<div class="ak-chat-empty"><div class="ak-chat-empty-icon">✦</div><strong>Начните разговор</strong><span>Отправьте сообщение, фото или документ.</span></div>';return;}
     list.replaceChildren();
     if(hasOlderMessages){const olderButton=document.createElement('button');olderButton.type='button';olderButton.id='akChatLoadOlder';olderButton.className='ak-chat-load-older';olderButton.disabled=olderMessagesLoading;olderButton.textContent=olderMessagesLoading?'Загрузка…':'Загрузить более ранние сообщения';list.appendChild(olderButton);}
     let previousDay='';
@@ -453,16 +480,28 @@ document.addEventListener('DOMContentLoaded', () => {
       const readCount=own?reads.filter((r)=>r.message_id===message.id&&r.user_id!==user.id).length:0;
       const chatKind=getConversation(message.conversation_id)?.kind;
       const statusLabel=chatKind==='general'||chatKind==='group'?(readCount?`Прочитали: ${readCount}`:'Отправлено'):(readCount?'Прочитано адресатом':'Отправлено');
-      const status=own?`<span class="ak-chat-message-status${readCount?' is-read':''}" title="${escapeHtml(statusLabel)}">${readCount?'✓✓':'✓'}</span>`:'';
+      const status=own?(message.client_pending?'<span class="ak-chat-message-status is-pending">Отправляется…</span>':`<span class="ak-chat-message-status${readCount?' is-read':''}" title="${escapeHtml(statusLabel)}">${readCount?'✓✓':'✓'}</span>`):'';
       const edited=message.edited_at?'<span class="ak-chat-edited">изменено</span>':'';
       const forwarded=message.forwarded_from_message_id?'<div class="ak-chat-forwarded-label">↗ Пересланное сообщение</div>':'';
       const age=Date.now()-new Date(message.created_at).getTime();
       const canEdit=own&&age<=10*60*1000&&(String(message.body||'').length>0||fileRows.length>0);
       const ownActions=own?`<button type="button" data-chat-edit="${message.id}" ${canEdit?'':'hidden'}>Изменить</button>`:'';
-      const reactionHtml=reactionDefs.map(([key,emoji,label])=>{
-        const rows=reactions.filter((r)=>r.message_id===message.id&&r.reaction_key===key), mine=rows.some((r)=>r.user_id===user.id);
-        return `<button type="button" class="ak-chat-reaction${mine?' is-mine':''}" data-chat-reaction="${key}" data-chat-message="${message.id}" title="${label}" aria-pressed="${mine}">${emoji}${rows.length?`<small>${rows.length}</small>`:''}</button>`;
-      }).join('');
+      const reactionRows = reactionDefs.map(([key, emoji, label]) => {
+        const rows = reactions.filter((r) => r.message_id === message.id && r.reaction_key === key);
+        const mine = rows.some((r) => r.user_id === user.id);
+        return { key, emoji, label, count: rows.length, mine };
+      });
+      const activeReactionHtml = reactionRows.filter((item) => item.count > 0).map((item) =>
+        `<button type="button" class="ak-chat-reaction${item.mine?' is-mine':''}" data-chat-reaction="${item.key}" data-chat-message="${message.id}" title="${item.label}" aria-pressed="${item.mine}">${item.emoji}<small>${item.count}</small></button>`
+      ).join('');
+      const reactionPickerHtml = `<div class="ak-chat-reaction-control">
+        <button type="button" class="ak-chat-reaction-trigger" data-chat-reaction-toggle aria-label="Добавить реакцию" title="Добавить реакцию">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.2s1.2 2 3.5 2 3.5-2 3.5-2M9 9.5h.01M15 9.5h.01"/></svg>
+        </button>
+        <div class="ak-chat-reaction-menu" role="group" aria-label="Выбор реакции">
+          ${reactionRows.map((item) => `<button type="button" data-chat-reaction="${item.key}" data-chat-message="${message.id}" title="${item.label}" aria-label="${item.label}">${item.emoji}</button>`).join('')}
+        </div>
+      </div>`;
       bubble.innerHTML=`
         <label class="ak-chat-message-select" title="Выбрать сообщение"><input type="checkbox" data-chat-select="${message.id}" ${selectedMessageIds.has(message.id)?'checked':''}><span></span></label>
         <div class="ak-chat-message-content">
@@ -470,7 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ${forwarded}${booking}
           ${message.body?`<div class="ak-chat-message-text">${escapeHtml(message.body).replace(/\n/g,'<br>')}</div>`:''}
           ${fileHtml?`<div class="ak-chat-message-attachments">${fileHtml}</div>`:''}
-          <div class="ak-chat-reactions">${reactionHtml}</div>
+          <div class="ak-chat-message-reaction-row">${reactionPickerHtml}<div class="ak-chat-reactions">${activeReactionHtml}</div></div>
           <div class="ak-chat-message-bottom"><time>${escapeHtml(fmtTime(message.created_at))}</time>${edited}${status}</div>
         </div>`;
       list.appendChild(bubble);
@@ -509,19 +548,56 @@ document.addEventListener('DOMContentLoaded', () => {
     if(!body&&!selectedFiles.length)return;
     const max=Number(settings?.max_message_chars)||2000;if(body.length>max)return toast(`Максимум ${max} символов.`,true);
     if(selectedFiles.length>(Number(settings?.max_attachments_per_message)||10))return toast(`Можно прикрепить не более ${settings.max_attachments_per_message||10} файлов.`,true);
+
+    // Put the message into the visible thread immediately. The server confirms it in the background.
+    const pendingId=`pending-${newId()}`;
+    const bookingId=selectedBooking?.id||null;
+    const targetUserId=conversation.kind==='direct'?getOtherUser(conversation.id)?.user_id:null;
+    const draftFiles=[...selectedFiles];
+    const pendingMessage={id:pendingId,conversation_id:conversation.id,sender_id:user.id,body,booking_id:bookingId,
+      target_user_id:targetUserId,created_at:new Date().toISOString(),edited_at:null,forwarded_from_message_id:null,client_pending:true};
+    messages=[...messages,pendingMessage].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+    renderMessages();renderConversationList();
+    requestAnimationFrame(()=>{const list=$('akChatMessageList');if(list)list.scrollTop=list.scrollHeight;});
+
     isSending=true;updateComposer();let uploaded=[];
     try{
-      uploaded=await uploadFiles(selectedFiles,conversation.id);
-      const targetUserId=conversation.kind==='direct'?getOtherUser(conversation.id)?.user_id:null;
-      const {error}=await sb.rpc('dockslot_chat_send_message',{
-        p_conversation_id:conversation.id,p_body:body,p_booking_id:selectedBooking?.id||null,
+      uploaded=await uploadFiles(draftFiles,conversation.id);
+      const {data:messageId,error}=await sb.rpc('dockslot_chat_send_message',{
+        p_conversation_id:conversation.id,p_body:body,p_booking_id:bookingId,
         p_target_user_id:targetUserId,p_files:uploaded
       });
       if(error)throw error;
+      if(!messageId)throw new Error('Сервер не вернул идентификатор сообщения.');
+
+      const sentAt=new Date().toISOString();
+      const sentMessage={...pendingMessage,id:messageId,created_at:sentAt,client_pending:false};
+      messages=messages.map((item)=>item.id===pendingId?sentMessage:item).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+      lastMessageByConversation.set(conversation.id,sentMessage);
+      conversation.updated_at=sentAt;
       input.value='';selectedFiles=[];renderSelectedFiles();setSelectedBooking(null);updateComposer();
-      await refreshData(false);
-      if(isOpen&&selectedConversationId)await loadSelectedMessages({preserveHistory:true,forceBottom:true});
+      renderMessages();renderConversationList();
+      requestAnimationFrame(()=>{const list=$('akChatMessageList');if(list)list.scrollTop=list.scrollHeight;});
+
+      // Load file metadata and signed URLs without blocking the send button or the next message.
+      if(uploaded.length){
+        void (async()=>{
+          try{
+            const {data:fileRows,error:fileError}=await sb.from('dockslot_chat_attachments')
+              .select('id,message_id,storage_path,file_name,mime_type,file_size').eq('message_id',messageId);
+            if(fileError)throw fileError;
+            const found=fileRows||[];
+            attachments=[...attachments.filter((item)=>!found.some((row)=>row.id===item.id)),...found];
+            await Promise.all(found.map(async(attachment)=>{
+              try{const {data:link,error:linkError}=await sb.storage.from('dockslot-chat-files').createSignedUrl(attachment.storage_path,3600);if(!linkError&&link?.signedUrl)signedFiles.set(attachment.id,link.signedUrl);}catch(_){}
+            }));
+            if(isOpen&&selectedConversationId===conversation.id)renderMessages();
+          }catch(fileError){console.warn('[DockSlot chat] Attachment preview will refresh on the next update.',fileError?.message||fileError);}
+        })();
+      }
+      queueRefreshData(false);
     }catch(error){
+      messages=messages.filter((item)=>item.id!==pendingId);renderMessages();renderConversationList();
       if(uploaded.length)try{await sb.storage.from('dockslot-chat-files').remove(uploaded.map((f)=>f.storage_path));}catch(_){}
       console.error('[DockSlot chat] Message send failed:',error);toast(error?.message||'Не удалось отправить сообщение.',true);
     }finally{isSending=false;updateComposer();input?.focus();}
@@ -547,10 +623,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const onMessageListClick=async(event)=>{
     const olderButton=event.target.closest('#akChatLoadOlder');if(olderButton){void loadOlderMessages();return;}
     const bookingButton=event.target.closest('[data-chat-message-booking]');if(bookingButton){void openBookingFromMessage(bookingButton.dataset.chatMessageBooking);return;}
+    const reactionToggle=event.target.closest('[data-chat-reaction-toggle]');
+    if(reactionToggle){
+      const bubble=reactionToggle.closest('.ak-chat-message');
+      const opening=!bubble?.classList.contains('is-reaction-open');
+      $('akChatMessageList')?.querySelectorAll('.ak-chat-message.is-reaction-open').forEach((node)=>node.classList.remove('is-reaction-open'));
+      bubble?.classList.toggle('is-reaction-open',opening);return;
+    }
     const reactionButton=event.target.closest('[data-chat-reaction]');if(reactionButton){
       const {chatReaction:key,chatMessage:id}=reactionButton.dataset;
+      reactionButton.closest('.ak-chat-message')?.classList.remove('is-reaction-open');
       const {error}=await sb.rpc('dockslot_chat_toggle_reaction',{p_message_id:id,p_reaction_key:key});
-      if(error)toast(error.message||'Не удалось поставить реакцию.',true);else await loadSelectedMessages();return;
+      if(error)toast(error.message||'Не удалось поставить реакцию.',true);else await loadSelectedMessages({preserveHistory:true});return;
     }
     const editButton=event.target.closest('[data-chat-edit]');if(editButton){const message=messages.find((m)=>m.id===editButton.dataset.chatEdit);if(message)startEditing(message);}
   };
@@ -582,7 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const openPicker=async(mode)=>{
-    pickerMode=mode;selectedRecipientIds.clear();
+    pickerMode=mode;selectedRecipientIds.clear();presetGroupTitle=null;
     const picker=$('akChatPicker');picker.hidden=false;
     const titles={recipients:'Новое сообщение · получатели',booking:'Привязать запись слота',forward:'Переслать выбранные сообщения'};
     $('akChatPickerTitle').textContent=titles[mode]||'Выберите';
@@ -614,6 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const label=document.createElement('label');label.className='ak-chat-picker-item is-selectable';
       label.innerHTML=`<span class="ak-chat-picker-avatar">${escapeHtml((row.display_name||'С')[0].toLocaleUpperCase('ru-RU'))}</span><span><strong>${escapeHtml(row.display_name)}</strong><small>${escapeHtml(roleLabels[row.role]||row.role)}${row.company_name?` · ${escapeHtml(row.company_name)}`:''}</small></span><input type="checkbox" data-recipient-id="${row.user_id}" ${selectedRecipientIds.has(row.user_id)?'checked':''}>`;
       label.querySelector('input').addEventListener('change',(event)=>{
+        presetGroupTitle=null;
         if(event.target.checked){
           if(selectedRecipientIds.size>=200){event.target.checked=false;toast('В одной переписке можно выбрать не более 200 получателей.',true);return;}
           selectedRecipientIds.add(row.user_id);
@@ -631,12 +716,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const closePicker=()=>{if($('akChatPicker'))$('akChatPicker').hidden=true;};
   const pickerAction=async()=>{
     const ids=[...selectedRecipientIds];if(!ids.length)return;
-    if(pickerMode==='recipients')await createConversationForUsers(ids);
+    if(pickerMode==='recipients')await createConversationForUsers(ids,presetGroupTitle);
     else if(pickerMode==='forward')await forwardSelectedMessages(ids);
   };
-  const createConversationForUsers=async(ids)=>{
+  const createConversationForUsers=async(ids,groupTitle=null)=>{
     try{
-      const title=ids.length>1?`Группа · ${ids.length+1} участников`:null;
+      const title=groupTitle || (ids.length>1?`Группа · ${ids.length+1} участников`:null);
       const {data,error}=await sb.rpc('dockslot_chat_create_group',{p_user_ids:ids,p_title:title});if(error)throw error;
       closePicker();await refreshData(false);selectedConversationId=data;clearMessageSelection();setSelectedBooking(null);renderConversationList();await renderSelectedConversation();
     }catch(error){toast(error?.message||'Не удалось создать переписку.',true);}
@@ -725,7 +810,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateBookingMarkers();focusLinkedBookingCard();
   };
   const clearSession=()=>{
-    window.clearInterval(pollTimer);bookingObserver?.disconnect();bookingObserver=null;
+    window.clearInterval(pollTimer);window.clearTimeout(refreshDebounceTimer);refreshDebounceTimer=null;queuedRefreshThread=false;bookingObserver?.disconnect();bookingObserver=null;
     document.querySelectorAll('.ak-chat-slot-marker').forEach((node)=>node.remove());
     if(realtimeChannel){try{void sb.removeChannel(realtimeChannel);}catch(_){}realtimeChannel=null;}
     user=null;role='';isOpen=false;$('akChatFab')?.remove();$('akChatOverlay')?.remove();$('akChatToast')?.remove();
