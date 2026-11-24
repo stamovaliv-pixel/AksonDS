@@ -30,7 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
     close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>',
     attach: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12.5 14.8 5.7a3.2 3.2 0 0 1 4.5 4.5l-8.8 8.9a5 5 0 0 1-7.1-7.1l8.5-8.5"/></svg>',
     group: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M2.8 20v-1.4A5.3 5.3 0 0 1 8.1 13h1.8a5.3 5.3 0 0 1 5.3 5.3V20M16 5.2a3.2 3.2 0 0 1 0 6.2m1.2 2a4.9 4.9 0 0 1 4 4.8V20"/></svg>',
-    direct: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.2a7.8 7.8 0 0 1-8 7.8 8.7 8.7 0 0 1-3.3-.7L4 20l1.4-4.1A7.5 7.5 0 0 1 4 11.2 7.8 7.8 0 0 1 12 3.5a7.8 7.8 0 0 1 8 7.7Z"/><path d="M9 11.5h6"/></svg>'
+    direct: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.2a7.8 7.8 0 0 1-8 7.8 8.7 8.7 0 0 1-3.3-.7L4 20l1.4-4.1A7.5 7.5 0 0 1 4 11.2 7.8 7.8 0 0 1 12 3.5a7.8 7.8 0 0 1 8 7.7Z"/><path d="M9 11.5h6"/></svg>',
+    flame: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.1 1.8c.6 3.1-.8 5.1-2.4 6.8-1.4 1.5-2.8 3-2.8 5.6 0 2.4 1.6 4.1 3.8 4.1 2.4 0 4.1-1.9 4.1-4.4 0-1.3-.4-2.6-1.2-3.8 3.7 1.7 6.1 5 6.1 8.5 0 4.3-3.6 7.5-8.6 7.5S3.5 22.9 3.5 18.1c0-4.5 2.8-7.5 5.5-10.1 1.8-1.7 3.4-3.3 4.1-6.2Z"/></svg>'
   };
 
   let user = null, role = '', settings = null;
@@ -497,7 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `<button type="button" class="ak-chat-reaction${item.mine?' is-mine':''}" data-chat-reaction="${item.key}" data-chat-message="${message.id}" title="${item.label}" aria-pressed="${item.mine}">${item.emoji}<small>${item.count}</small></button>`
       ).join('');
       const reactionPickerHtml = `<div class="ak-chat-reaction-control">
-        <button type="button" class="ak-chat-reaction-trigger" data-chat-reaction-toggle aria-label="Добавить реакцию" title="Добавить реакцию">🔥</button>
+        <button type="button" class="ak-chat-reaction-trigger" data-chat-reaction-toggle aria-label="Добавить реакцию" title="Добавить реакцию">${icons.flame}</button>
         <div class="ak-chat-reaction-menu" role="group" aria-label="Выбор реакции">
           ${reactionRows.map((item) => `<button type="button" data-chat-reaction="${item.key}" data-chat-message="${message.id}" title="${item.label}" aria-label="${item.label}">${item.emoji}</button>`).join('')}
         </div>
@@ -541,6 +542,17 @@ document.addEventListener('DOMContentLoaded', () => {
       throw error;
     }
   };
+  const scrollMessageListToBottom=()=>{
+    const list=$('akChatMessageList');
+    if(!list)return;
+    const commit=()=>{
+      if(!isOpen||!list.isConnected)return;
+      list.scrollTop=list.scrollHeight;
+    };
+    requestAnimationFrame(()=>{commit();requestAnimationFrame(commit);});
+    window.setTimeout(commit,120);
+  };
+
   const sendMessage=async()=>{
     if(!selectedConversationId||isSending||editingMessageId)return;
     const input=$('akChatInput'),body=String(input?.value||'').trim(),conversation=getConversation(selectedConversationId);
@@ -549,16 +561,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const max=Number(settings?.max_message_chars)||2000;if(body.length>max)return toast(`Максимум ${max} символов.`,true);
     if(selectedFiles.length>(Number(settings?.max_attachments_per_message)||10))return toast(`Можно прикрепить не более ${settings.max_attachments_per_message||10} файлов.`,true);
 
-    // Put the message into the visible thread immediately. The server confirms it in the background.
+    const sendStartedAt=new Date().toISOString();
     const pendingId=`pending-${newId()}`;
-    const bookingId=selectedBooking?.id||null;
+    const bookingDraft=selectedBooking;
+    const bookingId=bookingDraft?.id||null;
     const targetUserId=conversation.kind==='direct'?getOtherUser(conversation.id)?.user_id:null;
     const draftFiles=[...selectedFiles];
     const pendingMessage={id:pendingId,conversation_id:conversation.id,sender_id:user.id,body,booking_id:bookingId,
-      target_user_id:targetUserId,created_at:new Date().toISOString(),edited_at:null,forwarded_from_message_id:null,client_pending:true};
+      target_user_id:targetUserId,created_at:sendStartedAt,edited_at:null,forwarded_from_message_id:null,client_pending:true};
+
+    // Clear the composer immediately after creating the optimistic message.
+    // This prevents the typed text from remaining visible while the server confirms the send.
     messages=[...messages,pendingMessage].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-    renderMessages();renderConversationList();
-    requestAnimationFrame(()=>{const list=$('akChatMessageList');if(list)list.scrollTop=list.scrollHeight;});
+    if(input)input.value='';
+    selectedFiles=[];renderSelectedFiles();setSelectedBooking(null);updateComposer();
+    renderMessages();renderConversationList();scrollMessageListToBottom();
 
     isSending=true;updateComposer();let uploaded=[];
     try{
@@ -575,9 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
       messages=messages.map((item)=>item.id===pendingId?sentMessage:item).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
       lastMessageByConversation.set(conversation.id,sentMessage);
       conversation.updated_at=sentAt;
-      input.value='';selectedFiles=[];renderSelectedFiles();setSelectedBooking(null);updateComposer();
-      renderMessages();renderConversationList();
-      requestAnimationFrame(()=>{const list=$('akChatMessageList');if(list)list.scrollTop=list.scrollHeight;});
+      updateComposer();renderMessages();renderConversationList();scrollMessageListToBottom();
 
       // Load file metadata and signed URLs without blocking the send button or the next message.
       if(uploaded.length){
@@ -599,7 +614,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }catch(error){
       messages=messages.filter((item)=>item.id!==pendingId);renderMessages();renderConversationList();
       if(uploaded.length)try{await sb.storage.from('dockslot-chat-files').remove(uploaded.map((f)=>f.storage_path));}catch(_){}
+      // Restore the draft only when the user has not started typing a different message.
+      if(input&&!String(input.value||'').trim())input.value=body;
+      if(!selectedFiles.length&&draftFiles.length)selectedFiles=draftFiles;
+      if(!selectedBooking&&bookingDraft)setSelectedBooking(bookingDraft);
+      renderSelectedFiles();updateComposer();scrollMessageListToBottom();
       console.error('[DockSlot chat] Message send failed:',error);toast(error?.message||'Не удалось отправить сообщение.',true);
+      // Reconcile once: the database may have committed the message even if the HTTP response was lost.
+      queueRefreshData(true);
     }finally{isSending=false;updateComposer();input?.focus();}
   };
 

@@ -59,13 +59,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   try {
-    const { data, error } = await sb.from('dockslot_chat_settings').select('*').eq('id', 1).single();
+    const { data, error } = await sb.from('dockslot_chat_settings').select('*').eq('id', 1).maybeSingle();
     if (error) throw error;
+    if (!data) throw new Error('Строка настроек мессенджера (id = 1) не найдена. Проверьте применение SQL-миграции v1.2.');
     render(data);
   } catch (error) {
     $('chatAdminStatusTitle').textContent = 'Настройки не загружены';
     $('chatAdminStatusHint').textContent = error?.message || 'Примените SQL-миграцию Messenger v1.1.';
-    $('chatAdminSaveMeta').textContent = 'Сначала примените supabase/migrations/20261123_dockslot_messenger_v1.sql';
+    $('chatAdminSaveMeta').textContent = 'Проверьте строку настроек id = 1 и миграцию Messenger v1.2.';
     toast('Не удалось загрузить параметры мессенджера. Проверьте миграцию.', true);
     return;
   }
@@ -91,13 +92,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       max_messages_per_minute:Number($('maxMessagesPerMinute').value),
       max_attachment_size_mb:Number($('maxAttachmentSizeMb').value),
       max_attachments_per_message:Number($('maxAttachmentsPerMessage').value),
-      updated_by:user.id
     };
     setBusy(true); $('chatAdminSave').textContent = 'Сохранение…';
     try {
-      const { data, error } = await sb.from('dockslot_chat_settings').update(payload).eq('id',1).select('*').single();
+      const { data, error } = await sb.rpc('dockslot_chat_update_settings', { p_payload: payload });
       if (error) throw error;
-      render(data); toast('Настройки мессенджера сохранены.');
+      const saved = typeof data === 'string' ? JSON.parse(data) : data;
+      if (!saved || Number(saved.id) !== 1) throw new Error('Сервер не подтвердил сохранение настроек. Обновите страницу и проверьте SQL-миграцию исправления настроек.');
+      render(saved); toast('Настройки мессенджера сохранены.');
     } catch (error) { toast(error?.message || 'Не удалось сохранить настройки.',true); }
     finally { setBusy(false); $('chatAdminSave').textContent = 'Сохранить настройки'; }
   });
