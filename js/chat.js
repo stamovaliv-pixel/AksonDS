@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     super_admin: 'Администратор'
   };
   const reactionDefs = [
-    ['heart', '❤️', 'Сердце'], ['like', '👍', 'Класс'], ['cry', '🥹', 'Трогает'],
+    ['heart', '❤️', 'Сердце'], ['like', '👍', 'Класс'], ['cry', '🥺', 'Трогает'],
     ['laugh', '😄', 'Смеюсь'], ['rofl', '🤣', 'Ржу'], ['strong', '💪', 'Сила'], ['fire', '🔥', 'Огонь']
   ];
   const allowedExtensions = new Set(['jpg','jpeg','png','gif','webp','heic','heif','pdf','doc','docx','xls','xlsx','csv']);
@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     attach: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12.5 14.8 5.7a3.2 3.2 0 0 1 4.5 4.5l-8.8 8.9a5 5 0 0 1-7.1-7.1l8.5-8.5"/></svg>',
     group: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M2.8 20v-1.4A5.3 5.3 0 0 1 8.1 13h1.8a5.3 5.3 0 0 1 5.3 5.3V20M16 5.2a3.2 3.2 0 0 1 0 6.2m1.2 2a4.9 4.9 0 0 1 4 4.8V20"/></svg>',
     direct: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.2a7.8 7.8 0 0 1-8 7.8 8.7 8.7 0 0 1-3.3-.7L4 20l1.4-4.1A7.5 7.5 0 0 1 4 11.2 7.8 7.8 0 0 1 12 3.5a7.8 7.8 0 0 1 8 7.7Z"/><path d="M9 11.5h6"/></svg>',
-    flame: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.1 1.8c.6 3.1-.8 5.1-2.4 6.8-1.4 1.5-2.8 3-2.8 5.6 0 2.4 1.6 4.1 3.8 4.1 2.4 0 4.1-1.9 4.1-4.4 0-1.3-.4-2.6-1.2-3.8 3.7 1.7 6.1 5 6.1 8.5 0 4.3-3.6 7.5-8.6 7.5S3.5 22.9 3.5 18.1c0-4.5 2.8-7.5 5.5-10.1 1.8-1.7 3.4-3.3 4.1-6.2Z"/></svg>'
+    heart: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 8.8c0 5.1-8.8 11-8.8 11s-8.8-5.9-8.8-11A4.8 4.8 0 0 1 12 6.1a4.8 4.8 0 0 1 8.8 2.7Z"/></svg>'
   };
 
   let user = null, role = '', settings = null;
@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let realtimeChannel = null, pollTimer = null, bookingObserver = null;
   let isOpen = false, isSending = false, loading = false;
   let refreshDebounceTimer = null, queuedRefreshThread = false;
+  let bottomScrollRevision = 0;
 
   const getConversation = (id) => conversations.find((row) => row.id === id) || null;
   const getParticipants = (conversationId) => participants.filter((row) => row.conversation_id === conversationId);
@@ -363,6 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const loadSelectedMessages = async ({ preserveHistory = false, forceBottom = false } = {}) => {
     if(!selectedConversationId)return;
     const list=$('akChatMessageList');
+    const scrollRevisionAtStart=bottomScrollRevision;
     const previousScrollTop=list?.scrollTop||0;
     const wasNearBottom=!list||list.scrollHeight-list.scrollTop-list.clientHeight<100;
     const previousMessages=preserveHistory?messages:[];
@@ -412,8 +414,9 @@ document.addEventListener('DOMContentLoaded', () => {
     renderMessages();renderConversationList();
     requestAnimationFrame(()=>{
       if(!list)return;
+      if(bottomScrollRevision!==scrollRevisionAtStart){scrollMessageListToBottom();return;}
       if(preserveHistory&&!forceBottom&&!wasNearBottom)list.scrollTop=previousScrollTop;
-      else list.scrollTop=list.scrollHeight;
+      else scrollMessageListToBottom();
     });
   };
   const loadOlderMessages=async()=>{
@@ -498,7 +501,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `<button type="button" class="ak-chat-reaction${item.mine?' is-mine':''}" data-chat-reaction="${item.key}" data-chat-message="${message.id}" title="${item.label}" aria-pressed="${item.mine}">${item.emoji}<small>${item.count}</small></button>`
       ).join('');
       const reactionPickerHtml = `<div class="ak-chat-reaction-control">
-        <button type="button" class="ak-chat-reaction-trigger" data-chat-reaction-toggle aria-label="Добавить реакцию" title="Добавить реакцию">${icons.flame}</button>
+        <button type="button" class="ak-chat-reaction-trigger" data-chat-reaction-toggle aria-label="Добавить реакцию" title="Добавить реакцию">${icons.heart}</button>
         <div class="ak-chat-reaction-menu" role="group" aria-label="Выбор реакции">
           ${reactionRows.map((item) => `<button type="button" data-chat-reaction="${item.key}" data-chat-message="${message.id}" title="${item.label}" aria-label="${item.label}">${item.emoji}</button>`).join('')}
         </div>
@@ -545,12 +548,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const scrollMessageListToBottom=()=>{
     const list=$('akChatMessageList');
     if(!list)return;
+    const revision=++bottomScrollRevision;
     const commit=()=>{
-      if(!isOpen||!list.isConnected)return;
-      list.scrollTop=list.scrollHeight;
+      if(!isOpen||!list.isConnected||revision!==bottomScrollRevision)return;
+      list.classList.add('ak-chat-force-bottom');
+      // Use the actual scroll container geometry; scrollIntoView alone can scroll the page instead.
+      list.scrollTop=Math.max(0,list.scrollHeight-list.clientHeight);
+      const lastMessage=list.querySelector('.ak-chat-message:last-of-type') || [...list.querySelectorAll('.ak-chat-message')].at(-1);
+      if(lastMessage){
+        const listRect=list.getBoundingClientRect(),messageRect=lastMessage.getBoundingClientRect();
+        const overflow=messageRect.bottom-listRect.bottom;
+        if(overflow>0)list.scrollTop+=overflow+8;
+      }
     };
-    requestAnimationFrame(()=>{commit();requestAnimationFrame(commit);});
-    window.setTimeout(commit,120);
+    requestAnimationFrame(()=>{commit();requestAnimationFrame(commit);requestAnimationFrame(commit);});
+    [60,180,420].forEach((delay)=>window.setTimeout(commit,delay));
+    window.setTimeout(()=>{if(revision===bottomScrollRevision&&list.isConnected)list.classList.remove('ak-chat-force-bottom');},650);
   };
 
   const sendMessage=async()=>{

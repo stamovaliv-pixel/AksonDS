@@ -545,3 +545,127 @@ html[data-theme="dark"] .ak-chat-search-input-wrap input { border-color:#3a4959;
   .ak-chat-message { min-width:92px;max-width:94%; }
   .ak-chat-reaction-trigger { width:12px!important;height:12px!important; }
 }
+
+
+/* DockSlot Messenger v1.6 — compact WhatsApp-like reaction bar, bubble sizing and reliable bottom anchoring. */
+.ak-chat-message {
+  display:block!important;
+  box-sizing:border-box!important;
+  width:fit-content!important;
+  min-width:124px!important;
+  max-width:min(82%,560px)!important;
+  flex:0 1 auto!important;
+}
+.ak-chat-message-content {
+  display:block!important;
+  box-sizing:border-box!important;
+  width:auto!important;
+  min-width:0!important;
+  max-width:100%!important;
+  flex:none!important;
+}
+.ak-chat-message-top { display:flex!important;min-width:0!important; }
+.ak-chat-message-text { display:block;min-width:0;max-width:100%;overflow-wrap:anywhere; }
+.ak-chat-message-attachments { max-width:100%; }
+.ak-chat-message-list.ak-chat-force-bottom { scroll-behavior:auto!important; }
+
+/* The reaction picker is a slim floating toolbar, not a large popover. */
+.ak-chat-reaction-control { position:relative!important;flex:0 0 auto!important; }
+.ak-chat-reaction-menu {
+  box-sizing:border-box!important;
+  display:flex!important;
+  width:max-content!important;
+  min-width:0!important;
+  max-width:min(224px,calc(100vw - 42px))!important;
+  height:34px!important;
+  min-height:34px!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:1px!important;
+  padding:4px 5px!important;
+  right:0!important;
+  bottom:calc(100% + 5px)!important;
+  border:1px solid rgba(148,163,184,.24)!important;
+  border-radius:999px!important;
+  background:rgba(255,255,255,.97)!important;
+  box-shadow:0 7px 20px rgba(15,23,42,.14),0 1px 3px rgba(15,23,42,.08)!important;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  z-index:30!important;
+}
+.ak-chat-reaction-menu button {
+  display:inline-flex!important;
+  box-sizing:border-box!important;
+  width:25px!important;height:25px!important;
+  min-width:25px!important;max-width:25px!important;
+  min-height:25px!important;max-height:25px!important;
+  flex:0 0 25px!important;
+  align-items:center!important;justify-content:center!important;
+  margin:0!important;padding:0!important;
+  border:0!important;border-radius:50%!important;
+  background:transparent!important;
+  color:inherit!important;
+  font-family:"Segoe UI Emoji","Apple Color Emoji",sans-serif!important;
+  font-size:17px!important;line-height:1!important;font-weight:400!important;
+  text-shadow:0 1px 1.5px rgba(15,23,42,.20);
+  cursor:pointer!important;
+  transition:transform .13s ease,background .13s ease!important;
+}
+.ak-chat-reaction-menu button:hover,.ak-chat-reaction-menu button:focus-visible {
+  background:rgba(100,116,139,.10)!important;
+  transform:translateY(-2px) scale(1.08)!important;
+  outline:none!important;
+}
+.ak-chat-reaction-trigger {
+  display:inline-flex!important;
+  width:20px!important;height:20px!important;
+  min-width:20px!important;min-height:20px!important;
+  align-items:center!important;justify-content:center!important;
+  padding:0!important;margin:0!important;
+  border:0!important;border-radius:0!important;
+  background:transparent!important;
+  color:#e87991!important;
+  box-shadow:none!important;filter:none!important;
+  cursor:pointer!important;opacity:.9;
+}
+.ak-chat-reaction-trigger svg {
+  display:block!important;width:15px!important;height:15px!important;
+  fill:none!important;stroke:currentColor!important;stroke-width:1.8!important;
+  stroke-linecap:round!important;stroke-linejoin:round!important;
+}
+.ak-chat-reaction-trigger:hover,.ak-chat-message.is-reaction-open .ak-chat-reaction-trigger {
+  color:#d85e7d!important;background:transparent!important;opacity:1;transform:scale(1.04)!important;
+}
+.ak-chat-reaction,.ak-chat-reaction-menu button {
+  font-family:"Segoe UI Emoji","Apple Color Emoji",sans-serif!important;
+  text-shadow:0 1px 1.5px rgba(15,23,42,.16);
+}
+html[data-theme="dark"] .ak-chat-reaction-menu {
+  border-color:rgba(100,116,139,.42)!important;
+  background:rgba(25,35,48,.97)!important;
+  box-shadow:0 8px 22px rgba(0,0,0,.35)!important;
+}
+@media(max-width:760px){
+  .ak-chat-message { min-width:112px!important;max-width:94%!important; }
+  .ak-chat-reaction-menu { max-width:calc(100vw - 28px)!important; }
+}
+@media(prefers-reduced-motion:reduce){
+  .ak-chat-reaction-menu button { transition:none!important; }
+}
+
+/* v1.6 ambient light: a brighter, soft red-to-blue halo beneath the launcher, once every ten minutes. */
+.ak-chat-fab::before {
+  background:conic-gradient(from 0deg,transparent 0 15%,rgba(239,68,68,.34) 27%,rgba(59,130,246,.43) 44%,rgba(37,99,235,.30) 61%,transparent 79%)!important;
+  filter:blur(11px)!important;
+}
+.ak-chat-fab::after {
+  background:radial-gradient(ellipse,rgba(239,68,68,.19) 0%,rgba(59,130,246,.22) 35%,rgba(37,99,235,.13) 55%,transparent 74%)!important;
+  filter:blur(19px)!important;
+}
+@keyframes ak-chat-soft-ambilight {
+  0%,.02% { opacity:0;transform:rotate(0deg); }
+  .045% { opacity:.60;transform:rotate(0deg); }
+  .295% { opacity:.60;transform:rotate(360deg); }
+  .32%,100% { opacity:0;transform:rotate(360deg); }
+}
+@media(max-width:760px){.ak-chat-fab::before,.ak-chat-fab::after{animation:ak-chat-soft-ambilight 600s linear infinite!important;}}
