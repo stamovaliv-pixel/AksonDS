@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     help: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle><path d="M9.6 9a2.5 2.5 0 1 1 4.4 1.6c-.9 1-2 1.2-2 2.9M12 17.2v.1"></path></svg>',
     sun: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"></path></svg>',
     moon: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.463.402.807a6.5 6.5 0 0 0 8.268 8.268c.344-.215.829-.003.803.397Z"></path></svg>',
+    chat: '<svg viewBox="0 0 24 24"><path d="M14.3 4.1A6.8 6.8 0 0 1 20 10.7a6.4 6.4 0 0 1-1.7 4.4l.4 2.7-2.7-.9a7.7 7.7 0 0 1-2.6.5"/><path d="M10.2 7.2c-3.7 0-6.7 2.6-6.7 5.8 0 1.5.6 2.8 1.7 3.9L4.4 20l3.2-1.1c.8.3 1.7.4 2.6.4 3.7 0 6.7-2.6 6.7-5.8s-3-6.3-6.7-6.3Z"/></svg>',
     logout: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="m16 17 5-5-5-5M21 12H9"></path></svg>'
   };
 
@@ -112,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
       else link.removeAttribute('aria-current');
     });
     if (menuTrigger) {
-      const inTools = ['suppliers.html', 'analytics.html', 'settings.html', 'help.html', ...(role === 'super_admin' ? ['load_management.html', 'ai_ds_management.html'] : [])].includes(page);
+      const inTools = ['suppliers.html', 'analytics.html', 'settings.html', 'help.html', ...(role === 'super_admin' ? ['load_management.html', 'ai_ds_management.html', 'messenger_management.html'] : [])].includes(page);
       menuTrigger.classList.toggle('active', inTools);
       menuTrigger.setAttribute('aria-pressed', String(inTools));
     }
@@ -135,6 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
       { href: 'analytics.html', label: 'Аналитика', detail: 'Показатели и качество поставок', icon: 'analytics' },
       { href: 'load_management.html', label: 'Управление нагрузкой', detail: 'Прогноз загруженности и визуальные рекомендации', icon: 'load' },
       { href: 'ai_ds_management.html', label: 'Докси — управление', detail: 'Полномочия, заметки, напоминания и история вопросов', icon: 'settings', superAdminOnly: true },
+      { href: 'messenger_management.html', label: 'Мессенджер — управление', detail: 'Роли, форматы чатов и ограничения сообщений', icon: 'chat', superAdminOnly: true },
       { href: 'settings.html', label: 'Настройки', detail: 'Слоты, расписание и параметры', icon: 'settings' },
       { type: 'theme', label: 'Темный режим', detail: 'Переключить оформление приложения' },
       { href: 'help.html', label: 'Помощь', detail: 'Инструкции по работе с ДокСлотом', icon: 'help' }

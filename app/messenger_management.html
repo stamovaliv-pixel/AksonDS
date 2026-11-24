@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f7f9">
+  <title>Мессенджер — управление · DockSlot</title>
+  <link rel="stylesheet" href="../css/theme.css?v=4-1-date-exceptions">
+  <link rel="stylesheet" href="../css/main.css?v=4-1-date-exceptions">
+  <link rel="stylesheet" href="../css/dark-mode.css?v=5-role-calendar-colors">
+  <link rel="stylesheet" href="../css/mobile-refinements.css?v=2" media="(max-width: 767px)">
+  <link rel="stylesheet" href="../css/admin-navigation.css?v=9-graphite-submenu-day-nav">
+  <link rel="stylesheet" href="../css/notifications.css?v=6-floating-bell-theme">
+  <link rel="stylesheet" href="../css/chat.css?v=20261124-chat-v1-2">
+  <link rel="stylesheet" href="../css/chat-management.css?v=20261124-chat-v1-2">
+  <script>try{if(localStorage.getItem('akson-dockslot-theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
+  <link rel="icon" type="image/png" sizes="64x64" href="../assets/favicon.png">
+</head>
+<body class="app-body chat-management-page">
+  <header class="app-header">
+    <div class="header-logo"><img src="../assets/logistic-logo.svg" alt="АКСОН Логистика" class="app-logo"></div>
+    <div class="header-nav"><button class="theme-toggle" type="button" data-theme-toggle title="Темный режим" aria-label="Темный режим"></button><a href="#" id="logoutBtn" class="nav-icon" title="Выход" aria-label="Выход"></a></div>
+  </header>
+  <div class="top-gradient-bar"></div>
+
+  <main class="chat-admin-shell" id="chatAdminRoot" hidden>
+    <header class="chat-admin-heading">
+      <div>
+        <div class="chat-admin-eyebrow">DOCKSLOT · КОМАНДНЫЕ КОММУНИКАЦИИ</div>
+        <h1>Управление мессенджером</h1>
+        <p>Доступ сотрудников, форматы переписки и ограничения сообщений.</p>
+        <button type="button" class="chat-admin-history-trigger" id="openChatArchive" aria-label="Открыть архив сообщений">История сообщений <span>↗</span></button>
+      </div>
+      <div class="chat-admin-role-tag"><span></span> Только Super Admin</div>
+    </header>
+
+    <div id="chatAdminSettingsView">
+    <section class="chat-admin-status-card">
+      <div class="chat-admin-status-icon">✦</div>
+      <div class="chat-admin-status-copy">
+        <span>ГЛОБАЛЬНОЕ СОСТОЯНИЕ</span>
+        <strong id="chatAdminStatusTitle">Проверка настроек…</strong>
+        <small id="chatAdminStatusHint">Параметры загружаются из Supabase.</small>
+      </div>
+      <label class="chat-admin-switch" title="Включить или выключить мессенджер для сотрудников">
+        <input type="checkbox" id="chatEnabled">
+        <span class="chat-admin-switch-track"><i></i></span>
+      </label>
+    </section>
+
+    <section class="chat-admin-panel">
+      <div class="chat-admin-panel-heading">
+        <div><h2>Кому доступен мессенджер</h2><p>Доступ задаётся по действующим ролям DockSlot. Суперадминистратор может управлять настройками даже при отключённом чате.</p></div>
+        <span class="chat-admin-panel-icon">♙</span>
+      </div>
+      <div class="chat-admin-role-grid">
+        <label class="chat-admin-role-card">
+          <span class="chat-admin-role-symbol is-manager">УТЗ</span>
+          <span class="chat-admin-role-copy"><strong>Менеджер УТЗ</strong><small>Роль системы: admin</small></span>
+          <span class="chat-admin-check"><input id="roleAdmin" type="checkbox"><i></i></span>
+        </label>
+        <label class="chat-admin-role-card">
+          <span class="chat-admin-role-symbol is-operator">РЦ</span>
+          <span class="chat-admin-role-copy"><strong>Оператор / Руководитель РЦ</strong><small>Роль системы: operator</small></span>
+          <span class="chat-admin-check"><input id="roleOperator" type="checkbox"><i></i></span>
+        </label>
+        <label class="chat-admin-role-card">
+          <span class="chat-admin-role-symbol is-super">SA</span>
+          <span class="chat-admin-role-copy"><strong>Суперадминистратор</strong><small>Роль системы: super_admin</small></span>
+          <span class="chat-admin-check"><input id="roleSuperAdmin" type="checkbox"><i></i></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="chat-admin-panel">
+      <div class="chat-admin-panel-heading">
+        <div><h2>Возможности чата</h2><p>Форматы общения можно включать независимо друг от друга.</p></div>
+        <span class="chat-admin-panel-icon">▤</span>
+      </div>
+      <div class="chat-admin-feature-list">
+        <label class="chat-admin-feature-row"><span><strong>Общий чат команды</strong><small>Единый канал для всех сотрудников с разрешённой ролью.</small></span><input type="checkbox" id="generalChat"><i></i></label>
+        <label class="chat-admin-feature-row"><span><strong>Личные и групповые чаты</strong><small>Диалоги один на один и переписки с несколькими выбранными сотрудниками.</small></span><input type="checkbox" id="directChat"><i></i></label>
+        <label class="chat-admin-feature-row"><span><strong>Привязка к записи слота</strong><small>Сообщение может ссылаться на запись; у адресата появляется специальный значок на карточке слота.</small></span><input type="checkbox" id="bookingChat"><i></i></label>
+      </div>
+    </section>
+
+    <section class="chat-admin-panel">
+      <div class="chat-admin-panel-heading">
+        <div><h2>Ограничения и правила</h2><p>Лимиты проверяются и в интерфейсе, и на стороне базы данных.</p></div>
+        <span class="chat-admin-panel-icon">⚙</span>
+      </div>
+      <div class="chat-admin-limit-grid">
+        <label class="chat-admin-field"><span>Максимум символов в сообщении</span><input id="maxMessageChars" type="number" min="100" max="10000" step="100"><small>Допустимый диапазон: 100–10 000 символов.</small></label>
+        <label class="chat-admin-field"><span>Сообщений от одного пользователя в минуту</span><input id="maxMessagesPerMinute" type="number" min="1" max="60" step="1"><small>Допустимый диапазон: 1–60 сообщений за 60 секунд.</small></label>
+        <label class="chat-admin-field"><span>Максимальный размер одного файла (МБ)</span><input id="maxAttachmentSizeMb" type="number" min="1" max="50" step="1"><small>Допустимый диапазон: 1–50 МБ на файл.</small></label>
+        <label class="chat-admin-field"><span>Максимум файлов в одном сообщении</span><input id="maxAttachmentsPerMessage" type="number" min="1" max="10" step="1"><small>Допустимый диапазон: 1–10 файлов.</small></label>
+        <div class="chat-admin-limit-note"><strong>Правила Messenger v1.1</strong><p>История обычных пользователей доступна за 6 месяцев. Свои сообщения можно редактировать в течение 10 минут. Есть пересылка выбранных сообщений, семь реакций и закрытый полный архив только для суперадминистратора. Поддерживаются фото, PDF, Word и Excel.</p></div>
+      </div>
+    </section>
+
+    <footer class="chat-admin-save-row">
+      <span id="chatAdminSaveMeta">Настройки ещё не загружены.</span>
+      <button type="button" class="chat-admin-save-btn" id="chatAdminSave" disabled>Сохранить настройки</button>
+    </footer>
+    </div>
+    <section class="chat-admin-archive" id="chatAdminArchiveView" hidden>
+      <header class="chat-admin-archive-head">
+        <div><span class="chat-admin-eyebrow">PRIVATE · SUPER ADMIN ONLY</span><h2>История переписок</h2><p>Полный архив всех личных, групповых и общих чатов DockSlot. Доступ к данным проверяется сервером.</p></div>
+        <button type="button" class="chat-admin-archive-back" id="closeChatArchive">← Настройки</button>
+      </header>
+      <div class="chat-admin-archive-toolbar"><input id="chatArchiveSearch" type="search" placeholder="Поиск по тексту, сотруднику или чату…"><span id="chatArchiveCount">Архив не загружен</span></div>
+      <div class="chat-admin-archive-list" id="chatArchiveList"><div class="chat-admin-archive-empty">Откройте архив, чтобы загрузить историю сообщений.</div></div>
+      <div class="chat-admin-archive-more"><button type="button" id="chatArchiveMore">Загрузить ещё</button></div>
+    </section>
+    <div class="chat-admin-toast" id="chatAdminToast" role="status" aria-live="polite"></div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../js/supabase-client.js?v=security-20261023"></script>
+  <script src="../js/auth-profile.js?v=20261120-auth-jwt-preflight-1"></script>
+  <script src="../js/push-config.js?v=2-windows-push"></script>
+  <script src="../js/notifications.js?v=20261117-auth-session-guard"></script>
+  <script src="../js/chat.js?v=20261124-chat-v1-2"></script>
+  <script src="../js/admin-navigation.js?v=20261124-messenger-v1-1"></script>
+  <script src="../js/chat-management.js?v=20261124-chat-v1-2"></script>
+</body>
+</html>

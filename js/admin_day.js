@@ -394,7 +394,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }));
 
       return `
-        <div class="slot-box ${cssClass}" data-info="${dataStr}">
+        <div class="slot-box ${cssClass}" data-info="${dataStr}" data-chat-booking-id="${escapeHtml(b.id)}">
           <div class="sb-header"><div class="sb-title" title="${escapeHtml(compName)}">${escapeHtml(compName)}</div><button class="btn-dots" type="button" aria-label="Детали записи">⋮</button></div>
           <div class="sb-icons"><div style="display:flex; gap:4px; font-size:16px;">${iconsHtml}</div><div class="sb-status-icons">${verifyHtml}${tkHtml}</div></div>
           <div class="card-actions" data-id="${escapeHtml(b.id)}">

@@ -280,6 +280,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const verified = verifiedIds.has(String(booking.id));
       const row = createElement('article', 'overview-booking-row');
       row.dataset.openBooking = String(booking.id);
+      row.dataset.chatBookingId = String(booking.id);
       const hasArrival = Boolean(booking.arrival_time);
       const hasDeparture = Boolean(booking.departure_time);
       const arrivalIndicator = createElement('span', 'overview-arrival-indicator');
