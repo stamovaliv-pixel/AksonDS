@@ -39,6 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let toastTimer = null;
   const desktopNotificationIds = new Set();
   let pushSubscriptionActive = false;
+  let notificationBell = null;
+  let notificationNavObserver = null;
 
   const defaultPreferences = () => {
     const result = {};
@@ -91,7 +93,10 @@ document.addEventListener('DOMContentLoaded', () => {
     draftPreferences = {};
     inbox = [];
     closeModal();
+    notificationNavObserver?.disconnect();
+    notificationNavObserver = null;
     $('akNotificationsBell')?.remove();
+    notificationBell = null;
     $('akNotificationsOverlay')?.remove();
     document.body.classList.remove('ak-notifications-lock');
     window.dockslotResetAuthProfile?.();
@@ -182,7 +187,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const mountBellAndModal = () => {
     if (document.getElementById('akNotificationsBell')) return;
 
-    const bell = create('button', 'ak-notifications-bell');
+    const bell = create('button', 'ak-notifications-bell nav-icon');
+    notificationBell = bell;
     bell.type = 'button';
     bell.id = 'akNotificationsBell';
     bell.title = 'Уведомления';
@@ -191,8 +197,33 @@ document.addEventListener('DOMContentLoaded', () => {
     bell.setAttribute('aria-expanded', 'false');
     bell.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span class="ak-notifications-badge" id="akNotificationsBadge" hidden></span>';
 
-    // Keep the notification control floating above the page, independent of navigation and scroll.
-    document.body.appendChild(bell);
+    // Keep notifications as the first navigation control. admin-navigation.js rebuilds
+    // the role-specific contents asynchronously, so observe the nav and reinsert this
+    // same node if a role render replaces its children. The inbox/modal logic is unchanged.
+    const placeBellInNavigation = () => {
+      const nav = document.querySelector('.app-header > .header-nav, .header-nav');
+      const right = nav?.querySelector('.header-nav-right');
+      if (!right || !notificationBell) return false;
+      // On operator navigation the theme switch is a direct child before the right row.
+      // Put the bell before it as well, so notifications are the left-most navigation icon.
+      const themeAnchor = Array.from(nav.children).find((node) => node.classList?.contains('dockslot-theme-anchor'));
+      if (themeAnchor) {
+        if (notificationBell.parentElement !== nav || notificationBell.nextElementSibling !== themeAnchor) {
+          nav.insertBefore(notificationBell, themeAnchor);
+        }
+      } else if (notificationBell.parentElement !== right || right.firstElementChild !== notificationBell) {
+        right.insertBefore(notificationBell, right.firstElementChild);
+      }
+      return true;
+    };
+    const nav = document.querySelector('.app-header > .header-nav, .header-nav');
+    if (nav && typeof MutationObserver === 'function') {
+      notificationNavObserver = new MutationObserver(() => { placeBellInNavigation(); });
+      notificationNavObserver.observe(nav, { childList: true, subtree: true });
+    }
+    // Do not fall back to a floating button. On supported pages the observer
+    // attaches this node as soon as admin-navigation.js creates its role container.
+    placeBellInNavigation();
 
     const overlay = create('div', 'ak-notifications-overlay');
     overlay.id = 'akNotificationsOverlay';

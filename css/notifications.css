@@ -286,3 +286,74 @@ html[data-theme="dark"] .ak-notification-item.is-system-highlight { border-color
 
 /* v1.5.1: unread counter slightly overlaps the bell glyph by 15%. */
 .ak-notifications-badge { transform:translate(-15%,15%) !important; }
+
+
+/* Messenger v1.17 — notifications live in the role navigation, before page links. */
+.app-header .header-nav .ak-notifications-bell.nav-icon {
+  position: relative !important;
+  inset: auto !important;
+  z-index: 2 !important;
+  display: inline-flex !important;
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  flex: 0 0 38px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  color: var(--color-text-muted, #64748b) !important;
+  box-shadow: none !important;
+  animation: none !important;
+  transform: none !important;
+}
+.app-header .header-nav .ak-notifications-bell.nav-icon:hover,
+.app-header .header-nav .ak-notifications-bell.nav-icon:focus-visible {
+  color: var(--color-text-main, #475569) !important;
+  background: rgba(100, 116, 139, .09) !important;
+  filter: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  outline: none;
+}
+.app-header .header-nav .ak-notifications-bell.nav-icon svg {
+  display: block;
+  width: 21px !important;
+  height: 21px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.8 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+.app-header .header-nav .ak-notifications-badge {
+  top: 0 !important;
+  right: 0 !important;
+  border-width: 2px !important;
+  border-color: var(--color-surface, #fff) !important;
+  z-index: 4 !important;
+}
+@media (max-width: 767px) {
+  .app-header .header-nav .ak-notifications-bell.nav-icon {
+    width: 35px !important;
+    min-width: 35px !important;
+    height: 35px !important;
+    min-height: 35px !important;
+    flex-basis: 35px !important;
+  }
+  .app-header .header-nav .ak-notifications-bell.nav-icon svg { width: 21px !important; height: 21px !important; }
+}
+@media (max-width: 440px) {
+  .app-header .header-nav .ak-notifications-bell.nav-icon {
+    width: 31px !important;
+    min-width: 31px !important;
+    height: 31px !important;
+    min-height: 31px !important;
+    flex-basis: 31px !important;
+  }
+  .app-header .header-nav .ak-notifications-bell.nav-icon svg { width: 19px !important; height: 19px !important; }
+}

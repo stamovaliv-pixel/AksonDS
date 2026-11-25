@@ -2,7 +2,7 @@
 .ak-chat-fab {
   position: fixed;
   right: max(26px, env(safe-area-inset-right));
-  bottom: max(98px, calc(env(safe-area-inset-bottom) + 98px));
+  bottom: max(26px, calc(env(safe-area-inset-bottom) + 26px));
   z-index: 10041;
   display: inline-flex;
   width: 58px;
@@ -490,7 +490,7 @@ html[data-theme="dark"] .ak-chat-message-menu button { color:#e6edf5; }
 html[data-theme="dark"] .ak-chat-search-panel { border-color:#344150;background:#18212b; }
 html[data-theme="dark"] .ak-chat-search-input-wrap input { border-color:#3a4959;background:#111923;color:#e6edf5; }
 @media (max-width:760px) {
-  .ak-chat-fab { width:58px;height:58px;right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom)); }
+  .ak-chat-fab { width:58px;height:58px;right:max(18px,env(safe-area-inset-right));bottom:max(26px,env(safe-area-inset-bottom)); }
   .ak-chat-fab::before,.ak-chat-fab::after { animation:ak-chat-soft-ambilight 600s linear infinite; }
   .ak-chat-search-panel { padding:8px 9px; }
   .ak-chat-message-menu { right:0; }
@@ -886,7 +886,7 @@ html[data-theme="dark"] .ak-chat-read-info-row strong { color:#e6edf5; }
 html[data-theme="dark"] .ak-chat-booking-discuss-popover { border-color:rgba(100,116,139,.4);background:rgba(25,35,48,.98);color:#e6edf5; }
 html[data-theme="dark"] .ak-chat-booking-discuss-popover button { color:#e6edf5; }
 @media (max-width:760px) {
-  .ak-chat-fab { bottom:max(72px,calc(env(safe-area-inset-bottom) + 72px)) !important; }
+  .ak-chat-fab { bottom:max(26px,calc(env(safe-area-inset-bottom) + 26px)) !important; }
   .ak-chat-message { min-width:min(240px,94%) !important;max-width:94% !important; }
   .ak-chat-message-menu-wrap { right:-12px !important; }
   .ak-chat-reaction-control { right:-18px !important; }
@@ -1050,3 +1050,40 @@ html[data-theme="dark"] .ak-chat-booking-day.is-selected { color:#fff; }
 
 /* v1.16.1: unread counter overlaps the chat button edge by approximately 15%. */
 .ak-chat-fab-badge { top:0!important;right:0!important;transform:translate(85%,-85%)!important; }
+
+
+/* Messenger v1.17 — keep the booking mini-calendar visible in the slot picker. */
+.ak-chat-picker.is-booking-mode {
+  min-height: min(470px, calc(100% - 110px));
+  max-height: calc(100% - 110px);
+  overflow: hidden;
+}
+.ak-chat-picker.is-booking-mode .ak-chat-booking-calendar,
+.ak-chat-picker.is-booking-mode .ak-chat-booking-calendar.is-visible {
+  display: flex !important;
+  flex: 0 0 auto !important;
+  min-height: 176px;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+.ak-chat-picker.is-booking-mode .ak-chat-picker-groups { display: none !important; }
+.ak-chat-picker.is-booking-mode .ak-chat-picker-people {
+  display: flex !important;
+  flex: 1 1 auto;
+  min-height: 110px;
+  overflow: hidden;
+}
+.ak-chat-picker.is-booking-mode .ak-chat-picker-people .ak-chat-picker-list {
+  flex: 1 1 auto;
+  min-height: 90px;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+@media (max-width: 760px) {
+  .ak-chat-picker.is-booking-mode {
+    min-height: min(440px, calc(100dvh - 100px));
+    max-height: calc(100dvh - 90px);
+  }
+  .ak-chat-picker.is-booking-mode .ak-chat-booking-calendar { min-height: 172px; }
+}

@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedFiles = [], selectedMessageIds = new Set(), selectedRecipientIds = new Set();
   let forwardingSelectionMode = false;
   let pickerBookings = [], pickerMode = '', presetGroupTitle = null, editingMessageId = null;
+  let pickerCalendarSelectedDate = null, pickerCalendarMonth = null, pickerCalendarRequest = 0;
   let bookingDiscussionContext = null, bookingDiscussPopover = null, bookingDiscussPopoverCleanup = null;
   let hasOlderMessages = false, olderMessagesLoading = false;
   let chatSearchTimer = null, chatSearchRows = [];
@@ -152,6 +153,16 @@ document.addEventListener('DOMContentLoaded', () => {
       setupRealtime();
       startPolling();
       watchBookingCards();
+      const openChatParams = new URLSearchParams(window.location.search);
+      const requestedConversationId = openChatParams.get('openChatConversation');
+      const requestedMessageId = openChatParams.get('openChatMessage');
+      if (requestedConversationId) {
+        openChatParams.delete('openChatConversation');
+        openChatParams.delete('openChatMessage');
+        const nextQuery = openChatParams.toString();
+        window.history.replaceState({}, '', `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`);
+        window.setTimeout(() => void openChat(requestedConversationId, null, requestedMessageId), 0);
+      }
     } catch (error) { console.error('[DockSlot chat] Initialization failed:', error); }
   };
 
@@ -161,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fab.type = 'button'; fab.id = 'akChatFab'; fab.className = 'ak-chat-fab';
     fab.title = 'Командный чат'; fab.setAttribute('aria-label','Открыть командный чат');
     fab.setAttribute('aria-haspopup','dialog'); fab.setAttribute('aria-expanded','false');
-    fab.innerHTML = `${icons.chat}<span class="ak-chat-fab-badge" id="akChatUnreadBadge" hidden></span>`;
+    fab.innerHTML = `<svg class="ak-chat-fab-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.4a8.5 8.5 0 0 1-8.7 8.1 9.5 9.5 0 0 1-3.8-.8L3 20l1.4-4.3a7.8 7.8 0 0 1-1.1-4.3A8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 8.5 8.4Z"/></svg><img class="ak-chat-fab-ds-mark" src="/assets/favicon.png" alt="" aria-hidden="true"><span class="ak-chat-fab-badge" id="akChatUnreadBadge" hidden></span>`;
     document.body.appendChild(fab);
 
     const overlay = document.createElement('div');
@@ -202,6 +213,16 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="ak-chat-picker" id="akChatPicker" hidden>
           <div class="ak-chat-picker-head"><strong id="akChatPickerTitle">Выберите сотрудников</strong><button type="button" id="akChatPickerClose" aria-label="Закрыть">×</button></div>
           <input id="akChatPickerSearch" type="search" placeholder="Поиск по компании, сотруднику или роли…">
+          <section class="ak-chat-booking-calendar" id="akChatBookingCalendar" hidden aria-label="Календарь записей">
+            <div class="ak-chat-booking-calendar-head">
+              <button type="button" id="akChatBookingPrevMonth" aria-label="Предыдущий месяц">‹</button>
+              <strong id="akChatBookingMonthLabel"></strong>
+              <button type="button" id="akChatBookingNextMonth" aria-label="Следующий месяц">›</button>
+            </div>
+            <div class="ak-chat-booking-weekdays" aria-hidden="true"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span></div>
+            <div class="ak-chat-booking-calendar-grid" id="akChatBookingCalendarGrid"></div>
+            <div class="ak-chat-booking-selected-date" id="akChatBookingSelectedDate">Выберите дату</div>
+          </section>
           <section class="ak-chat-picker-groups" id="akChatPickerGroupsSection">
             <div class="ak-chat-picker-section-title">Групповые рассылки</div>
             <div class="ak-chat-picker-shortcuts" id="akChatPickerShortcuts"><button type="button" data-role-group="admin">УТЗ</button><button type="button" data-role-group="operator">РЦ</button><button type="button" data-role-group="all">Всем</button></div>
@@ -231,6 +252,8 @@ document.addEventListener('DOMContentLoaded', () => {
     $('akChatBookingRemove').addEventListener('click', () => setSelectedBooking(null));
     $('akChatNewDirect').addEventListener('click', () => openPicker('recipients'));
     $('akChatPickerClose').addEventListener('click', closePicker); $('akChatPickerSearch').addEventListener('input', renderPickerList);
+    $('akChatBookingPrevMonth').addEventListener('click', () => void shiftBookingPickerMonth(-1));
+    $('akChatBookingNextMonth').addEventListener('click', () => void shiftBookingPickerMonth(1));
     $('akChatPickerAction').addEventListener('click', pickerAction);
     $('akChatPickerShortcuts')?.querySelectorAll('[data-role-group]').forEach((button)=>button.addEventListener('click',()=>{
       const targetRole=button.dataset.roleGroup;
@@ -958,32 +981,101 @@ document.addEventListener('DOMContentLoaded', () => {
     pickerMode=mode;selectedRecipientIds.clear();presetGroupTitle=null;
     bookingDiscussionContext=mode==='booking-recipients'?(bookingContext||null):null;
     const picker=$('akChatPicker');picker.hidden=false;
+    picker.classList.toggle('is-booking-mode',mode==='booking');
     const titles={recipients:'Новое сообщение · получатели',booking:'Привязать запись слота',forward:'Переслать выбранные сообщения','booking-recipients':'Обсудить запись · выберите адресатов'};
     $('akChatPickerTitle').textContent=titles[mode]||'Выберите';
     $('akChatPickerSearch').placeholder=mode==='booking'?'Поиск по поставщику или номеру документа…':'Поиск по наименованию компании…';
+    $('akChatPickerSearch').value='';
+    const bookingCalendar=$('akChatBookingCalendar');
+    bookingCalendar.hidden=mode!=='booking';
+    bookingCalendar.classList.toggle('is-visible',mode==='booking');
+    if(mode==='booking'){bookingCalendar.removeAttribute('hidden');bookingCalendar.style.display='flex';}
+    else bookingCalendar.style.removeProperty('display');
+    const groupsSection=$('akChatPickerGroupsSection');
+    if(groupsSection)groupsSection.hidden=!['recipients','booking-recipients'].includes(mode);
+    const peopleSection=$('akChatPickerPeopleSection');
+    if(peopleSection)peopleSection.hidden=!['recipients','booking-recipients','booking'].includes(mode);
     $('akChatPickerShortcuts').hidden=!['recipients','booking-recipients'].includes(mode);
-    $('akChatPickerGroupsSection')?.toggleAttribute('hidden',!['recipients','booking-recipients'].includes(mode));
-    $('akChatPickerPeopleTitle').textContent=mode==='booking-recipients'?'Сотрудники для обсуждения записи':'Личные сообщения сотрудникам';
+    $('akChatPickerPeopleTitle').textContent=mode==='booking'?'Записи на выбранную дату':(mode==='booking-recipients'?'Сотрудники для обсуждения записи':'Личные сообщения сотрудникам');
     $('akChatPickerFooter').hidden=mode==='booking';
     if(mode==='booking')await loadBookingsForPicker();
     else if(mode==='recipients'||mode==='booking-recipients'){await loadRecipientUsers();renderPickerList();}
     else renderPickerList();
     $('akChatPickerSearch').focus();
   };
+  const getMoscowTodayIso=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const isoDateFromParts=(year,month,day)=>`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  const parseIsoDateUtc=(iso)=>{const [year,month,day]=String(iso||'').split('-').map(Number);return new Date(Date.UTC(year,month-1,day));};
+  const formatPickerDate=(iso,withWeekday=false)=>{
+    if(!iso)return '';
+    return new Intl.DateTimeFormat('ru-RU',{timeZone:'UTC',...(withWeekday?{weekday:'long'}:{}),day:'numeric',month:'long',year:'numeric'}).format(parseIsoDateUtc(iso));
+  };
+  const monthBounds=(date)=>{
+    const year=date.getUTCFullYear(),month=date.getUTCMonth();
+    const first=new Date(Date.UTC(year,month,1)),last=new Date(Date.UTC(year,month+1,0));
+    return {first,last,start:isoDateFromParts(year,month+1,1),end:isoDateFromParts(year,month+1,last.getUTCDate())};
+  };
+  const renderBookingCalendar=()=>{
+    const grid=$('akChatBookingCalendarGrid'),label=$('akChatBookingMonthLabel');
+    if(!grid||!label||!pickerCalendarMonth)return;
+    const year=pickerCalendarMonth.getUTCFullYear(),month=pickerCalendarMonth.getUTCMonth();
+    label.textContent=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'UTC'}).format(pickerCalendarMonth);
+    const {first,last}=monthBounds(pickerCalendarMonth),offset=(first.getUTCDay()+6)%7,totalDays=last.getUTCDate();
+    const rows=Math.ceil((offset+totalDays)/7),countByDate=new Map();
+    pickerBookings.forEach((booking)=>countByDate.set(booking.slot_date,(countByDate.get(booking.slot_date)||0)+1));
+    grid.replaceChildren();
+    for(let cell=0;cell<rows*7;cell++){
+      const day=cell-offset+1;
+      if(day<1||day>totalDays){const blank=document.createElement('span');blank.className='ak-chat-booking-calendar-blank';grid.appendChild(blank);continue;}
+      const iso=isoDateFromParts(year,month+1,day),button=document.createElement('button');
+      button.type='button';button.className='ak-chat-booking-day';button.textContent=String(day);button.dataset.date=iso;
+      if(iso===pickerCalendarSelectedDate)button.classList.add('is-selected');
+      if(iso===getMoscowTodayIso())button.classList.add('is-today');
+      const count=countByDate.get(iso)||0;
+      if(count){button.classList.add('has-bookings');button.title=`Записей: ${count}`;const mark=document.createElement('i');mark.textContent=count>9?'9+':String(count);button.appendChild(mark);}
+      button.addEventListener('click',()=>{
+        pickerCalendarSelectedDate=iso;
+        renderBookingCalendar();
+        $('akChatPickerPeopleTitle').textContent=`Записи на ${formatPickerDate(iso)}`;
+        renderPickerList();
+      });
+      grid.appendChild(button);
+    }
+    $('akChatBookingSelectedDate').textContent=pickerCalendarSelectedDate?`Выбрана дата: ${formatPickerDate(pickerCalendarSelectedDate,true)}`:'Выберите дату в календаре';
+  };
   const loadBookingsForPicker=async()=>{
-    const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-    const shift=(iso,offset)=>{const [y,m,d]=iso.split('-').map(Number);const dt=new Date(Date.UTC(y,m-1,d+offset));return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}-${String(dt.getUTCDate()).padStart(2,'0')}`;};
+    const today=getMoscowTodayIso();
+    pickerBookings=[];
+    pickerCalendarSelectedDate=today;
+    const parsed=parseIsoDateUtc(today);pickerCalendarMonth=new Date(Date.UTC(parsed.getUTCFullYear(),parsed.getUTCMonth(),1));
+    // Paint the month grid immediately; booking counts/list fill in after the query.
+    renderBookingCalendar();
+    await fetchBookingPickerMonth();
+  };
+  const fetchBookingPickerMonth=async()=>{
+    if(!pickerCalendarMonth)return;
+    const request=++pickerCalendarRequest,bounds=monthBounds(pickerCalendarMonth);
+    const list=$('akChatPickerList');if(list)list.innerHTML='<div class="ak-chat-picker-empty">Загружаем записи выбранного месяца…</div>';
     const {data,error}=await sb.from('bookings').select('id,slot_date,slot_hour,order_number,profiles(company_name)')
-      .eq('status','active').gte('slot_date',shift(today,-30)).lte('slot_date',shift(today,30))
-      .order('slot_date',{ascending:true}).order('slot_hour',{ascending:true}).limit(200);
+      .eq('status','active').gte('slot_date',bounds.start).lte('slot_date',bounds.end)
+      .order('slot_date',{ascending:true}).order('slot_hour',{ascending:true}).limit(1500);
+    if(request!==pickerCalendarRequest||pickerMode!=='booking')return;
     if(error){toast('Не удалось загрузить записи для привязки.',true);pickerBookings=[];}else pickerBookings=data||[];
-    renderPickerList();
+    renderBookingCalendar();renderPickerList();
+  };
+  const shiftBookingPickerMonth=async(delta)=>{
+    if(!pickerCalendarMonth)return;
+    pickerCalendarMonth=new Date(Date.UTC(pickerCalendarMonth.getUTCFullYear(),pickerCalendarMonth.getUTCMonth()+delta,1));
+    pickerCalendarSelectedDate=null;
+    $('akChatPickerPeopleTitle').textContent='Записи на выбранную дату';
+    await fetchBookingPickerMonth();
   };
   const renderPickerList=()=>{
     const query=String($('akChatPickerSearch')?.value||'').toLocaleLowerCase('ru-RU').trim(),list=$('akChatPickerList');if(!list)return;list.replaceChildren();
     if(pickerMode==='booking'){
-      const matches=pickerBookings.filter((b)=>`${bookingLabel(b)} ${b.order_number||''}`.toLocaleLowerCase('ru-RU').includes(query));
-      if(!matches.length)list.innerHTML='<div class="ak-chat-picker-empty">Активные записи за выбранный период не найдены.</div>';
+      if(!pickerCalendarSelectedDate){list.innerHTML='<div class="ak-chat-picker-empty">Выберите день в календаре, чтобы увидеть записи этого дня.</div>';return;}
+      const matches=pickerBookings.filter((b)=>String(b.slot_date)===pickerCalendarSelectedDate&&`${bookingLabel(b)} ${b.order_number||''}`.toLocaleLowerCase('ru-RU').includes(query));
+      if(!matches.length)list.innerHTML='<div class="ak-chat-picker-empty">На выбранную дату активных записей не найдено.</div>';
       matches.forEach((b)=>{const button=document.createElement('button');button.type='button';button.className='ak-chat-picker-item';button.innerHTML=`<span class="ak-chat-picker-avatar is-slot">▧</span><span><strong>${escapeHtml(bookingLabel(b))}</strong><small>${escapeHtml(b.order_number?`Документ: ${b.order_number}`:`ID ${String(b.id).slice(0,8)}`)}</small></span><b>＋</b>`;button.addEventListener('click',()=>{setSelectedBooking(b);closePicker();});list.appendChild(button);});return;
     }
     const bookingDiscussion=pickerMode==='booking-recipients';
