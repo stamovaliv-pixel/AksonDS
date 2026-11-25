@@ -604,7 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>`;
       list.appendChild(bubble);
     });
-    updateSelectionBar();
+    // Selection toolbar is not part of the current UI; forwarding stores its message ids directly.
     observeMessageTail(list.lastElementChild);
   };
 
@@ -664,11 +664,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if(bottomScrollFrame)return;
     bottomScrollFrame=requestAnimationFrame(()=>{
       bottomScrollFrame=0;
-      if(!isOpen||!list.isConnected)return;
-      // Instant positioning avoids overlapping smooth-scroll animations and preserves
-      // a deterministic bottom position after optimistic sends and incoming messages.
+      if(!isOpen||!list.isConnected||list!==$('akChatMessageList'))return;
+      // Use direct scrollTop assignment only. A second frame accounts for layout
+      // changes caused by the newly inserted message without starting smooth motion.
       list.scrollTop=list.scrollHeight;
-      if(list.scrollHeight-list.clientHeight-list.scrollTop>1)list.scrollTop=list.scrollHeight;
+      requestAnimationFrame(()=>{
+        if(!isOpen||!list.isConnected||list!==$('akChatMessageList')||!followMessageTail)return;
+        const distance=list.scrollHeight-list.clientHeight-list.scrollTop;
+        if(distance>1)list.scrollTop=list.scrollHeight;
+      });
     });
   };
 
