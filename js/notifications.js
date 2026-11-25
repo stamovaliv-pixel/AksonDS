@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
     { key: 'departure_recorded', label: 'Запись об убытии' },
     { key: 'reminders', label: 'Напоминания' }
   ];
+  const CHAT_EVENTS = [
+    { key: 'dockslot_chat', label: 'DockSlot Чат' }
+  ];
 
   const PUSH_SW_PATH = '/sw.js';
   const PUSH_PUBLIC_KEY = String(window.AKSON_DOCKSLOT_PUSH?.publicKey || '').trim();
@@ -35,10 +38,11 @@ document.addEventListener('DOMContentLoaded', () => {
   let realtimeStartPromise = null;
   let toastTimer = null;
   const desktopNotificationIds = new Set();
+  let pushSubscriptionActive = false;
 
   const defaultPreferences = () => {
     const result = {};
-    [...COMMON_EVENTS, ...(['admin', 'super_admin'].includes(userRole) ? ADMIN_EVENTS : [])].forEach((event) => {
+    [...COMMON_EVENTS, ...CHAT_EVENTS, ...(['admin', 'super_admin'].includes(userRole) ? ADMIN_EVENTS : [])].forEach((event) => {
       result[event.key] = { enabled: false, ...(COMMON_EVENTS.some((item) => item.key === event.key) ? { scope: 'all' } : {}) };
     });
     return result;
@@ -164,8 +168,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       mountBellAndModal();
       await Promise.all([loadPreferences(), loadInbox()]);
-      await setupRealtime();
       await refreshPushSettingsUI();
+      await setupRealtime();
       openFromNotificationUrl();
 
       // Due reminder notifications are processed by the verified active pg_cron job
@@ -187,24 +191,8 @@ document.addEventListener('DOMContentLoaded', () => {
     bell.setAttribute('aria-expanded', 'false');
     bell.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span class="ak-notifications-badge" id="akNotificationsBadge" hidden></span>';
 
-    // The notification button is a regular first navigation icon (admins/operators only).
+    // Keep the notification control floating above the page, independent of navigation and scroll.
     document.body.appendChild(bell);
-    const placeBellInNavigation = () => {
-      const right = document.querySelector('.header-nav-right');
-      if (!right || !bell.isConnected) return false;
-      bell.classList.add('nav-icon');
-      bell.style.position = 'relative';
-      bell.style.right = 'auto'; bell.style.bottom = 'auto'; bell.style.zIndex = 'auto';
-      right.prepend(bell);
-      return true;
-    };
-    placeBellInNavigation();
-    document.addEventListener('dockslot:navigation-ready', placeBellInNavigation);
-    if (!placeBellInNavigation()) {
-      const navObserver = new MutationObserver(() => { if (placeBellInNavigation()) navObserver.disconnect(); });
-      navObserver.observe(document.body, { childList: true, subtree: true });
-      window.setTimeout(() => navObserver.disconnect(), 10000);
-    }
 
     const overlay = create('div', 'ak-notifications-overlay');
     overlay.id = 'akNotificationsOverlay';
@@ -276,6 +264,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const openNotificationFromSystem = async (notificationId) => {
     openModal();
     await loadInbox();
+    if (notificationId) {
+      const notification = inbox.find((item) => String(item.id) === String(notificationId));
+      const metadata = notification?.metadata && typeof notification.metadata === 'object' ? notification.metadata : {};
+      if (String(notification?.event_type || '') === 'dockslot_chat_message' && metadata.conversation_id) {
+        closeModal();
+        if (typeof window.dockslotChat?.open === 'function') {
+          window.dockslotChat.open(String(metadata.conversation_id), null, metadata.message_id ? String(metadata.message_id) : null);
+        } else {
+          const target = new URL('/app/admin_day.html', window.location.origin);
+          target.searchParams.set('openChatConversation', String(metadata.conversation_id));
+          if (metadata.message_id) target.searchParams.set('openChatMessage', String(metadata.message_id));
+          window.location.assign(target.toString());
+        }
+        return;
+      }
+    }
     setView('inbox');
     if (!notificationId) return;
     // Wait for the modal and its list to paint before locating the selected row.
@@ -488,6 +492,11 @@ document.addEventListener('DOMContentLoaded', () => {
     COMMON_EVENTS.forEach((event) => section.appendChild(buildPreferenceRow(event, true)));
     body.appendChild(section);
 
+    const chatSection = create('section', 'ak-notifications-settings-section ak-chat-notification-pref-section');
+    chatSection.appendChild(create('h3', '', 'Сообщения'));
+    CHAT_EVENTS.forEach((event) => chatSection.appendChild(buildPreferenceRow(event, false)));
+    body.appendChild(chatSection);
+
     if (['admin', 'super_admin'].includes(userRole)) {
       const adminSection = create('section', 'ak-notifications-settings-section');
       adminSection.appendChild(create('h3', '', 'Дополнительные события администратора'));
@@ -644,7 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (button) { button.disabled = true; button.textContent = 'Сохранение…'; }
     const payload = {};
-    [...COMMON_EVENTS, ...(['admin', 'super_admin'].includes(userRole) ? ADMIN_EVENTS : [])].forEach((event) => {
+    [...COMMON_EVENTS, ...CHAT_EVENTS, ...(['admin', 'super_admin'].includes(userRole) ? ADMIN_EVENTS : [])].forEach((event) => {
       const source = draftPreferences[event.key] || {};
       payload[event.key] = { enabled: Boolean(source.enabled) };
       if (COMMON_EVENTS.some((item) => item.key === event.key)) payload[event.key].scope = source.scope === 'tomorrow' ? 'tomorrow' : 'all';
@@ -686,27 +695,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const enable = $('akPushEnableButton');
     const disable = $('akPushDisableButton');
     const test = $('akPushTestButton');
-    if (!status || !enable || !disable) return;
+    const setStatusText = (message, options = {}) => {
+      if (status) status.textContent = message;
+      if (enable) {
+        if (options.enableText) enable.textContent = options.enableText;
+        if (typeof options.disableEnable === 'boolean') enable.disabled = options.disableEnable;
+      }
+      if (disable && typeof options.showDisable === 'boolean') disable.hidden = !options.showDisable;
+      if (test) test.hidden = !('Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator);
+    };
 
-    enable.disabled = false;
-    disable.hidden = true;
+    // Determine Push state even when the settings modal is closed. This state is
+    // also used by the Realtime listener to decide whether to show a native toast.
+    pushSubscriptionActive = false;
+    if (enable) enable.disabled = false;
+    if (disable) disable.hidden = true;
     if (test) test.hidden = !('Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator);
 
     if (!pushIsSupported()) {
-      status.textContent = 'Этот браузер или соединение не поддерживает системные Push-уведомления. Откройте ДокСлот по HTTPS в актуальном Chrome или Edge.';
-      enable.disabled = true;
-      return;
+      setStatusText('Этот браузер или соединение не поддерживает системные Push-уведомления. Откройте ДокСлот по HTTPS в актуальном Chrome или Edge.', { disableEnable: true });
+      return false;
     }
     if (!PUSH_PUBLIC_KEY || PUSH_PUBLIC_KEY.includes('PASTE_')) {
-      status.textContent = 'Push ещё не настроен администратором сайта: необходимо указать публичный VAPID-ключ в js/push-config.js.';
-      enable.disabled = true;
-      return;
+      setStatusText('Push ещё не настроен администратором сайта: необходимо указать публичный VAPID-ключ в js/push-config.js.', { disableEnable: true });
+      return false;
     }
     if (Notification.permission === 'denied') {
-      status.textContent = 'Браузер заблокировал уведомления для ДокСлота. Разрешите их в настройках разрешений сайта, затем обновите страницу.';
-      enable.textContent = 'Ожидает разрешения браузера';
-      enable.disabled = true;
-      return;
+      setStatusText('Браузер заблокировал уведомления для ДокСлота. Разрешите их в настройках разрешений сайта, затем обновите страницу.', { enableText: 'Ожидает разрешения браузера', disableEnable: true });
+      return false;
     }
 
     try {
@@ -721,22 +737,21 @@ document.addEventListener('DOMContentLoaded', () => {
           .maybeSingle();
         if (error) throw error;
         if (data) {
-          status.textContent = 'Системные уведомления включены на этом устройстве. Уведомления будут приходить по выбранным событиям.';
-          enable.textContent = 'Обновить подключение';
-          disable.hidden = false;
-          return;
+          pushSubscriptionActive = true;
+          setStatusText('Системные уведомления включены на этом устройстве. Уведомления будут приходить по выбранным событиям.', { enableText: 'Обновить подключение', showDisable: true, disableEnable: false });
+          return true;
         }
-        status.textContent = 'В браузере есть Push-подписка, но она ещё не привязана к вашей учётной записи. Нажмите «Обновить подключение».';
-        enable.textContent = 'Обновить подключение';
-        return;
+        setStatusText('В браузере есть Push-подписка, но она ещё не привязана к вашей учётной записи. Нажмите «Обновить подключение».', { enableText: 'Обновить подключение', disableEnable: false });
+        return false;
       }
-      status.textContent = Notification.permission === 'granted'
+      setStatusText(Notification.permission === 'granted'
         ? 'Разрешение браузера уже выдано. Нажмите кнопку, чтобы подключить это устройство.'
-        : 'На этом устройстве системные уведомления пока не включены.';
-      enable.textContent = 'Включить уведомления на этом устройстве';
+        : 'На этом устройстве системные уведомления пока не включены.', { enableText: 'Включить уведомления на этом устройстве', disableEnable: false });
+      return false;
     } catch (error) {
       console.warn('[DockSlot Push] Cannot read subscription state:', error);
-      status.textContent = 'Не удалось проверить Push-подписку. Проверьте SQL-миграцию v2 и обновите страницу.';
+      setStatusText('Не удалось проверить Push-подписку. Проверьте SQL-миграцию v2 и обновите страницу.', { disableEnable: false });
+      return false;
     }
   };
 
@@ -884,6 +899,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const showRealtimeDesktopNotification = async (row) => {
+    if (String(row?.event_type || '') === 'dockslot_chat_message' && !pushSubscriptionActive) return;
     if (!('Notification' in window) || Notification.permission !== 'granted' || !('serviceWorker' in navigator)) return;
     const id = String(row?.id || '');
     if (id && desktopNotificationIds.has(id)) return;
