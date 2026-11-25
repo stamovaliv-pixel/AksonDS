@@ -346,7 +346,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       verifyButton.setAttribute('aria-label', verifyButton.title);
       addIconButton(verifyButton, verificationIcon(verified));
 
-      row.append(timeCell, supplierCell, documentCell, commentCell, downloadButton, chatLinkButton, verifyButton);
+      const actionGroup = createElement('div', 'overview-booking-actions');
+      actionGroup.append(verifyButton, downloadButton, chatLinkButton);
+
+      row.append(timeCell, supplierCell, documentCell, commentCell, actionGroup);
       list.appendChild(row);
     });
   };

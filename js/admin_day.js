@@ -399,7 +399,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return `
         <div class="slot-box ${cssClass}" data-info="${dataStr}" data-chat-booking-id="${escapeHtml(b.id)}">
           <div class="sb-header"><div class="sb-title" title="${escapeHtml(compName)}">${escapeHtml(compName)}</div><button class="btn-dots" type="button" aria-label="Детали записи">⋮</button></div>
-          <div class="sb-icons"><div style="display:flex; gap:4px; font-size:16px;">${iconsHtml}</div><div class="sb-status-icons">${chatLinkHtml}${verifyHtml}${tkHtml}</div></div>
+          <div class="sb-icons"><div style="display:flex; gap:4px; font-size:16px;">${iconsHtml}</div><div class="sb-status-icons"><span class="sb-booking-actions">${verifyHtml}${chatLinkHtml}</span>${tkHtml}</div></div>
           <div class="card-actions" data-id="${escapeHtml(b.id)}">
             <div class="inline-input-group"><label>Приб.</label><input type="time" class="inline-arr viewer-disable ${fieldCompletionClass(b.arrival_time ? b.arrival_time.substring(0,5) : '')}" value="${escapeHtml(b.arrival_time ? b.arrival_time.substring(0,5) : '')}"></div>
             <div class="inline-input-group"><label>Убыл</label><input type="time" class="inline-dep viewer-disable ${fieldCompletionClass(b.departure_time ? b.departure_time.substring(0,5) : '')}" value="${escapeHtml(b.departure_time ? b.departure_time.substring(0,5) : '')}"></div>
