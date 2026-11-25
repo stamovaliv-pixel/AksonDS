@@ -1194,3 +1194,16 @@ html[data-theme="dark"] .ak-chat-booking-day.is-selected { color:#fff; }
     opacity: 0 !important;
   }
 }
+
+
+/* Messenger v1.19 — precise unread badge overlap and compact DS mark. */
+.ak-chat-fab-ds-mark {
+  width: 10px !important;
+  height: 10px !important;
+}
+.ak-chat-fab-badge {
+  top: 0 !important;
+  right: 0 !important;
+  transform: translate(85%, -85%) !important;
+  z-index: 4 !important;
+}

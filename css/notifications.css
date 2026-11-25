@@ -357,3 +357,26 @@ html[data-theme="dark"] .ak-notification-item.is-system-highlight { border-color
   }
   .app-header .header-nav .ak-notifications-bell.nav-icon svg { width: 19px !important; height: 19px !important; }
 }
+
+
+/* Messenger v1.19 — notification counter overlaps only 15% of the bell glyph.
+   The day-calendar count badges are deliberately untouched. */
+.ak-notifications-badge {
+  box-shadow: 0 1px 3px rgba(127, 29, 29, .22) !important;
+  transform: translate(85%, -85%) !important;
+}
+.app-header .header-nav .ak-notifications-bell.nav-icon {
+  position: relative !important;
+  overflow: visible !important;
+}
+.app-header .header-nav .ak-notifications-badge {
+  top: calc(50% - 10.5px) !important;
+  right: calc(50% - 10.5px) !important;
+  transform: translate(85%, -85%) !important;
+}
+@media (max-width: 440px) {
+  .app-header .header-nav .ak-notifications-badge {
+    top: calc(50% - 9.5px) !important;
+    right: calc(50% - 9.5px) !important;
+  }
+}
