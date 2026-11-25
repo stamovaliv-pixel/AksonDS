@@ -1204,6 +1204,6 @@ html[data-theme="dark"] .ak-chat-booking-day.is-selected { color:#fff; }
 .ak-chat-fab-badge {
   top: 0 !important;
   right: 0 !important;
-  transform: translate(85%, -85%) !important;
+  transform: translate(55%, -55%) !important;
   z-index: 4 !important;
 }

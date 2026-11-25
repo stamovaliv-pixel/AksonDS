@@ -363,7 +363,7 @@ html[data-theme="dark"] .ak-notification-item.is-system-highlight { border-color
    The day-calendar count badges are deliberately untouched. */
 .ak-notifications-badge {
   box-shadow: 0 1px 3px rgba(127, 29, 29, .22) !important;
-  transform: translate(85%, -85%) !important;
+  transform: translate(55%, -55%) !important;
 }
 .app-header .header-nav .ak-notifications-bell.nav-icon {
   position: relative !important;
@@ -372,7 +372,7 @@ html[data-theme="dark"] .ak-notification-item.is-system-highlight { border-color
 .app-header .header-nav .ak-notifications-badge {
   top: calc(50% - 10.5px) !important;
   right: calc(50% - 10.5px) !important;
-  transform: translate(85%, -85%) !important;
+  transform: translate(55%, -55%) !important;
 }
 @media (max-width: 440px) {
   .app-header .header-nav .ak-notifications-badge {

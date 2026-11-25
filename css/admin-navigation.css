@@ -283,3 +283,20 @@ html[data-theme="dark"] .admin-tools-item-icon { background: #202b37; color: #a5
   .admin-tools-item,
   .admin-tools-item-dot { transition: none !important; }
 }
+
+
+/* Header navigation spacing — unified on every page and breakpoint. */
+.app-header > .header-nav {
+  gap: 10px !important;
+}
+.header-nav-right {
+  gap: 10px !important;
+}
+/* The theme control may sit outside the nav for the temporary/fallback layout. */
+.app-header > .dockslot-theme-anchor {
+  margin-left: 10px !important;
+}
+/* Inside the nav, spacing is supplied by the same 10px flex gap as every other control. */
+.header-nav > .dockslot-theme-anchor {
+  margin-left: 0 !important;
+}
