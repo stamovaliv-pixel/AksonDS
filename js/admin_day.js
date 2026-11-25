@@ -50,6 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const isAdmin = ['admin', 'super_admin'].includes(profile.role);
   const isOperator = profile.role === 'operator';
   const isViewer = profile.role === 'viewer';
+  const canUseMessenger = ['admin', 'operator', 'super_admin'].includes(String(profile.role || '').toLowerCase());
   let favoriteFilterActive = false;
   let favoriteSupplierIds = new Set();
   if (isAdmin && window.DockSlotFavorites) {
@@ -386,6 +387,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const isBookingVerified = verifiedBookingIds.has(String(b.id));
       const verifyHtml = isAdmin ? `<button type="button" class="booking-verify ${isBookingVerified ? 'is-verified' : 'is-unverified'}" data-verify-booking="${escapeHtml(b.id)}" title="${isBookingVerified ? 'Запись верифицирована' : 'Запись не верифицирована'}" aria-label="${isBookingVerified ? 'Запись верифицирована' : 'Запись не верифицирована'}">${isBookingVerified ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 11v4"/><path d="M12 18h.01"/></svg>'}</button>` : '';
 
+      const chatLinkHtml = canUseMessenger ? `<button type="button" class="ak-chat-booking-link is-disabled" data-chat-booking-link="${escapeHtml(b.id)}" title="Нет адресного сообщения по этой записи" aria-label="Нет адресного сообщения по этой записи" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.4a8.5 8.5 0 0 1-8.7 8.1 9.5 9.5 0 0 1-3.8-.8L3 20l1.4-4.3a7.8 7.8 0 0 1-1.1-4.3A8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 8.5 8.4Z"/><path d="M8 11.5h.1m3.9 0h.1m3.9 0h.1"/></svg></button>` : '';
+
       const dataStr = encodeURIComponent(JSON.stringify({
         id: b.id, profileId: b.profile_id, slotDate: b.slot_date, hour: b.slot_hour, doc: b.order_number,
         sTypesRaw: b.supply_types || [b.supply_type], oTypeRaw: b.order_type,
@@ -396,7 +399,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return `
         <div class="slot-box ${cssClass}" data-info="${dataStr}" data-chat-booking-id="${escapeHtml(b.id)}">
           <div class="sb-header"><div class="sb-title" title="${escapeHtml(compName)}">${escapeHtml(compName)}</div><button class="btn-dots" type="button" aria-label="Детали записи">⋮</button></div>
-          <div class="sb-icons"><div style="display:flex; gap:4px; font-size:16px;">${iconsHtml}</div><div class="sb-status-icons">${verifyHtml}${tkHtml}</div></div>
+          <div class="sb-icons"><div style="display:flex; gap:4px; font-size:16px;">${iconsHtml}</div><div class="sb-status-icons">${chatLinkHtml}${verifyHtml}${tkHtml}</div></div>
           <div class="card-actions" data-id="${escapeHtml(b.id)}">
             <div class="inline-input-group"><label>Приб.</label><input type="time" class="inline-arr viewer-disable ${fieldCompletionClass(b.arrival_time ? b.arrival_time.substring(0,5) : '')}" value="${escapeHtml(b.arrival_time ? b.arrival_time.substring(0,5) : '')}"></div>
             <div class="inline-input-group"><label>Убыл</label><input type="time" class="inline-dep viewer-disable ${fieldCompletionClass(b.departure_time ? b.departure_time.substring(0,5) : '')}" value="${escapeHtml(b.departure_time ? b.departure_time.substring(0,5) : '')}"></div>

@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const toastEl = $('overviewToast');
   let toastTimer = null;
   let currentUser = null;
+  let currentRole = '';
   let activeDetailBookingId = null;
   let verificationRealtimeChannels = [];
   let verificationRealtimeVersion = 0;
@@ -88,6 +89,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return null;
     }
     currentUser = authProfile.user;
+    currentRole = String(profile.role || '').toLowerCase();
     try { favoriteSupplierIds = await window.DockSlotFavorites.load(sb, currentUser.id); }
     catch (error) { console.error('Не удалось загрузить избранных поставщиков:', error); }
     return profile;
@@ -329,6 +331,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       downloadButton.setAttribute('aria-label', downloadButton.title);
       addIconButton(downloadButton, '<path d="M14 2H6a2 2 0 0 0-2 2v16h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6M12 12v6m-3-3 3 3 3-3"></path>');
 
+      const chatLinkButton = createElement('button', 'ak-chat-booking-link is-disabled');
+      chatLinkButton.type = 'button';
+      chatLinkButton.dataset.chatBookingLink = String(booking.id);
+      chatLinkButton.title = 'Нет адресного сообщения по этой записи';
+      chatLinkButton.setAttribute('aria-label', chatLinkButton.title);
+      chatLinkButton.disabled = !['admin', 'operator', 'super_admin'].includes(currentRole);
+      addIconButton(chatLinkButton, '<path d="M20.5 11.4a8.5 8.5 0 0 1-8.7 8.1 9.5 9.5 0 0 1-3.8-.8L3 20l1.4-4.3a7.8 7.8 0 0 1-1.1-4.3A8.5 8.5 0 0 1 12 3a8.5 8.5 0 0 1 8.5 8.4Z"></path><path d="M8 11.5h.1m3.9 0h.1m3.9 0h.1"></path>');
+
       const verifyButton = createElement('button', `overview-verify-btn ${verified ? 'is-verified' : 'is-unverified'}`);
       verifyButton.type = 'button';
       verifyButton.dataset.verifyBooking = String(booking.id);
@@ -336,7 +346,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       verifyButton.setAttribute('aria-label', verifyButton.title);
       addIconButton(verifyButton, verificationIcon(verified));
 
-      row.append(timeCell, supplierCell, documentCell, commentCell, downloadButton, verifyButton);
+      row.append(timeCell, supplierCell, documentCell, commentCell, downloadButton, chatLinkButton, verifyButton);
       list.appendChild(row);
     });
   };

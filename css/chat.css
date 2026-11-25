@@ -724,3 +724,35 @@ html[data-theme="dark"] .ak-chat-menu-item-icon { color:#a7b2c2!important; }
   3% { opacity:.644;transform:rotate(360deg); }
   3.35%,100% { opacity:0;transform:rotate(360deg); }
 }
+
+
+/* DockSlot Messenger v1.9 — hover actions, per-message read receipts and slot-linked entry point. */
+.ak-chat-message-menu-trigger,
+.ak-chat-reaction-control { opacity:0;visibility:hidden;pointer-events:none;transition:opacity .14s ease,visibility .14s ease; }
+.ak-chat-message:hover .ak-chat-message-menu-trigger,
+.ak-chat-message:focus-within .ak-chat-message-menu-trigger,
+.ak-chat-message-menu-wrap.is-open .ak-chat-message-menu-trigger,
+.ak-chat-message:hover .ak-chat-reaction-control,
+.ak-chat-message:focus-within .ak-chat-reaction-control,
+.ak-chat-message.is-reaction-open .ak-chat-reaction-control { opacity:1;visibility:visible;pointer-events:auto; }
+.ak-chat-message-menu-trigger { background:transparent!important;box-shadow:none!important; }
+.ak-chat-reaction-trigger { background:transparent!important;border:0!important;box-shadow:none!important; }
+.ak-chat-reaction-control:hover .ak-chat-reaction-menu,
+.ak-chat-reaction-control:focus-within .ak-chat-reaction-menu,
+.ak-chat-message.is-reaction-open .ak-chat-reaction-menu { opacity:1;visibility:visible;transform:translateY(0) scale(1); }
+.ak-chat-read-info { display:flex;flex-direction:column;gap:5px;margin:4px 2px 3px;padding:7px;border-top:1px solid var(--color-border,#e2e8f0);border-radius:6px;background:rgba(100,116,139,.055); }
+.ak-chat-read-info[hidden] { display:none!important; }
+.ak-chat-read-info-row { display:flex;align-items:flex-start;justify-content:space-between;gap:12px;font-size:9px;line-height:1.35; }
+.ak-chat-read-info-row strong { min-width:0;max-width:52%;overflow-wrap:anywhere;color:var(--color-text-main,#334155);font-size:9px;font-weight:650; }
+.ak-chat-read-info-row time { flex:0 0 auto;color:var(--color-text-muted,#8491a3);font-size:8px;text-align:right; }
+.ak-chat-read-info-empty { color:var(--color-text-muted,#8491a3);font-size:9px; }
+html[data-theme="dark"] .ak-chat-read-info { border-color:#3a4959;background:rgba(15,23,42,.32); }
+html[data-theme="dark"] .ak-chat-read-info-row strong { color:#e6edf5; }
+.ak-chat-booking-link { appearance:none;-webkit-appearance:none;display:inline-flex!important;width:19px!important;height:22px!important;min-width:19px!important;flex:0 0 19px!important;align-items:center;justify-content:center;margin:0 2px 0 0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:#aeb8c4!important;box-shadow:none!important;cursor:default!important;opacity:.58;vertical-align:middle;transition:color .14s ease,opacity .14s ease,filter .14s ease; }
+.ak-chat-booking-link svg { display:block;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round; }
+.ak-chat-booking-link.is-active { color:#f28a1b!important;opacity:1;cursor:pointer!important;filter:drop-shadow(0 1px 2px rgba(234,120,16,.18)); }
+.ak-chat-booking-link.is-active:hover,.ak-chat-booking-link.is-active:focus-visible { color:#e87512!important;filter:drop-shadow(0 1px 4px rgba(234,120,16,.34));outline:none;transform:translateY(-1px); }
+.ak-chat-booking-link.is-disabled { color:#aeb8c4!important;opacity:.48;cursor:default!important; }
+.overview-booking-row .ak-chat-booking-link { justify-self:center;align-self:center; }
+@media (hover:none) { .ak-chat-message-menu-trigger,.ak-chat-reaction-control { opacity:.72;visibility:visible;pointer-events:auto; } }
+@media (prefers-reduced-motion:reduce) { .ak-chat-message-menu-trigger,.ak-chat-reaction-control,.ak-chat-booking-link { transition:none; } }
