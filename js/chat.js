@@ -1,4 +1,4 @@
-/* DockSlot Messenger v1.12 — stable instant tail-follow, measured composer sizing, reactions hidden. */
+/* DockSlot Messenger v1.15 — stable instant tail-follow, measured composer sizing, reactions hidden. */
 document.addEventListener('DOMContentLoaded', () => {
   'use strict';
 
@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let unreadByConversation = new Map(), bookingUnread = [], bookingLinks = [];
   let selectedConversationId = null, selectedBooking = null;
   let selectedFiles = [], selectedMessageIds = new Set(), selectedRecipientIds = new Set();
+  let forwardingSelectionMode = false;
   let pickerBookings = [], pickerMode = '', presetGroupTitle = null, editingMessageId = null;
   let bookingDiscussionContext = null, bookingDiscussPopover = null, bookingDiscussPopoverCleanup = null;
   let hasOlderMessages = false, olderMessagesLoading = false;
@@ -179,6 +180,11 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="ak-chat-search-panel" id="akChatSearchPanel" hidden><div class="ak-chat-search-input-wrap"><input id="akChatSearchInput" type="search" placeholder="Найти сообщение в этой переписке…" autocomplete="off"><button type="button" id="akChatSearchClear" aria-label="Закрыть поиск">×</button></div><div class="ak-chat-search-results" id="akChatSearchResults" hidden></div></div>
           <div class="ak-chat-notice" id="akChatNotice" hidden></div>
           <div class="ak-chat-message-list" id="akChatMessageList" aria-live="polite"><div class="ak-chat-loading">Загружаем переписку…</div></div>
+          <div class="ak-chat-forward-selection-bar" id="akChatForwardSelectionBar" hidden>
+            <span id="akChatForwardSelectionCount">Выбрано: 0</span>
+            <button type="button" class="is-quiet" id="akChatForwardCancel">Отмена</button>
+            <button type="button" id="akChatForwardContinue" disabled>Выбрать получателей</button>
+          </div>
           <div class="ak-chat-edit-panel" id="akChatEditPanel" hidden><span>Редактирование сообщения</span><button type="button" id="akChatEditCancel">Отменить</button><button type="button" id="akChatEditSave">Сохранить</button></div>
           <div class="ak-chat-composer-wrap">
             <div class="ak-chat-attachment-row" id="akChatBookingRow" hidden><span>▧</span><strong id="akChatBookingLabel"></strong><button type="button" id="akChatBookingRemove" aria-label="Убрать привязку">×</button></div>
@@ -250,6 +256,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }));
     const messageList=$('akChatMessageList');
     messageList.addEventListener('click', onMessageListClick);
+    messageList.addEventListener('change',(event)=>{
+      const checkbox=event.target.closest('[data-chat-select-message]');
+      if(!checkbox||!forwardingSelectionMode)return;
+      const messageId=checkbox.dataset.chatSelectMessage;
+      if(checkbox.checked)selectedMessageIds.add(messageId);else selectedMessageIds.delete(messageId);
+      checkbox.closest('.ak-chat-message')?.classList.toggle('is-selected',checkbox.checked);
+      updateForwardSelectionBar();
+    });
+    $('akChatForwardCancel').addEventListener('click',cancelForwardSelection);
+    $('akChatForwardContinue').addEventListener('click',()=>{
+      if(!selectedMessageIds.size)return;
+      void openPicker('forward');
+    });
     messageList.addEventListener('scroll',()=>{
       const distance=messageList.scrollHeight-messageList.scrollTop-messageList.clientHeight;
       followMessageTail=distance<64;
@@ -547,8 +566,26 @@ document.addEventListener('DOMContentLoaded', () => {
     else{unreadByConversation.delete(conversationId);bookingUnread=bookingUnread.map((row)=>row.conversation_id===conversationId?{...row,unread_count:0}:row);setBadge([...unreadByConversation.values()].reduce((s,n)=>s+n,0));updateBookingMarkers();}
   };
 
+  const updateForwardSelectionBar=()=>{
+    const list=$('akChatMessageList');
+    const bar=$('akChatForwardSelectionBar');
+    if(list)list.classList.toggle('is-forward-selection',forwardingSelectionMode);
+    if(bar)bar.hidden=!forwardingSelectionMode;
+    const count=$('akChatForwardSelectionCount');
+    if(count)count.textContent=`Выбрано: ${selectedMessageIds.size}`;
+    const next=$('akChatForwardContinue');
+    if(next){next.disabled=!selectedMessageIds.size;next.textContent=selectedMessageIds.size?`Выбрать получателей (${selectedMessageIds.size})`:'Выбрать получателей';}
+  };
+  const cancelForwardSelection=()=>{
+    forwardingSelectionMode=false;
+    selectedMessageIds.clear();
+    updateForwardSelectionBar();
+    $('akChatMessageList')?.querySelectorAll('.ak-chat-message.is-selected').forEach((node)=>node.classList.remove('is-selected'));
+    renderMessages();
+  };
   const renderMessages=()=>{
     const list=$('akChatMessageList');if(!list)return;
+    updateForwardSelectionBar();
     if(observedTailMessage&&messageTailObserver){messageTailObserver.unobserve(observedTailMessage);observedTailMessage=null;}
     if(!messages.length){list.innerHTML='<div class="ak-chat-empty"><div class="ak-chat-empty-icon">✦</div><strong>Начните разговор</strong><span>Отправьте сообщение, фото или документ.</span></div>';return;}
     list.replaceChildren();
@@ -558,7 +595,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const day=fmtDate(message.created_at);
       if(day!==previousDay){const divider=document.createElement('div');divider.className='ak-chat-date-divider';divider.innerHTML=`<span>${escapeHtml(day)}</span>`;list.appendChild(divider);previousDay=day;}
       const own=String(message.sender_id||'')===String(user.id||''), bubble=document.createElement('article');
-      bubble.className=`ak-chat-message${own?' is-own':''}`;bubble.dataset.messageId=message.id;
+      const isSelected=selectedMessageIds.has(String(message.id));
+      bubble.className=`ak-chat-message${own?' is-own':''}${forwardingSelectionMode&&isSelected?' is-selected':''}`;bubble.dataset.messageId=message.id;
       const sender=own?'Вы':displayName(message.sender_id), senderRole=own?roleLabels[role]:(roleLabels[usersById.get(message.sender_id)?.role]||'');
       const linked=message.booking_id?bookingsById.get(message.booking_id):null;
       const booking=message.booking_id?`<button type="button" class="ak-chat-message-booking" data-chat-message-booking="${escapeHtml(message.booking_id)}">▧ <span>${escapeHtml(linked?bookingLabel(linked):'Запись слота')}</span></button>`:'';
@@ -594,7 +632,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const readInfoMenu=own&&!message.client_pending?`<button type="button" role="menuitem" class="ak-chat-message-menu-item" data-chat-read-info-toggle="${escapeHtml(message.id)}"><span>Информация о прочтении</span></button><div class="ak-chat-read-info" hidden>${receiptHtml}</div>`:'';
       const editAction=own?`<button type="button" role="menuitem" class="ak-chat-message-menu-item" data-chat-edit="${escapeHtml(message.id)}" ${canEdit?'':'disabled title="Редактирование доступно в течение 10 минут после отправки."'}><span class="ak-chat-menu-item-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m4 16.5-.8 4.3 4.3-.8L19.8 7.7a2.1 2.1 0 0 0-3-3L4 16.5Z"/><path d="m15.4 6.1 3 3"/></svg></span><span>Редактировать</span></button>`:'';
       const messageMenu=message.client_pending?'':`<div class="ak-chat-message-menu-wrap"><button type="button" class="ak-chat-message-menu-trigger" data-chat-message-menu-toggle aria-label="Действия с сообщением" title="Действия">⋯</button><div class="ak-chat-message-menu" role="menu">${readInfoMenu}<button type="button" role="menuitem" class="ak-chat-message-menu-item" data-chat-forward="${escapeHtml(message.id)}"><span class="ak-chat-menu-item-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="m20 4-9 9"/><path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5"/></svg></span><span>Переслать</span></button>${editAction}</div></div>`;
+      const selectionControl=forwardingSelectionMode
+        ? `<label class="ak-chat-message-select" title="Выбрать сообщение"><input type="checkbox" data-chat-select-message="${escapeHtml(message.id)}" ${isSelected?'checked':''} aria-label="Выбрать сообщение"><span aria-hidden="true"></span></label>`
+        : '';
       bubble.innerHTML=`
+        ${selectionControl}
         <div class="ak-chat-message-content">
           <div class="ak-chat-message-top"><strong>${escapeHtml(sender)}</strong>${senderRole?`<span>${escapeHtml(senderRole)}</span>`:''}${messageMenu}</div>
           ${forwarded}${booking}
@@ -604,7 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>`;
       list.appendChild(bubble);
     });
-    // Selection toolbar is not part of the current UI; forwarding stores its message ids directly.
+    updateForwardSelectionBar();
     observeMessageTail(list.lastElementChild);
   };
 
@@ -862,13 +904,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const forwardButton=event.target.closest('[data-chat-forward]');
     if(forwardButton){
-      selectedMessageIds.clear();selectedMessageIds.add(forwardButton.dataset.chatForward);
+      selectedMessageIds.clear();
+      selectedMessageIds.add(String(forwardButton.dataset.chatForward));
+      forwardingSelectionMode=true;
       forwardButton.closest('.ak-chat-message-menu-wrap')?.classList.remove('is-open');
-      await openPicker('forward');return;
+      renderMessages();
+      updateForwardSelectionBar();
+      toast('Отметьте сообщения для пересылки. Первое сообщение уже выбрано.');
+      return;
     }
     const editButton=event.target.closest('[data-chat-edit]');if(editButton){const message=messages.find((m)=>m.id===editButton.dataset.chatEdit);editButton.closest('.ak-chat-message-menu-wrap')?.classList.remove('is-open');if(message)startEditing(message);}
   };
-  const clearMessageSelection=()=>{selectedMessageIds.clear();};
+  const clearMessageSelection=()=>{
+    selectedMessageIds.clear();
+    forwardingSelectionMode=false;
+    updateForwardSelectionBar();
+  };
 
   const startEditing=(message)=>{
     const createdAtMs=Date.parse(message?.created_at);
