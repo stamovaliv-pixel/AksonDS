@@ -31,6 +31,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }).formatToParts(new Date());
     return Number(parts.find(part => part.type === 'hour')?.value ?? 0);
   };
+  const getBusinessMinuteOfDay = () => {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+    }).formatToParts(new Date());
+    const hour = Number(parts.find(part => part.type === 'hour')?.value ?? 0);
+    const minute = Number(parts.find(part => part.type === 'minute')?.value ?? 0);
+    return hour * 60 + minute;
+  };
   const addBusinessDays = (isoDate, amount) => {
     const date = new Date(`${isoDate}T12:00:00Z`);
     date.setUTCDate(date.getUTCDate() + amount);
@@ -408,6 +416,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Переменные состояния для редактирования
   let currentMainLeft = 0;
   let currentEditBookingId = null;
+  let currentEditOriginalTypes = [];
   let existingFileUrl = null;
 
   const createModal = document.getElementById('bookingModal');
@@ -415,6 +424,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function openCreateModal(hour, mainLeft) {
     currentEditBookingId = null;
+    currentEditOriginalTypes = [];
     existingFileUrl = null;
     hourInput.value = hour;
     currentMainLeft = mainLeft;
@@ -446,6 +456,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('bookingForm').reset();
 
     const types = b.supply_types?.length ? b.supply_types : [b.supply_type];
+    currentEditOriginalTypes = types.filter(Boolean).map(String);
     document.querySelectorAll('#supplyTypesGroup input').forEach(cb => {
       cb.checked = types.includes(cb.value);
     });
@@ -490,10 +501,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       return alert('В этом слоте закончились основные места. Запись доступна только для типа "Заказы ИМ".');
     }
 
-    // Ограничение предварительного бронирования возврата применяется только
-    // при создании новой записи. Для существующей записи разрешено менять
-    // комментарий и реестр до конца дня прибытия; дату/час поставщик изменить не может.
-    if (!currentEditBookingId && selectedTypes.includes('return')) {
+    // Поставщик может создать запись на завтра с типом «Возврат» или добавить
+    // этот тип к существующей записи только до 17:59 включительно по Москве.
+    // Существующие записи, в которых «Возврат» уже выбран, можно редактировать
+    // после дедлайна, если сам тип не добавляется заново.
+    const hasReturnType = selectedTypes.includes('return');
+    const isAddingReturnType = hasReturnType && (
+      !currentEditBookingId || !currentEditOriginalTypes.includes('return')
+    );
+    const businessTomorrowISO = addBusinessDays(businessTodayISO, 1);
+    if (isAddingReturnType && selectedDate === businessTomorrowISO
+        && getBusinessMinuteOfDay() >= (18 * 60)) {
+      return alert('Запись на завтра с типом «Возврат» можно создать или дополнить этим типом сегодня только до 17:59 по московскому времени.');
+    }
+
+    // Сохраняем прежнее ограничение по количеству дней предварительной записи.
+    if (!currentEditBookingId && hasReturnType) {
       const returnDeadlineDays = settings.return_deadline_days || 0;
       if (returnDeadlineDays > 0) {
         const minAllowedDateISO = addBusinessDays(businessTodayISO, returnDeadlineDays);
