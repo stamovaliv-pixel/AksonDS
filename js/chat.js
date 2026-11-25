@@ -1,4 +1,4 @@
-/* DockSlot Messenger v1.10 — booking discussion entry, company names and recipient-safe slot conversations. */
+/* DockSlot Messenger v1.12 — stable instant tail-follow, measured composer sizing, reactions hidden. */
 document.addEventListener('DOMContentLoaded', () => {
   'use strict';
 
@@ -13,10 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
     operator: 'РЦ',
     super_admin: 'Администратор'
   };
-  const reactionDefs = [
-    ['heart', '❤️', 'Сердце'], ['like', '👍', 'Класс'], ['cry', '🥺', 'Трогает'],
-    ['laugh', '😄', 'Смеюсь'], ['rofl', '🤣', 'Ржу'], ['strong', '💪', 'Сила'], ['fire', '🔥', 'Огонь']
-  ];
   const allowedExtensions = new Set(['jpg','jpeg','png','gif','webp','heic','heif','pdf','doc','docx','xls','xlsx','csv']);
   const mimeByExtension = {
     jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp', heic:'image/heic', heif:'image/heif',
@@ -36,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let user = null, role = '', settings = null;
   let userRows = [], usersById = new Map(), conversations = [], participants = [];
-  let messages = [], reads = [], attachments = [], reactions = [], signedFiles = new Map();
+  let messages = [], reads = [], attachments = [], signedFiles = new Map();
   let lastMessageByConversation = new Map(), bookingsById = new Map();
   let unreadByConversation = new Map(), bookingUnread = [], bookingLinks = [];
   let selectedConversationId = null, selectedBooking = null;
@@ -48,7 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let realtimeChannel = null, pollTimer = null, bookingObserver = null;
   let isOpen = false, isSending = false, loading = false;
   let refreshDebounceTimer = null, queuedRefreshThread = false, queuedForceThreadBottom = false;
-  let bottomScrollRevision = 0, previousComposerLength = 0;
+  let messageLoadSequence = 0, bottomScrollFrame = 0, composerResizeFrame = 0;
+  let followMessageTail = true, messageTailObserver = null, observedTailMessage = null;
 
   const getConversation = (id) => conversations.find((row) => row.id === id) || null;
   const getParticipants = (conversationId) => participants.filter((row) => row.conversation_id === conversationId);
@@ -199,8 +196,14 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="ak-chat-picker" id="akChatPicker" hidden>
           <div class="ak-chat-picker-head"><strong id="akChatPickerTitle">Выберите сотрудников</strong><button type="button" id="akChatPickerClose" aria-label="Закрыть">×</button></div>
           <input id="akChatPickerSearch" type="search" placeholder="Поиск по компании, сотруднику или роли…">
-          <div class="ak-chat-picker-shortcuts" id="akChatPickerShortcuts"><button type="button" data-role-group="admin">УТЗ</button><button type="button" data-role-group="operator">РЦ</button><button type="button" data-role-group="all">Всем</button></div>
-          <div id="akChatPickerList" class="ak-chat-picker-list"></div>
+          <section class="ak-chat-picker-groups" id="akChatPickerGroupsSection">
+            <div class="ak-chat-picker-section-title">Групповые рассылки</div>
+            <div class="ak-chat-picker-shortcuts" id="akChatPickerShortcuts"><button type="button" data-role-group="admin">УТЗ</button><button type="button" data-role-group="operator">РЦ</button><button type="button" data-role-group="all">Всем</button></div>
+          </section>
+          <section class="ak-chat-picker-people" id="akChatPickerPeopleSection">
+            <div class="ak-chat-picker-section-title" id="akChatPickerPeopleTitle">Личные сообщения сотрудникам</div>
+            <div id="akChatPickerList" class="ak-chat-picker-list"></div>
+          </section>
           <div class="ak-chat-picker-footer" id="akChatPickerFooter" hidden><span id="akChatPickerSelected">Выбрано: 0</span><button type="button" id="akChatPickerAction">Продолжить</button></div>
         </div>
       </section>`;
@@ -231,6 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ? new Set(isBookingDiscussion?['admin','operator']:['admin','operator','super_admin'])
         : new Set([targetRole]);
       const recipients=userRows.filter((row)=>allowedRoles.has(String(row.role||'').toLowerCase())&&row.user_id!==user.id);
+      if(!recipients.length){toast('В выбранной группе пока нет сотрудников с включённым доступом к мессенджеру.',true);return;}
       if(recipients.length>200){toast('В группу можно включить не более 200 получателей. Сейчас доступных сотрудников: '+recipients.length+'.',true);return;}
       selectedRecipientIds=new Set(recipients.map((row)=>row.user_id));
       renderPickerList(); updatePickerCount();
@@ -244,7 +248,18 @@ document.addEventListener('DOMContentLoaded', () => {
       overlay.querySelectorAll('[data-chat-filter]').forEach((item) => item.classList.toggle('is-active', item === button));
       renderConversationList(button.dataset.chatFilter || 'all');
     }));
-    $('akChatMessageList').addEventListener('click', onMessageListClick);
+    const messageList=$('akChatMessageList');
+    messageList.addEventListener('click', onMessageListClick);
+    messageList.addEventListener('scroll',()=>{
+      const distance=messageList.scrollHeight-messageList.scrollTop-messageList.clientHeight;
+      followMessageTail=distance<64;
+    },{passive:true});
+    if(typeof ResizeObserver==='function'){
+      messageTailObserver=new ResizeObserver(()=>{
+        if(!isOpen||!followMessageTail||!messageList.isConnected)return;
+        if(messageList.scrollHeight-messageList.clientHeight-messageList.scrollTop>2)messageList.scrollTop=messageList.scrollHeight;
+      });
+    }
     document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && isOpen) { if (!$('akChatPicker').hidden) closePicker(); else closeChat(); } });
   };
 
@@ -255,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('akChatFab')?.setAttribute('aria-expanded','true');
     if (messageId) setSelectedBooking(null);
     else if (bookingId) setSelectedBooking(await loadBookingById(bookingId));
-    if (conversationId) selectedConversationId = conversationId;
+    if (conversationId) { selectedConversationId = conversationId; messageLoadSequence++; followMessageTail = true; }
     if (!selectedConversationId) selectedConversationId = conversations.find((c) => c.kind==='general')?.id || conversations[0]?.id || null;
     renderConversationList(); await renderSelectedConversation();
     if (messageId) {
@@ -301,7 +316,6 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_message_reads'},()=>queueRefreshData(isOpen))
       .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_attachments'},()=>queueRefreshData(isOpen))
-      .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_message_reactions'},()=>queueRefreshData(isOpen))
       .subscribe((status)=>{ if(status==='CHANNEL_ERROR'||status==='TIMED_OUT') console.warn('[DockSlot chat] Realtime unavailable; polling remains active.'); });
   };
 
@@ -391,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const unread=Number(unreadByConversation.get(conversation.id)||0);
       const typeLabel=conversation.kind==='group'?'Групповой чат':(conversation.kind==='general'?'Командный канал':(roleLabels[getOtherUser(conversation.id)?.role]||'Личная переписка'));
       button.innerHTML=`<span class="ak-chat-list-avatar ${conversation.kind==='general'?'is-general':''}">${avatar}</span><span class="ak-chat-conversation-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(preview?.body?.trim()||typeLabel)}</small></span><span class="ak-chat-conversation-meta"><time>${escapeHtml(preview?fmtTime(preview.created_at):'')}</time>${unread?`<b>${unread>99?'99+':unread}</b>`:''}</span>`;
-      button.addEventListener('click',async()=>{selectedConversationId=conversation.id;setSelectedBooking(null);clearMessageSelection();cancelEditing();closePicker();closeChatSearch();renderConversationList(filter);await renderSelectedConversation();});
+      button.addEventListener('click',async()=>{selectedConversationId=conversation.id;messageLoadSequence++;followMessageTail=true;setSelectedBooking(null);clearMessageSelection();cancelEditing();closePicker();closeChatSearch();renderConversationList(filter);await renderSelectedConversation();});
       list.appendChild(button);
     });
   };
@@ -414,68 +428,80 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const loadSelectedMessages = async ({ preserveHistory = false, forceBottom = false } = {}) => {
-    if(!selectedConversationId)return;
-    const list=$('akChatMessageList');
-    const scrollRevisionAtStart=bottomScrollRevision;
-    const previousScrollTop=list?.scrollTop||0;
-    const wasNearBottom=!list||list.scrollHeight-list.scrollTop-list.clientHeight<100;
-    const previousMessages=preserveHistory?messages:[];
-    const previousReads=preserveHistory?reads:[];
-    const previousAttachments=preserveHistory?attachments:[];
-    const previousReactions=preserveHistory?reactions:[];
-    const previousSignedFiles=preserveHistory?signedFiles:new Map();
-    const previousHasOlder=preserveHistory?hasOlderMessages:false;
-    const {data,error}=await sb.from('dockslot_chat_messages')
+    const conversationId = selectedConversationId;
+    if (!conversationId) return;
+    const loadSequence = ++messageLoadSequence;
+    const list = $('akChatMessageList');
+    const previousScrollTop = list?.scrollTop || 0;
+    const wasNearBottom = !list || list.scrollHeight - list.scrollTop - list.clientHeight < 100;
+
+    const { data, error } = await sb.from('dockslot_chat_messages')
       .select('id,conversation_id,sender_id,body,booking_id,target_user_id,created_at,edited_at,forwarded_from_message_id')
-      .eq('conversation_id',selectedConversationId).gte('created_at',sixMonthsAgo()).order('created_at',{ascending:false}).limit(250);
-    if(error)throw error;
-    const fetchedMessages=(data||[]).reverse();
-    hasOlderMessages=previousHasOlder||(data||[]).length===250;
-    if(preserveHistory){
-      const merged=new Map(previousMessages.map((message)=>[message.id,message]));
-      fetchedMessages.forEach((message)=>merged.set(message.id,message));
-      messages=[...merged.values()].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
-    }else{
-      messages=fetchedMessages;
-      bookingsById=new Map();
+      .eq('conversation_id', conversationId).gte('created_at', sixMonthsAgo())
+      .order('created_at', { ascending: false }).limit(250);
+    if (error) throw error;
+    if (loadSequence !== messageLoadSequence || selectedConversationId !== conversationId) return;
+
+    const fetchedMessages = (data || []).reverse();
+    const ids = fetchedMessages.map((message) => message.id);
+    const bookingIds = [...new Set(fetchedMessages.map((message) => message.booking_id).filter(Boolean))];
+    let bookingRows = [];
+    let readRows = [];
+    let attachmentRows = [];
+
+    const tasks = [];
+    if (bookingIds.length) {
+      tasks.push(sb.from('bookings').select('id,slot_date,slot_hour,order_number,profiles(company_name)').in('id', bookingIds)
+        .then((result) => { if (result.error) throw result.error; bookingRows = result.data || []; }));
     }
-    const bookingIds=[...new Set(fetchedMessages.map((message)=>message.booking_id).filter(Boolean))];
-    if(bookingIds.length){
-      const {data:bookingRows,error:bookingError}=await sb.from('bookings').select('id,slot_date,slot_hour,order_number,profiles(company_name)').in('id',bookingIds);
-      if(bookingError)throw bookingError;(bookingRows||[]).forEach((booking)=>bookingsById.set(booking.id,booking));
+    if (ids.length) {
+      tasks.push(sb.from('dockslot_chat_message_reads').select('message_id,user_id,read_at').in('message_id', ids)
+        .then((result) => { if (result.error) throw result.error; readRows = result.data || []; }));
+      tasks.push(sb.from('dockslot_chat_attachments').select('id,message_id,storage_path,file_name,mime_type,file_size').in('message_id', ids)
+        .then((result) => { if (result.error) throw result.error; attachmentRows = result.data || []; }));
     }
-    const ids=fetchedMessages.map((message)=>message.id);
-    const newSignedFiles=new Map(previousSignedFiles);
-    if(ids.length){
-      const [readRes,attachRes,reactionRes]=await Promise.all([
-        sb.from('dockslot_chat_message_reads').select('message_id,user_id,read_at').in('message_id',ids),
-        sb.from('dockslot_chat_attachments').select('id,message_id,storage_path,file_name,mime_type,file_size').in('message_id',ids),
-        sb.from('dockslot_chat_message_reactions').select('message_id,user_id,reaction_key').in('message_id',ids)
-      ]);
-      if(readRes.error)throw readRes.error;if(attachRes.error)throw attachRes.error;if(reactionRes.error)throw reactionRes.error;
-      const mergeUnique=(oldRows,newRows,keyOf)=>[...new Map([...oldRows,...(newRows||[])].map((row)=>[keyOf(row),row])).values()];
-      reads=mergeUnique(previousReads,readRes.data,(row)=>`${row.message_id}:${row.user_id}`);
-      attachments=mergeUnique(previousAttachments,attachRes.data,(row)=>row.id);
-      // Replace reaction rows for messages refreshed in this batch. Merging them blindly
-      // kept deleted (toggled-off) reactions in memory forever, even after SQL removed them.
-      const refreshedMessageIds=new Set(ids.map(String));
-      reactions=[
-        ...previousReactions.filter((row)=>!refreshedMessageIds.has(String(row.message_id))),
-        ...(reactionRes.data||[])
-      ];
-      await Promise.all((attachRes.data||[]).map(async(attachment)=>{
-        try{const {data:link,error:linkError}=await sb.storage.from('dockslot-chat-files').createSignedUrl(attachment.storage_path,3600);if(!linkError&&link?.signedUrl)newSignedFiles.set(attachment.id,link.signedUrl);}catch(_){/* attachment remains listed without preview */}
-      }));
-    }else if(!preserveHistory){reads=[];attachments=[];reactions=[];}
-    signedFiles=newSignedFiles;
-    await markRead(selectedConversationId);
-    renderMessages();renderConversationList();
-    requestAnimationFrame(()=>{
-      if(!list)return;
-      if(bottomScrollRevision!==scrollRevisionAtStart)return;
-      if(preserveHistory&&!forceBottom&&!wasNearBottom)list.scrollTop=previousScrollTop;
-      else scrollMessageListToBottom();
+    await Promise.all(tasks);
+    if (loadSequence !== messageLoadSequence || selectedConversationId !== conversationId) return;
+
+    (bookingRows || []).forEach((booking) => bookingsById.set(booking.id, booking));
+    if (!preserveHistory) bookingsById = new Map((bookingRows || []).map((booking) => [booking.id, booking]));
+    const liveMessages = messages.filter((message) => String(message.conversation_id) === String(conversationId));
+    const retainedMessages = preserveHistory
+      ? liveMessages
+      : liveMessages.filter((message) => message.client_pending);
+    const mergedMessages = new Map(retainedMessages.map((message) => [String(message.id), message]));
+    fetchedMessages.forEach((message) => mergedMessages.set(String(message.id), message));
+    messages = [...mergedMessages.values()].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    hasOlderMessages = (preserveHistory && hasOlderMessages) || (data || []).length === 250;
+
+    const mergeUnique = (oldRows, newRows, keyOf) => [...new Map([...oldRows, ...(newRows || [])].map((row) => [keyOf(row), row])).values()];
+    reads = mergeUnique(preserveHistory ? reads : [], readRows, (row) => `${row.message_id}:${row.user_id}`);
+    attachments = mergeUnique(preserveHistory ? attachments : [], attachmentRows, (row) => row.id);
+    if (!preserveHistory) signedFiles = new Map();
+
+    renderMessages();
+    renderConversationList();
+    if (forceBottom || !preserveHistory || wasNearBottom) scrollMessageListToBottom();
+    else requestAnimationFrame(() => {
+      if (loadSequence === messageLoadSequence && selectedConversationId === conversationId && list?.isConnected) {
+        list.scrollTop = previousScrollTop;
+        followMessageTail = list.scrollHeight - list.scrollTop - list.clientHeight < 64;
+      }
     });
+    // Do not wait for receipt persistence or file URL signing before painting the thread.
+    void markRead(conversationId);
+    if (attachmentRows.length) {
+      void Promise.all(attachmentRows.map(async (attachment) => {
+        try {
+          const { data: link, error: linkError } = await sb.storage.from('dockslot-chat-files').createSignedUrl(attachment.storage_path, 3600);
+          if (!linkError && link?.signedUrl) signedFiles.set(attachment.id, link.signedUrl);
+        } catch (_) { /* attachment remains listed without a preview */ }
+      })).then(() => {
+        if (loadSequence !== messageLoadSequence || selectedConversationId !== conversationId || !isOpen) return;
+        renderMessages();
+        if (followMessageTail) scrollMessageListToBottom();
+      });
+    }
   };
   const loadOlderMessages=async()=>{
     if(!selectedConversationId||!messages.length||!hasOlderMessages||olderMessagesLoading)return;
@@ -498,13 +524,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const {data:bookingRows,error:bookingError}=await sb.from('bookings').select('id,slot_date,slot_hour,order_number,profiles(company_name)').in('id',bookingIds);
         if(bookingError)throw bookingError;(bookingRows||[]).forEach((booking)=>bookingsById.set(booking.id,booking));
       }
-      const [readRes,attachRes,reactionRes]=await Promise.all([
+      const [readRes,attachRes]=await Promise.all([
         sb.from('dockslot_chat_message_reads').select('message_id,user_id,read_at').in('message_id',ids),
-        sb.from('dockslot_chat_attachments').select('id,message_id,storage_path,file_name,mime_type,file_size').in('message_id',ids),
-        sb.from('dockslot_chat_message_reactions').select('message_id,user_id,reaction_key').in('message_id',ids)
+        sb.from('dockslot_chat_attachments').select('id,message_id,storage_path,file_name,mime_type,file_size').in('message_id',ids)
       ]);
-      if(readRes.error)throw readRes.error;if(attachRes.error)throw attachRes.error;if(reactionRes.error)throw reactionRes.error;
-      reads=[...reads,...(readRes.data||[])];attachments=[...attachments,...(attachRes.data||[])];reactions=[...reactions,...(reactionRes.data||[])];
+      if(readRes.error)throw readRes.error;if(attachRes.error)throw attachRes.error;
+      reads=[...reads,...(readRes.data||[])];attachments=[...attachments,...(attachRes.data||[])];
       await Promise.all((attachRes.data||[]).map(async(attachment)=>{
         try{const {data:link,error:linkError}=await sb.storage.from('dockslot-chat-files').createSignedUrl(attachment.storage_path,3600);if(!linkError&&link?.signedUrl)signedFiles.set(attachment.id,link.signedUrl);}catch(_){/* show attachment without preview if signing fails */}
       }));
@@ -524,6 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const renderMessages=()=>{
     const list=$('akChatMessageList');if(!list)return;
+    if(observedTailMessage&&messageTailObserver){messageTailObserver.unobserve(observedTailMessage);observedTailMessage=null;}
     if(!messages.length){list.innerHTML='<div class="ak-chat-empty"><div class="ak-chat-empty-icon">✦</div><strong>Начните разговор</strong><span>Отправьте сообщение, фото или документ.</span></div>';return;}
     list.replaceChildren();
     if(hasOlderMessages){const olderButton=document.createElement('button');olderButton.type='button';olderButton.id='akChatLoadOlder';olderButton.className='ak-chat-load-older';olderButton.disabled=olderMessagesLoading;olderButton.textContent=olderMessagesLoading?'Загрузка…':'Загрузить более ранние сообщения';list.appendChild(olderButton);}
@@ -566,20 +592,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<div class="ak-chat-read-info-row"><strong>${escapeHtml(displayName(id))}</strong><time>${readAt?escapeHtml(fmtDateTime(readAt)):'Не прочитано'}</time></div>`;
       }).join(''):'<div class="ak-chat-read-info-empty">Отметки о прочтении пока не поступили.</div>';
       const readInfoMenu=own&&!message.client_pending?`<button type="button" role="menuitem" class="ak-chat-message-menu-item" data-chat-read-info-toggle="${escapeHtml(message.id)}"><span>Информация о прочтении</span></button><div class="ak-chat-read-info" hidden>${receiptHtml}</div>`:'';
-      const reactionRows = reactionDefs.map(([key, emoji, label]) => {
-        const rows = reactions.filter((r) => r.message_id === message.id && r.reaction_key === key);
-        const mine = rows.some((r) => r.user_id === user.id);
-        return { key, emoji, label, count: rows.length, mine };
-      });
-      const activeReactionHtml = reactionRows.filter((item) => item.count > 0).map((item) =>
-        `<button type="button" class="ak-chat-reaction${item.mine?' is-mine':''}" data-chat-reaction="${item.key}" data-chat-message="${message.id}" title="${item.label}" aria-pressed="${item.mine}">${item.emoji}<small>${item.count}</small></button>`
-      ).join('');
-      const reactionPickerHtml = `<div class="ak-chat-reaction-control">
-        <button type="button" class="ak-chat-reaction-trigger" data-chat-reaction-toggle aria-label="Добавить реакцию" title="Добавить реакцию">${icons.heart}</button>
-        <div class="ak-chat-reaction-menu" role="group" aria-label="Выбор реакции">
-          ${reactionRows.map((item) => `<button type="button" data-chat-reaction="${item.key}" data-chat-message="${message.id}" title="${item.label}" aria-label="${item.label}">${item.emoji}</button>`).join('')}
-        </div>
-      </div>`;
       const editAction=own?`<button type="button" role="menuitem" class="ak-chat-message-menu-item" data-chat-edit="${escapeHtml(message.id)}" ${canEdit?'':'disabled title="Редактирование доступно в течение 10 минут после отправки."'}><span class="ak-chat-menu-item-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m4 16.5-.8 4.3 4.3-.8L19.8 7.7a2.1 2.1 0 0 0-3-3L4 16.5Z"/><path d="m15.4 6.1 3 3"/></svg></span><span>Редактировать</span></button>`:'';
       const messageMenu=message.client_pending?'':`<div class="ak-chat-message-menu-wrap"><button type="button" class="ak-chat-message-menu-trigger" data-chat-message-menu-toggle aria-label="Действия с сообщением" title="Действия">⋯</button><div class="ak-chat-message-menu" role="menu">${readInfoMenu}<button type="button" role="menuitem" class="ak-chat-message-menu-item" data-chat-forward="${escapeHtml(message.id)}"><span class="ak-chat-menu-item-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="m20 4-9 9"/><path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5"/></svg></span><span>Переслать</span></button>${editAction}</div></div>`;
       bubble.innerHTML=`
@@ -588,12 +600,12 @@ document.addEventListener('DOMContentLoaded', () => {
           ${forwarded}${booking}
           ${message.body?`<div class="ak-chat-message-text">${escapeHtml(message.body).replace(/\n/g,'<br>')}</div>`:''}
           ${fileHtml?`<div class="ak-chat-message-attachments">${fileHtml}</div>`:''}
-          <div class="ak-chat-message-reaction-row"><div class="ak-chat-reactions">${activeReactionHtml}</div>${reactionPickerHtml}</div>
           <div class="ak-chat-message-bottom"><time>${escapeHtml(fmtTime(message.created_at))}</time>${edited}${status}</div>
         </div>`;
       list.appendChild(bubble);
     });
     updateSelectionBar();
+    observeMessageTail(list.lastElementChild);
   };
 
   const updateComposer=()=>{
@@ -603,12 +615,21 @@ document.addEventListener('DOMContentLoaded', () => {
     $('akChatCharCount').textContent=`${length}/${max}`;
     $('akChatCharCount').classList.toggle('is-near-limit',length>max*.9);
     $('akChatSend').disabled=(!input.value.trim()&&!selectedFiles.length)||length>max||isSending||Boolean(editingMessageId);
-    // Avoid forcing two layout recalculations on every typed character. Reset only
-    // when text is removed; otherwise grow the textarea only when it needs more room.
-    if(length<previousComposerLength)input.style.height='auto';
-    const nextHeight=Math.min(input.scrollHeight,160);
-    if(input.style.height!==`${nextHeight}px`)input.style.height=`${nextHeight}px`;
-    previousComposerLength=length;
+
+    // Keep the actual keystroke immediate; measure textarea height once per paint frame.
+    if(composerResizeFrame)cancelAnimationFrame(composerResizeFrame);
+    composerResizeFrame=requestAnimationFrame(()=>{
+      composerResizeFrame=0;
+      if(!input.isConnected)return;
+      input.style.height='auto';
+      const style=window.getComputedStyle(input);
+      const minHeight=Math.max(31,parseFloat(style.minHeight)||31);
+      const maxHeight=Math.max(minHeight,parseFloat(style.maxHeight)||160);
+      const measured=Math.max(minHeight,input.scrollHeight);
+      const nextHeight=Math.min(measured,maxHeight);
+      input.style.height=`${Math.ceil(nextHeight)}px`;
+      input.style.overflowY=measured>maxHeight?'auto':'hidden';
+    });
   };
 
   const uploadFiles=async(files,conversationId)=>{
@@ -626,15 +647,29 @@ document.addEventListener('DOMContentLoaded', () => {
       throw error;
     }
   };
+  const observeMessageTail=(node)=>{
+    const list=$('akChatMessageList');
+    if(!messageTailObserver||!list)return;
+    const next=node||list.lastElementChild;
+    if(observedTailMessage===next)return;
+    if(observedTailMessage)messageTailObserver.unobserve(observedTailMessage);
+    observedTailMessage=next||null;
+    if(observedTailMessage)messageTailObserver.observe(observedTailMessage);
+  };
+
   const scrollMessageListToBottom=()=>{
     const list=$('akChatMessageList');
     if(!list)return;
-    const revision=++bottomScrollRevision;
-    requestAnimationFrame(()=>requestAnimationFrame(()=>{
-      if(!isOpen||!list.isConnected||revision!==bottomScrollRevision)return;
-      const target=Math.max(0,list.scrollHeight-list.clientHeight);
-      list.scrollTo({top:target,behavior:'smooth'});
-    }));
+    followMessageTail=true;
+    if(bottomScrollFrame)return;
+    bottomScrollFrame=requestAnimationFrame(()=>{
+      bottomScrollFrame=0;
+      if(!isOpen||!list.isConnected)return;
+      // Instant positioning avoids overlapping smooth-scroll animations and preserves
+      // a deterministic bottom position after optimistic sends and incoming messages.
+      list.scrollTop=list.scrollHeight;
+      if(list.scrollHeight-list.clientHeight-list.scrollTop>1)list.scrollTop=list.scrollHeight;
+    });
   };
 
   const sendMessage=async()=>{
@@ -658,7 +693,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // This prevents the typed text from remaining visible while the server confirms the send.
     messages=[...messages,pendingMessage].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
     if(input)input.value='';
-    previousComposerLength=0;
     selectedFiles=[];renderSelectedFiles();setSelectedBooking(null);updateComposer();
     renderMessages();renderConversationList();scrollMessageListToBottom();
 
@@ -674,10 +708,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const sentAt=new Date().toISOString();
       const sentMessage={...pendingMessage,id:messageId,created_at:sentAt,client_pending:false};
-      messages=messages.map((item)=>item.id===pendingId?sentMessage:item).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+      if(String(selectedConversationId)===String(conversation.id)){
+        messages=messages.map((item)=>item.id===pendingId?sentMessage:item).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+        updateComposer();renderMessages();scrollMessageListToBottom();
+      }else{
+        messages=messages.filter((item)=>item.id!==pendingId);
+      }
       lastMessageByConversation.set(conversation.id,sentMessage);
       conversation.updated_at=sentAt;
-      updateComposer();renderMessages();renderConversationList();
+      renderConversationList();
 
       // Load file metadata and signed URLs without blocking the send button or the next message.
       if(uploaded.length){
@@ -697,13 +736,15 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       queueRefreshData(false);
     }catch(error){
-      messages=messages.filter((item)=>item.id!==pendingId);renderMessages();renderConversationList();
+      messages=messages.filter((item)=>item.id!==pendingId);
+      const stillInConversation=String(selectedConversationId)===String(conversation.id);
+      if(stillInConversation){renderMessages();renderConversationList();}
       if(uploaded.length)try{await sb.storage.from('dockslot-chat-files').remove(uploaded.map((f)=>f.storage_path));}catch(_){}
-      // Restore the draft only when the user has not started typing a different message.
-      if(input&&!String(input.value||'').trim())input.value=body;
-      if(!selectedFiles.length&&draftFiles.length)selectedFiles=draftFiles;
-      if(!selectedBooking&&bookingDraft)setSelectedBooking(bookingDraft);
-      renderSelectedFiles();updateComposer();scrollMessageListToBottom();
+      // Restore the draft only in the conversation where it was composed.
+      if(stillInConversation&&input&&!String(input.value||'').trim())input.value=body;
+      if(stillInConversation&&!selectedFiles.length&&draftFiles.length)selectedFiles=draftFiles;
+      if(stillInConversation&&!selectedBooking&&bookingDraft)setSelectedBooking(bookingDraft);
+      if(stillInConversation){renderSelectedFiles();updateComposer();scrollMessageListToBottom();}
       console.error('[DockSlot chat] Message send failed:',error);toast(error?.message||'Не удалось отправить сообщение.',true);
       // Reconcile once: the database may have committed the message even if the HTTP response was lost.
       queueRefreshData(true);
@@ -783,18 +824,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const ids=messages.map(row=>row.id), bookingIds=[...new Set(messages.map(row=>row.booking_id).filter(Boolean))];
       const tasks=[
         sb.from('dockslot_chat_message_reads').select('message_id,user_id,read_at').in('message_id',ids),
-        sb.from('dockslot_chat_attachments').select('id,message_id,storage_path,file_name,mime_type,file_size').in('message_id',ids),
-        sb.from('dockslot_chat_message_reactions').select('message_id,user_id,reaction_key').in('message_id',ids)
+        sb.from('dockslot_chat_attachments').select('id,message_id,storage_path,file_name,mime_type,file_size').in('message_id',ids)
       ];
       if(bookingIds.length)tasks.push(sb.from('bookings').select('id,slot_date,slot_hour,order_number,profiles(company_name)').in('id',bookingIds));
       const results=await Promise.all(tasks);results.forEach((result)=>{if(result.error)throw result.error;});
-      reads=results[0].data||[];attachments=results[1].data||[];reactions=results[2].data||[];signedFiles=new Map();
-      (results[3]?.data||[]).forEach(row=>bookingsById.set(row.id,row));
+      reads=results[0].data||[];attachments=results[1].data||[];signedFiles=new Map();
+      (results[2]?.data||[]).forEach(row=>bookingsById.set(row.id,row));
       await Promise.all(attachments.map(async(file)=>{try{const {data,error}=await sb.storage.from('dockslot-chat-files').createSignedUrl(file.storage_path,3600);if(!error&&data?.signedUrl)signedFiles.set(file.id,data.signedUrl);}catch(_){}}));
       closeChatSearch();renderMessages();
       requestAnimationFrame(()=>{
         const target=$('akChatMessageList')?.querySelector(`[data-message-id="${CSS.escape(String(hit.id))}"]`);
-        if(target){target.scrollIntoView({behavior:'smooth',block:'center'});target.classList.add('is-search-hit');window.setTimeout(()=>target.classList.remove('is-search-hit'),2400);}
+        if(target){target.scrollIntoView({behavior:'auto',block:'center'});target.classList.add('is-search-hit');window.setTimeout(()=>target.classList.remove('is-search-hit'),2400);}
       });
     }catch(error){toast(error?.message||'Не удалось открыть найденное сообщение.',true);}
   };
@@ -803,13 +843,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if(!event.target.closest('[data-chat-message-menu-toggle],.ak-chat-message-menu-wrap')) $('akChatMessageList')?.querySelectorAll('.ak-chat-message-menu-wrap.is-open').forEach((node)=>node.classList.remove('is-open'));
     const olderButton=event.target.closest('#akChatLoadOlder');if(olderButton){void loadOlderMessages();return;}
     const bookingButton=event.target.closest('[data-chat-message-booking]');if(bookingButton){void openBookingFromMessage(bookingButton.dataset.chatMessageBooking);return;}
-    const reactionToggle=event.target.closest('[data-chat-reaction-toggle]');
-    if(reactionToggle){
-      const bubble=reactionToggle.closest('.ak-chat-message');
-      const opening=!bubble?.classList.contains('is-reaction-open');
-      $('akChatMessageList')?.querySelectorAll('.ak-chat-message.is-reaction-open').forEach((node)=>node.classList.remove('is-reaction-open'));
-      bubble?.classList.toggle('is-reaction-open',opening);return;
-    }
     const menuToggle=event.target.closest('[data-chat-message-menu-toggle]');
     if(menuToggle){
       const wrap=menuToggle.closest('.ak-chat-message-menu-wrap');
@@ -829,21 +862,6 @@ document.addEventListener('DOMContentLoaded', () => {
       forwardButton.closest('.ak-chat-message-menu-wrap')?.classList.remove('is-open');
       await openPicker('forward');return;
     }
-    const reactionButton=event.target.closest('[data-chat-reaction]');if(reactionButton){
-      const {chatReaction:key,chatMessage:id}=reactionButton.dataset;
-      reactionButton.closest('.ak-chat-message')?.classList.remove('is-reaction-open');
-      const reactionIdentity=(row)=>String(row.message_id)===String(id)&&String(row.user_id)===String(user.id)&&row.reaction_key===key;
-      const {data:isActive,error}=await sb.rpc('dockslot_chat_toggle_reaction',{p_message_id:id,p_reaction_key:key});
-      if(error){toast(error.message||'Не удалось изменить реакцию.',true);return;}
-      // The RPC returns true when the reaction was added and false when it was removed.
-      // Apply that result immediately so the current user sees a reliable toggle without
-      // waiting for Realtime or a full thread reload.
-      reactions=reactions.filter((row)=>!reactionIdentity(row));
-      if(isActive===true)reactions.push({message_id:id,user_id:user.id,reaction_key:key});
-      renderMessages();
-      if(typeof isActive!=='boolean')await loadSelectedMessages({preserveHistory:true});
-      return;
-    }
     const editButton=event.target.closest('[data-chat-edit]');if(editButton){const message=messages.find((m)=>m.id===editButton.dataset.chatEdit);editButton.closest('.ak-chat-message-menu-wrap')?.classList.remove('is-open');if(message)startEditing(message);}
   };
   const clearMessageSelection=()=>{selectedMessageIds.clear();};
@@ -856,7 +874,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     editingMessageId=message.id;$('akChatInput').value=message.body||'';$('akChatEditPanel').hidden=false;updateComposer();$('akChatInput').focus();
   };
-  const cancelEditing=()=>{editingMessageId=null;if($('akChatEditPanel'))$('akChatEditPanel').hidden=true;if($('akChatInput'))$('akChatInput').value='';previousComposerLength=0;updateComposer();};
+  const cancelEditing=()=>{editingMessageId=null;if($('akChatEditPanel'))$('akChatEditPanel').hidden=true;if($('akChatInput'))$('akChatInput').value='';updateComposer();};
   const saveEditedMessage=async()=>{
     if(!editingMessageId)return;
     const body=String($('akChatInput').value||'');
@@ -868,16 +886,33 @@ document.addEventListener('DOMContentLoaded', () => {
     finally{$('akChatEditSave').disabled=false;}
   };
 
+  const loadRecipientUsers=async()=>{
+    const list=$('akChatPickerList');
+    if(list)list.innerHTML='<div class="ak-chat-picker-empty">Загружаем сотрудников…</div>';
+    const {data,error}=await sb.rpc('dockslot_chat_list_users');
+    if(error){
+      userRows=[];
+      if(list)list.innerHTML='<div class="ak-chat-picker-empty is-error">Не удалось загрузить список сотрудников. Проверьте доступ к мессенджеру и повторите попытку.</div>';
+      console.warn('[DockSlot chat] Recipient list load failed:',error.message||error);
+      return;
+    }
+    userRows=Array.isArray(data)?data:[];
+    for(const row of userRows)usersById.set(row.user_id,row);
+  };
   const openPicker=async(mode, bookingContext=null)=>{
     pickerMode=mode;selectedRecipientIds.clear();presetGroupTitle=null;
     bookingDiscussionContext=mode==='booking-recipients'?(bookingContext||null):null;
     const picker=$('akChatPicker');picker.hidden=false;
     const titles={recipients:'Новое сообщение · получатели',booking:'Привязать запись слота',forward:'Переслать выбранные сообщения','booking-recipients':'Обсудить запись · выберите адресатов'};
     $('akChatPickerTitle').textContent=titles[mode]||'Выберите';
-    $('akChatPickerSearch').placeholder=mode==='booking'?'Поиск по поставщику или номеру документа…':'Поиск по компании или сотруднику…';
+    $('akChatPickerSearch').placeholder=mode==='booking'?'Поиск по поставщику или номеру документа…':'Поиск по наименованию компании…';
     $('akChatPickerShortcuts').hidden=!['recipients','booking-recipients'].includes(mode);
+    $('akChatPickerGroupsSection')?.toggleAttribute('hidden',!['recipients','booking-recipients'].includes(mode));
+    $('akChatPickerPeopleTitle').textContent=mode==='booking-recipients'?'Сотрудники для обсуждения записи':'Личные сообщения сотрудникам';
     $('akChatPickerFooter').hidden=mode==='booking';
-    if(mode==='booking')await loadBookingsForPicker();else renderPickerList();
+    if(mode==='booking')await loadBookingsForPicker();
+    else if(mode==='recipients'||mode==='booking-recipients'){await loadRecipientUsers();renderPickerList();}
+    else renderPickerList();
     $('akChatPickerSearch').focus();
   };
   const loadBookingsForPicker=async()=>{
@@ -897,14 +932,23 @@ document.addEventListener('DOMContentLoaded', () => {
       matches.forEach((b)=>{const button=document.createElement('button');button.type='button';button.className='ak-chat-picker-item';button.innerHTML=`<span class="ak-chat-picker-avatar is-slot">▧</span><span><strong>${escapeHtml(bookingLabel(b))}</strong><small>${escapeHtml(b.order_number?`Документ: ${b.order_number}`:`ID ${String(b.id).slice(0,8)}`)}</small></span><b>＋</b>`;button.addEventListener('click',()=>{setSelectedBooking(b);closePicker();});list.appendChild(button);});return;
     }
     const bookingDiscussion=pickerMode==='booking-recipients';
-    const allowedRoles=bookingDiscussion?new Set(['admin','operator']):null;
-    const matches=userRows.filter((row)=>row.user_id!==user.id&&(!allowedRoles||allowedRoles.has(String(row.role||'').toLowerCase()))&&`${row.company_name||row.display_name||''} ${row.display_name||''} ${roleLabels[row.role]||row.role}`.toLocaleLowerCase('ru-RU').includes(query));
+    if(settings?.enabled!==true||settings?.direct_chat_enabled!==true){
+      const reason=settings?.enabled!==true
+        ? 'Мессенджер сейчас выключен в настройках. Включите его на странице управления, чтобы выбирать сотрудников и начинать переписку.'
+        : 'Личные и групповые чаты отключены суперадминистратором.';
+      list.innerHTML=`<div class="ak-chat-picker-empty is-muted">${escapeHtml(reason)}</div>`;
+      $('akChatPickerShortcuts')?.querySelectorAll('button').forEach((button)=>button.disabled=true);
+      updatePickerCount();return;
+    }
+    $('akChatPickerShortcuts')?.querySelectorAll('button').forEach((button)=>button.disabled=false);
+    const allowedRoles=bookingDiscussion?new Set(['admin','operator']):new Set(['admin','super_admin','operator']);
+    const matches=userRows.filter((row)=>row.user_id!==user.id&&allowedRoles.has(String(row.role||'').toLowerCase())&&`${row.company_name||''} ${roleLabels[row.role]||row.role}`.toLocaleLowerCase('ru-RU').includes(query));
     if(!matches.length)list.innerHTML=bookingDiscussion
-      ? '<div class="ak-chat-picker-empty">Нет доступных адресатов с ролями УТЗ или РЦ.</div>'
-      : '<div class="ak-chat-picker-empty">Нет доступных сотрудников. В списке только роли, которым суперадминистратор разрешил мессенджер.</div>';
+      ? '<div class="ak-chat-picker-empty">Нет сотрудников УТЗ или РЦ с разрешённым доступом к мессенджеру.</div>'
+      : '<div class="ak-chat-picker-empty">Нет сотрудников с ролью admin, super_admin или operator и включённым доступом к личным сообщениям.</div>';
     matches.forEach((row)=>{
       const label=document.createElement('label');label.className='ak-chat-picker-item is-selectable';
-      const employeeName=String(row.company_name||row.display_name||'Сотрудник DockSlot');
+      const employeeName=String(row.company_name||'Без наименования');
       label.innerHTML=`<span class="ak-chat-picker-avatar">${escapeHtml(employeeName[0].toLocaleUpperCase('ru-RU'))}</span><span><strong>${escapeHtml(employeeName)}</strong><small>${escapeHtml(roleLabels[row.role]||row.role)}</small></span><input type="checkbox" data-recipient-id="${row.user_id}" ${selectedRecipientIds.has(row.user_id)?'checked':''}>`;
       label.querySelector('input').addEventListener('change',(event)=>{
         presetGroupTitle=null;
@@ -1093,7 +1137,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const clearSession=()=>{
     closeBookingDiscussPopover();
-    window.clearInterval(pollTimer);window.clearTimeout(refreshDebounceTimer);refreshDebounceTimer=null;queuedRefreshThread=false;queuedForceThreadBottom=false;bookingObserver?.disconnect();bookingObserver=null;
+    window.clearInterval(pollTimer);window.clearTimeout(refreshDebounceTimer);if(bottomScrollFrame)cancelAnimationFrame(bottomScrollFrame);if(composerResizeFrame)cancelAnimationFrame(composerResizeFrame);messageTailObserver?.disconnect();messageTailObserver=null;observedTailMessage=null;bottomScrollFrame=0;composerResizeFrame=0;messageLoadSequence++;refreshDebounceTimer=null;queuedRefreshThread=false;queuedForceThreadBottom=false;bookingObserver?.disconnect();bookingObserver=null;
     document.querySelectorAll('.ak-chat-slot-marker').forEach((node)=>node.remove());
     if(realtimeChannel){try{void sb.removeChannel(realtimeChannel);}catch(_){}realtimeChannel=null;}
     user=null;role='';isOpen=false;$('akChatFab')?.remove();$('akChatOverlay')?.remove();$('akChatToast')?.remove();

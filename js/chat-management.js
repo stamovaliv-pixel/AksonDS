@@ -160,24 +160,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(reset)list.replaceChildren();
     const rows=reset?archiveRows:archiveRows.slice(-50);
     const ids=rows.map((row)=>row.message_id);
-    let files=[], reactionRows=[];
+    let files=[];
     if(ids.length){
-      const [fileResult,reactionResult]=await Promise.all([
-        sb.from('dockslot_chat_attachments').select('id,message_id,storage_path,file_name,mime_type,file_size').in('message_id',ids),
-        sb.from('dockslot_chat_message_reactions').select('message_id,reaction_key').in('message_id',ids)
-      ]);
-      if(fileResult.error)throw fileResult.error;
-      if(reactionResult.error)throw reactionResult.error;
-      files=fileResult.data||[]; reactionRows=reactionResult.data||[];
+      const {data:fileRows,error:fileError}=await sb.from('dockslot_chat_attachments')
+        .select('id,message_id,storage_path,file_name,mime_type,file_size').in('message_id',ids);
+      if(fileError)throw fileError;
+      files=fileRows||[];
     }
-    const reactionEmoji={heart:'❤️',like:'👍',cry:'😢',laugh:'😂',rofl:'🤣',strong:'💪',fire:'🔥'};
-    const reactionsByMessage=new Map();
-    reactionRows.forEach((reaction)=>{
-      const list=reactionsByMessage.get(reaction.message_id)||[];
-      const match=list.find((item)=>item.key===reaction.reaction_key);
-      if(match)match.count+=1;else list.push({key:reaction.reaction_key,count:1});
-      reactionsByMessage.set(reaction.message_id,list);
-    });
     const signed=new Map();
     await Promise.all(files.map(async(file)=>{
       const {data,error}=await sb.storage.from('dockslot-chat-files').createSignedUrl(file.storage_path,3600);
@@ -199,7 +188,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const card=document.createElement('article');card.className='chat-admin-archive-message';
       const when=new Date(row.created_at).toLocaleString('ru-RU',{timeZone:'Europe/Moscow',dateStyle:'short',timeStyle:'short'});
       const group=files.filter((file)=>file.message_id===row.message_id);
-      const reactionHtml=(reactionsByMessage.get(row.message_id)||[]).map((reaction)=>`<span>${reactionEmoji[reaction.key]||''} ${reaction.count}</span>`).join('');
       const fileHtml=group.map((file)=>{
         const url=signed.get(file.id);
         return `<a href="${url?escapeHtml(url):'#'}" ${url?'target="_blank" rel="noopener"':'aria-disabled="true"'}><span>${escapeHtml((file.file_name.split('.').pop()||'FILE').toUpperCase())}</span>${escapeHtml(file.file_name)}</a>`;
@@ -209,7 +197,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${row.forwarded_from_message_id?'<div class="chat-admin-archive-forwarded">↗ Пересланное сообщение</div>':''}
         <div class="chat-admin-archive-body">${escapeHtml(row.body||'').replace(/\n/g,'<br>')||'<em>Сообщение без текста</em>'}${row.edited_at?'<small> · изменено</small>':''}</div>
         ${fileHtml?`<div class="chat-admin-archive-files">${fileHtml}</div>`:''}
-        ${reactionHtml?`<div class="chat-admin-archive-reactions">${reactionHtml}</div>`:''}
         ${row.booking_id?`<div class="chat-admin-archive-booking">Запись слота · ${escapeHtml(row.booking_id)}</div>`:''}`;
       section.appendChild(card);
       });

@@ -98,7 +98,7 @@
 .ak-chat-icon-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .ak-chat-notice { margin: 12px 18px 0; padding: 9px 12px; border: 1px solid rgba(111,102,221,.12); border-radius: 9px; background: rgba(111,102,221,.055); color: #6a62bc; font-size: 10px; line-height: 1.45; }
 .ak-chat-notice[hidden] { display: none; }
-.ak-chat-message-list { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 10px; overflow: auto; padding: 20px 22px; overscroll-behavior: contain; scroll-behavior: smooth; }
+.ak-chat-message-list { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 10px; overflow: auto; padding: 20px 22px; overscroll-behavior: contain; scroll-behavior: auto; }
 .ak-chat-date-divider { display: flex; align-items: center; gap: 12px; margin: 4px 0 8px; color: var(--color-text-muted,#9aa3b1); font-size: 9px; font-weight: 650; }
 .ak-chat-date-divider::before,.ak-chat-date-divider::after { height: 1px; flex: 1; background: var(--color-border,#e8edf2); content: ''; }
 .ak-chat-message { position: relative; display: flex; max-width: min(82%,560px); flex-direction: column; align-self: flex-start; padding: 10px 12px 8px; border: 1px solid var(--color-border,#e8edf2); border-radius: 4px 14px 14px 14px; background: var(--color-background,#f8fafc); color: var(--color-text-main,#334155); box-shadow: 0 2px 8px rgba(15,23,42,.025); }
@@ -895,4 +895,44 @@ html[data-theme="dark"] .ak-chat-booking-discuss-popover button { color:#e6edf5;
 @media (prefers-reduced-motion:reduce) {
   .ak-chat-fab::before,.ak-chat-fab::after,.ak-chat-booking-discuss-popover { animation:none !important; }
   .ak-chat-message-list { scroll-behavior:auto !important; }
+}
+
+/* Messenger v1.11 — clearly separate group broadcasts from individual recipients. */
+.ak-chat-picker-groups,.ak-chat-picker-people{display:flex;flex-direction:column;min-height:0;}
+.ak-chat-picker-section-title{padding:8px 2px 4px;color:var(--color-text-muted,#7d8999);font-size:9px;font-weight:800;letter-spacing:.045em;text-transform:uppercase;}
+.ak-chat-picker-shortcuts{padding:5px 0 10px;gap:7px;border-bottom:1px solid var(--color-border,#e2e8f0);}
+.ak-chat-picker-shortcuts button:disabled{opacity:.4;cursor:not-allowed;}
+.ak-chat-picker-people{padding-top:4px;}
+.ak-chat-picker-people .ak-chat-picker-list{max-height: min(42vh,360px);}
+.ak-chat-picker-empty.is-muted{color:var(--color-text-muted,#7d8999);background:var(--color-background,#f8fafc);border-radius:9px;line-height:1.55;}
+.ak-chat-picker-empty.is-error{color:#b45309;}
+ .ak-chat-picker-groups[hidden],.ak-chat-picker-people[hidden]{display:none!important;}
+html[data-theme="dark"] .ak-chat-picker-section-title{color:#9aa8b8;}
+html[data-theme="dark"] .ak-chat-picker-shortcuts{border-color:#344150;}
+
+
+/* DockSlot Messenger v1.12 — stable instant follow, proportional composer, reactions temporarily hidden. */
+.ak-chat-message-list {
+  scroll-behavior: auto !important;
+  overflow-anchor: none !important;
+}
+.ak-chat-message-reaction-row,
+.ak-chat-reaction-control,
+.ak-chat-reactions,
+.ak-chat-reaction-menu,
+.ak-chat-reaction-trigger,
+.ak-chat-reaction {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+.ak-chat-composer textarea {
+  box-sizing: border-box !important;
+  min-height: 31px !important;
+  height: 31px;
+  max-height: 160px !important;
+  overflow-y: hidden;
+  overflow-x: hidden;
+  line-height: 1.45 !important;
+  transition: none !important;
 }
