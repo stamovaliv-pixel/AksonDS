@@ -1,4 +1,12 @@
 document.addEventListener('DOMContentLoaded', async () => {
+  // Keep the VzU filter choice available even if an older cached HTML page is served.
+  const vzuFilterSelect = document.getElementById('orderFilter');
+  if (vzuFilterSelect && !Array.from(vzuFilterSelect.options).some((option) => option.value === 'vzu')) {
+    const vzuOption = document.createElement('option');
+    vzuOption.value = 'vzu';
+    vzuOption.textContent = 'ВзУ';
+    vzuFilterSelect.appendChild(vzuOption);
+  }
   const sb = window.supabaseClient;
   if (!sb) {
     window.location.href = '../index.html';
@@ -237,11 +245,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const profile = getBookingSupplier(booking);
     const supplierText = `${profile.company_name || ''} ${profile.inn || ''}`.toLocaleLowerCase('ru-RU');
     const supplyMatches = !supplyFilter || getSupplyTypeValues(booking).some((value) => String(value) === supplyFilter);
+    const vzuFilterSelected = orderFilter === 'vzu';
+    const documentMatches = !docFilter || (vzuFilterSelected
+      ? Boolean(window.DockSlotVzuDocuments?.matchesSearch(booking.comment, docFilter))
+      : String(booking.order_number || '').toLocaleLowerCase('ru-RU').includes(docFilter));
+    const orderTypeMatches = !orderFilter || (vzuFilterSelected
+      ? (window.DockSlotVzuDocuments?.extractNumbers(booking.comment) || []).length > 0
+      : booking.order_type === orderFilter);
     return (!favoriteFilterActive || favoriteSupplierIds.has(String(booking.profile_id)))
       && (!supplierFilter || supplierText.includes(supplierFilter))
-      && (!docFilter || String(booking.order_number || '').toLocaleLowerCase('ru-RU').includes(docFilter))
+      && documentMatches
       && supplyMatches
-      && (!orderFilter || booking.order_type === orderFilter);
+      && orderTypeMatches;
   };
 
   const getFilteredBookings = () => bookings.filter(matchesCurrentFilters);

@@ -506,6 +506,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Существующие записи, в которых «Возврат» уже выбран, можно редактировать
     // после дедлайна, если сам тип не добавляется заново.
     const hasReturnType = selectedTypes.includes('return');
+    const bookingComment = document.getElementById('bookingComment').value.trim();
+    if (hasReturnType && !window.DockSlotVzuDocuments?.hasVzuNumber(bookingComment)) {
+      return alert('Для типа поставки «Возврат» требуется указать номер ВзУ в комментарии к записи.');
+    }
     const isAddingReturnType = hasReturnType && (
       !currentEditBookingId || !currentEditOriginalTypes.includes('return')
     );
@@ -551,7 +555,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       order_number: document.getElementById('orderNumber').value,
       registry_file_url: finalFileUrl,
       is_tk: isTkModal,
-      comment: document.getElementById('bookingComment').value.trim()
+      comment: bookingComment
     };
 
     let errorResult;

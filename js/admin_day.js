@@ -109,6 +109,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     settings.supply_types.forEach(st => supplyTypes[st.id] = st.name);
   }
   const orderTypes = { 'order': 'Заказ', 'upd': 'УПД', 'etrn': 'ЭТрН' };
+  const isReturnSupplyType = (value) => String(value || '').toLocaleLowerCase('ru-RU') === 'return'
+    || String(supplyTypes[value] || value || '').toLocaleLowerCase('ru-RU').includes('возврат');
+  const requiresVzuComment = (selectedTypes, comment) => {
+    if (!selectedTypes.some(isReturnSupplyType)) return true;
+    if (window.DockSlotVzuDocuments?.hasVzuNumber(comment)) return true;
+    alert('Для типа поставки «Возврат» требуется указать номер ВзУ в комментарии к записи.');
+    return false;
+  };
 
   // Мягкая подсветка заполненности полей «Прибыл», «Убыл» и «Ворота».
   // Статус рассчитывается только по значению поля, независимо от даты записи.
@@ -757,9 +765,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const selectedTypes = Array.from(document.querySelectorAll('#mSupplyTypesGroup input:checked')).map(cb => cb.value);
         if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
+        const editComment = document.getElementById('mComment').value.trim();
+        if (!requiresVzuComment(selectedTypes, editComment)) return;
         if (!validateBookingTextLengths(
           document.getElementById('mDoc').value,
-          document.getElementById('mComment').value
+          editComment
         )) return;
         
         const selectedHour = document.getElementById('mHour').value;
@@ -769,7 +779,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           order_number: document.getElementById('mDoc').value.trim(),
           supply_types: selectedTypes,
           is_tk: isTkEditModal,
-          comment: document.getElementById('mComment').value.trim()
+          comment: editComment
         };
         // Замена реестра/сохранение без изменения часа не трогает slot_hour в БД.
         if (editHourWasChanged && Number(selectedHour) !== Number(currentEditBooking?.hour)) {
@@ -838,9 +848,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const selectedTypes = Array.from(document.querySelectorAll('#cSupplyTypesGroup input:checked')).map(cb => cb.value);
         if (selectedTypes.length === 0) return alert('Выберите хотя бы один тип поставки');
+        const createComment = document.getElementById('cComment').value.trim();
+        if (!requiresVzuComment(selectedTypes, createComment)) return;
         if (!validateBookingTextLengths(
           document.getElementById('cDoc').value,
-          document.getElementById('cComment').value
+          createComment
         )) return;
 
         const btn = document.getElementById('btnCreate');
@@ -871,7 +883,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           order_number: document.getElementById('cDoc').value.trim(),
           registry_file_url: fileUrl,
           is_tk: isTkCreateModal,
-          comment: document.getElementById('cComment').value.trim(),
+          comment: createComment,
           status: 'active'
         };
 

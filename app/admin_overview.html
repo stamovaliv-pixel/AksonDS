@@ -63,6 +63,16 @@
         <input type="search" id="supplierFilter" placeholder="Название или ИНН" autocomplete="off">
       </div>
       <div class="overview-filter-group">
+        <label for="orderFilter">Тип документа</label>
+        <select id="orderFilter">
+          <option value="">Все документы</option>
+          <option value="order">Заказ</option>
+          <option value="upd">УПД</option>
+          <option value="etrn">ЭТрН</option>
+          <option value="vzu">ВзУ</option>
+        </select>
+      </div>
+      <div class="overview-filter-group">
         <label for="docFilter">Номер документа</label>
         <input type="search" id="docFilter" placeholder="Номер документа" autocomplete="off">
       </div>
@@ -70,18 +80,9 @@
         <label for="supplyFilter">Тип поставки</label>
         <select id="supplyFilter"><option value="">Все типы</option></select>
       </div>
-      <div class="overview-filter-group">
-        <label for="orderFilter">Тип документа</label>
-        <select id="orderFilter">
-          <option value="">Все документы</option>
-          <option value="order">Заказ</option>
-          <option value="upd">УПД</option>
-          <option value="etrn">ЭТрН</option>
-        </select>
-      </div>
       <div class="overview-filter-actions">
         <div class="favorite-filter-mount" id="favoritesFilterMount"></div>
-        <button type="button" class="overview-btn overview-btn-primary" id="applyBtn">Применить</button>
+        <button type="button" class="overview-btn overview-btn-primary" id="applyBtn">Найти</button>
         <button type="button" class="overview-btn overview-btn-secondary" id="resetBtn">Сбросить</button>
         <button type="button" class="calendar-tool-btn overview-export-btn" id="exportBtn" title="Выгрузить общий реестр" aria-label="Выгрузить общий реестр" aria-pressed="false">
           <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"></path><path d="M15 3v5h4"></path><path d="M12 11v7"></path><path d="m9 15 3 3 3-3"></path></svg>
@@ -236,7 +237,8 @@
   <script src="../js/push-config.js?v=2-windows-push"></script>
   <script src="../js/notifications.js?v=20261125-notifications-v1-17"></script>
   <script src="../js/admin-navigation.js?v=20261124-messenger-v1-4"></script>
-  <script src="../js/admin_overview.js?v=20261125-messenger-v1-13-layout"></script>
+  <script src="../js/vzu-documents.js?v=20261126-v1"></script>
+  <script src="../js/admin_overview.js?v=20261126-vzu-filter-hotfix-v2"></script>
   
   <script src="../js/ai-ds.js?v=20261118-doxi-flip-fix-1-13"></script>
   <script src="../js/chat.js?v=20261125-messenger-v1-17"></script>

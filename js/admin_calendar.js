@@ -1,4 +1,12 @@
 document.addEventListener('DOMContentLoaded', async () => {
+  // Keep the VzU filter choice available even if an older cached HTML page is served.
+  const vzuFilterSelect = document.getElementById('filterOrderType');
+  if (vzuFilterSelect && !Array.from(vzuFilterSelect.options).some((option) => option.value === 'vzu')) {
+    const vzuOption = document.createElement('option');
+    vzuOption.value = 'vzu';
+    vzuOption.textContent = 'ВзУ';
+    vzuFilterSelect.appendChild(vzuOption);
+  }
   const sb = window.supabaseClient;
   if (!sb) return;
   const escapeHtml = window.escapeHtml;
@@ -211,20 +219,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const type = (settings.supply_types || []).find(item => String(item.id ?? '') === String(value ?? ''));
     return String(value || '').toLowerCase() === 'return' || normalizeSupplyTypeName(type?.name || value).includes('возврат');
   };
-  const extractVzuDocuments = (comment) => {
-    const source = String(comment || '');
-    const matcher = /(^|[^А-ЯЁа-яёA-Za-z0-9])(ВЗУ\s*[-–—:]?\s*(?:№\s*)?\d[\d -]*)/gi;
-    const result = [];
-    let match;
-    while ((match = matcher.exec(source)) !== null) {
-      const phrase = String(match[2] || '').replace(/[\s.,;:!?]+$/g, '').trim();
-      const numberMatch = phrase.match(/ВЗУ\s*[-–—:]?\s*(?:№\s*)?([\d][\d -]*)/i);
-      const documentNumber = numberMatch ? numberMatch[1].replace(/[\s-]+$/g, '').trim() : '';
-      if (documentNumber) result.push(`ВЗУ - ${documentNumber}`);
-      if (!match[0].length) matcher.lastIndex++;
-    }
-    return [...new Set(result)];
-  };
+  const extractVzuDocuments = (comment) => (window.DockSlotVzuDocuments?.extractNumbers(comment) || [])
+    .map((number) => `ВЗУ - ${number}`);
+  const matchesVzuComment = (comment, searchValue) =>
+    Boolean(window.DockSlotVzuDocuments?.matchesSearch(comment, searchValue));
   const csvEscape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
   const formatCsvDate = (isoDate) => {
     const [year, month, day] = String(isoDate || '').split('-');
@@ -248,8 +246,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       .select('id, profile_id, slot_date, slot_hour, order_number, order_type, supply_type, supply_types, comment, profiles!inner(company_name, inn)')
       .eq('status', 'active')
       .in('slot_date', selectedDates);
-    if (filterDoc) query = query.ilike('order_number', `%${filterDoc}%`);
-    if (filterOrder) query = query.eq('order_type', filterOrder);
+    if (filterDoc && filterOrder !== 'vzu') query = query.ilike('order_number', `%${filterDoc}%`);
+    if (filterOrder && filterOrder !== 'vzu') query = query.eq('order_type', filterOrder);
     if (filterSupplier) query = query.or(`company_name.ilike.%${filterSupplier}%,inn.ilike.%${filterSupplier}%`, { foreignTable: 'profiles' });
     if (filterSupply) query = query.contains('supply_types', JSON.stringify([filterSupply]));
     query = applyFavoriteFilter(query);
@@ -259,7 +257,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const { data, error } = await query;
       if (error) throw error;
-      const bookings = (data || []).slice().sort((a, b) =>
+      const bookings = (data || []).filter((booking) => filterOrder !== 'vzu' || matchesVzuComment(booking.comment, filterDoc)).slice().sort((a, b) =>
         String(a.slot_date).localeCompare(String(b.slot_date)) ||
         Number(a.slot_hour) - Number(b.slot_hour) ||
         String(Array.isArray(a.profiles) ? a.profiles[0]?.company_name : a.profiles?.company_name).localeCompare(
@@ -272,6 +270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       const returnFilterSelected = Boolean(filterSupply) && isReturnSupplyType(filterSupply);
+      const vzuFilterSelected = filterOrder === 'vzu';
       const rows = [[
         'Порядковый номер',
         'Наименование поставщика',
@@ -287,7 +286,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const time = Number.isFinite(hour) ? `${String(hour).padStart(2, '0')}:00–${String(hour + 1).padStart(2, '0')}:00` : '';
         const bookingTypes = booking.supply_types?.length ? booking.supply_types : [booking.supply_type].filter(Boolean);
         const rowIsReturn = returnFilterSelected;
-        const documentNumber = rowIsReturn
+        const documentNumber = (rowIsReturn || vzuFilterSelected)
           ? extractVzuDocuments(booking.comment).join(', ')
           : String(booking.order_number || '');
         rows.push([
@@ -384,15 +383,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         .gte('slot_date', rangeFrom)
         .lte('slot_date', rangeTo);
 
-      if (filterDoc) query = query.ilike('order_number', `%${filterDoc}%`);
-      if (filterOrder) query = query.eq('order_type', filterOrder);
+      if (filterDoc && filterOrder !== 'vzu') query = query.ilike('order_number', `%${filterDoc}%`);
+      if (filterOrder && filterOrder !== 'vzu') query = query.eq('order_type', filterOrder);
       if (filterSupplier) query = query.or(`company_name.ilike.%${filterSupplier}%,inn.ilike.%${filterSupplier}%`, { foreignTable: 'profiles' });
       if (filterSupply) query = query.contains('supply_types', JSON.stringify([filterSupply]));
       query = applyFavoriteFilter(query);
 
       const { data, error } = await query;
       if (error) throw error;
-      bookings = data || [];
+      bookings = (data || []).filter((booking) => filterOrder !== 'vzu' || matchesVzuComment(booking.comment, filterDoc));
       bookings.forEach((booking) => {
         const dateKey = String(booking.slot_date || '');
         if (dateKey) bookingCountsByDate.set(dateKey, (bookingCountsByDate.get(dateKey) || 0) + 1);
@@ -664,9 +663,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const selectedTypes = Array.from(document.querySelectorAll('#mSupplyTypesGroup input:checked')).map(cb => cb.value);
         if (selectedTypes.length === 0) return alert('Выберите хотя бай один тип поставки');
+        const editComment = document.getElementById('mComment').value.trim();
+        if (selectedTypes.some(isReturnSupplyType) && !window.DockSlotVzuDocuments?.hasVzuNumber(editComment)) {
+          return alert('Для типа поставки «Возврат» требуется указать номер ВзУ в комментарии к записи.');
+        }
         if (!validateBookingTextLengths(
           document.getElementById('mDoc').value,
-          document.getElementById('mComment').value
+          editComment
         )) return;
 
         const payload = {
@@ -675,7 +678,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           order_number: document.getElementById('mDoc').value.trim(),
           supply_types: selectedTypes,
           is_tk: document.getElementById('mIsTk').checked,
-          comment: document.getElementById('mComment').value.trim()
+          comment: editComment
         };
         // Always send a valid enum member; blank HTML select values must never reach PostgreSQL.
         payload.order_type = resolveOrderTypeForUpdate('mOrderType', currentEditBooking?.oTypeRaw);
