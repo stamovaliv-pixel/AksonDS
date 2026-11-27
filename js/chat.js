@@ -1,4 +1,4 @@
-/* DockSlot Messenger v1.15 — stable instant tail-follow, measured composer sizing, reactions hidden. */
+/* DockSlot Messenger v1.20 — safe attachment keys and in-chat image viewer. */
 document.addEventListener('DOMContentLoaded', () => {
   'use strict';
 
@@ -103,7 +103,23 @@ document.addEventListener('DOMContentLoaded', () => {
     toast.timer = window.setTimeout(() => node.classList.remove('is-visible'), 3600);
   };
   const newId = () => (window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  const safeFileName = (name) => String(name || 'file').normalize('NFKC').replace(/[^\p{L}\p{N}._-]+/gu,'_').slice(0,120) || 'file';
+  // Supabase Storage object keys must use its URL-safe key alphabet. Keep the
+  // original Unicode filename in dockslot_chat_attachments.file_name; only the
+  // internal object-key leaf is normalized to conservative ASCII characters.
+  const safeFileName = (name) => {
+    const leaf = String(name || 'file').replace(/\\/g, '/').split('/').pop() || 'file';
+    const dot = leaf.lastIndexOf('.');
+    const rawStem = dot > 0 ? leaf.slice(0, dot) : leaf;
+    const rawExt = dot > 0 ? leaf.slice(dot + 1) : '';
+    const stem = rawStem.normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Za-z0-9_-]+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^[_-]+|[_-]+$/g, '')
+      .slice(0, 64) || 'file';
+    const ext = rawExt.replace(/[^A-Za-z0-9]/g, '').slice(0, 10).toLowerCase();
+    return `${stem}${ext ? `.${ext}` : ''}`;
+  };
   const sixMonthsAgo = () => {
     const date = new Date(), day = date.getUTCDate();
     date.setUTCDate(1); date.setUTCMonth(date.getUTCMonth()-6);
@@ -235,12 +251,27 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </section>`;
     document.body.appendChild(overlay);
+    const imageViewer = document.createElement('div');
+    imageViewer.className = 'ak-chat-image-viewer'; imageViewer.id = 'akChatImageViewer'; imageViewer.hidden = true;
+    imageViewer.setAttribute('role', 'dialog'); imageViewer.setAttribute('aria-modal', 'true'); imageViewer.setAttribute('aria-label', 'Просмотр изображения');
+    imageViewer.innerHTML = `
+      <div class="ak-chat-image-viewer-toolbar">
+        <span id="akChatImageViewerName"></span>
+        <div class="ak-chat-image-viewer-actions">
+          <button type="button" id="akChatImageViewerDownload" aria-label="Скачать изображение" title="Скачать изображение"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v3h16v-3"/></svg></button>
+          <button type="button" id="akChatImageViewerClose" aria-label="Закрыть изображение" title="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+        </div>
+      </div>
+      <div class="ak-chat-image-viewer-stage"><img id="akChatImageViewerImage" alt=""></div>`;
+    document.body.appendChild(imageViewer);
     const toastNode = document.createElement('div'); toastNode.id = 'akChatToast'; toastNode.className = 'ak-chat-toast';
     toastNode.setAttribute('role','status'); toastNode.setAttribute('aria-live','polite'); document.body.appendChild(toastNode);
 
     fab.addEventListener('click', () => openChat());
     $('akChatClose').addEventListener('click', closeChat); $('akChatMobileClose').addEventListener('click', closeChat);
     overlay.addEventListener('click', (event) => { if (event.target === overlay) closeChat(); });
+    imageViewer.addEventListener('click', (event) => { if (event.target === imageViewer || event.target.closest('#akChatImageViewerClose')) closeImageViewer(); });
+    $('akChatImageViewerDownload').addEventListener('click', () => void downloadViewedImage());
     $('akChatSend').addEventListener('click', sendMessage);
     $('akChatInput').addEventListener('input', updateComposer);
     $('akChatInput').addEventListener('keydown', (event) => {
@@ -302,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(messageList.scrollHeight-messageList.clientHeight-messageList.scrollTop>2)messageList.scrollTop=messageList.scrollHeight;
       });
     }
-    document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && isOpen) { if (!$('akChatPicker').hidden) closePicker(); else closeChat(); } });
+    document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && isOpen) { if (!$('akChatImageViewer').hidden) closeImageViewer(); else if (!$('akChatPicker').hidden) closePicker(); else closeChat(); } });
   };
 
   const openChat = async (conversationId = null, bookingId = null, messageId = null) => {
@@ -329,6 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   const closeChat = () => {
+    if (!$('akChatImageViewer')?.hidden) closeImageViewer();
     isOpen = false; $('akChatOverlay')?.classList.remove('is-open'); $('akChatFab')?.setAttribute('aria-expanded','false');
     window.setTimeout(() => { if (!isOpen && $('akChatOverlay')) $('akChatOverlay').hidden = true; },190);
     closePicker();
@@ -626,7 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const fileRows=attachments.filter((a)=>a.message_id===message.id);
       const fileHtml=fileRows.map((a)=>{
         const url=signedFiles.get(a.id), isImage=String(a.mime_type).startsWith('image/')&&a.mime_type!=='image/heic'&&a.mime_type!=='image/heif';
-        if(isImage&&url)return `<a class="ak-chat-image-attachment" href="${escapeHtml(url)}" target="_blank" rel="noopener"><img src="${escapeHtml(url)}" alt="${escapeHtml(a.file_name)}" loading="lazy"></a>`;
+        if(isImage&&url)return `<button type="button" class="ak-chat-image-attachment" data-chat-image-open="${escapeHtml(a.id)}" aria-label="Открыть изображение ${escapeHtml(a.file_name)}"><img src="${escapeHtml(url)}" alt="${escapeHtml(a.file_name)}" loading="lazy"></button>`;
         return `<a class="ak-chat-file-attachment${url?'':' is-unavailable'}" ${url?`href="${escapeHtml(url)}" target="_blank" rel="noopener"`:'aria-disabled="true"'}><span class="ak-chat-file-type">${escapeHtml((a.file_name.split('.').pop()||'FILE').slice(0,4).toUpperCase())}</span><span><strong>${escapeHtml(a.file_name)}</strong><small>${fmtBytes(Number(a.file_size)||0)}</small></span><b>↓</b></a>`;
       }).join('');
       const readCount=own?reads.filter((r)=>r.message_id===message.id&&r.user_id!==user.id).length:0;
@@ -908,8 +940,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }catch(error){toast(error?.message||'Не удалось открыть найденное сообщение.',true);}
   };
 
+  const openImageViewer=async(attachmentId)=>{
+    const attachment=attachments.find((item)=>String(item.id)===String(attachmentId));
+    if(!attachment)return;
+    let url=signedFiles.get(attachment.id);
+    if(!url){
+      const {data,error}=await sb.storage.from('dockslot-chat-files').createSignedUrl(attachment.storage_path,3600);
+      if(error||!data?.signedUrl){toast(error?.message||'Не удалось открыть изображение.',true);return;}
+      url=data.signedUrl;signedFiles.set(attachment.id,url);
+    }
+    const viewer=$('akChatImageViewer'),image=$('akChatImageViewerImage');
+    if(!viewer||!image)return;
+    viewer.dataset.attachmentId=String(attachment.id);
+    $('akChatImageViewerName').textContent=attachment.file_name||'Изображение';
+    image.src=url;image.alt=attachment.file_name||'Изображение';
+    viewer.hidden=false;
+    document.body.classList.add('ak-chat-image-viewer-open');
+    $('akChatImageViewerClose')?.focus();
+  };
+  const closeImageViewer=()=>{
+    const viewer=$('akChatImageViewer');if(!viewer||viewer.hidden)return;
+    viewer.hidden=true;
+    document.body.classList.remove('ak-chat-image-viewer-open');
+    const image=$('akChatImageViewerImage');if(image)image.removeAttribute('src');
+    delete viewer.dataset.attachmentId;
+  };
+  const downloadViewedImage=async()=>{
+    const viewer=$('akChatImageViewer');
+    const attachment=attachments.find((item)=>String(item.id)===String(viewer?.dataset.attachmentId||''));
+    if(!attachment)return;
+    const button=$('akChatImageViewerDownload');
+    if(button)button.disabled=true;
+    try{
+      const {data,error}=await sb.storage.from('dockslot-chat-files').download(attachment.storage_path);
+      if(error||!data)throw error||new Error('Файл не удалось получить из хранилища.');
+      const blobUrl=URL.createObjectURL(data);
+      const link=document.createElement('a');link.href=blobUrl;link.download=attachment.file_name||'image';link.style.display='none';
+      document.body.appendChild(link);link.click();link.remove();
+      window.setTimeout(()=>URL.revokeObjectURL(blobUrl),60000);
+    }catch(error){toast(error?.message||'Не удалось скачать изображение.',true);}
+    finally{if(button)button.disabled=false;}
+  };
+
   const onMessageListClick=async(event)=>{
     if(!event.target.closest('[data-chat-message-menu-toggle],.ak-chat-message-menu-wrap')) $('akChatMessageList')?.querySelectorAll('.ak-chat-message-menu-wrap.is-open').forEach((node)=>node.classList.remove('is-open'));
+    const imageButton=event.target.closest('[data-chat-image-open]');
+    if(imageButton){void openImageViewer(imageButton.dataset.chatImageOpen);return;}
     const olderButton=event.target.closest('#akChatLoadOlder');if(olderButton){void loadOlderMessages();return;}
     const bookingButton=event.target.closest('[data-chat-message-booking]');if(bookingButton){void openBookingFromMessage(bookingButton.dataset.chatMessageBooking);return;}
     const menuToggle=event.target.closest('[data-chat-message-menu-toggle]');
@@ -1287,7 +1363,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.clearInterval(pollTimer);window.clearTimeout(refreshDebounceTimer);if(bottomScrollFrame)cancelAnimationFrame(bottomScrollFrame);if(composerResizeFrame)cancelAnimationFrame(composerResizeFrame);messageTailObserver?.disconnect();messageTailObserver=null;observedTailMessage=null;bottomScrollFrame=0;composerResizeFrame=0;messageLoadSequence++;refreshDebounceTimer=null;queuedRefreshThread=false;queuedForceThreadBottom=false;bookingObserver?.disconnect();bookingObserver=null;
     document.querySelectorAll('.ak-chat-slot-marker').forEach((node)=>node.remove());
     if(realtimeChannel){try{void sb.removeChannel(realtimeChannel);}catch(_){}realtimeChannel=null;}
-    user=null;role='';isOpen=false;$('akChatFab')?.remove();$('akChatOverlay')?.remove();$('akChatToast')?.remove();
+    user=null;role='';isOpen=false;$('akChatFab')?.remove();$('akChatOverlay')?.remove();$('akChatImageViewer')?.remove();document.body.classList.remove('ak-chat-image-viewer-open');$('akChatToast')?.remove();
   };
   if(typeof sb.auth.onAuthStateChange==='function')sb.auth.onAuthStateChange((event,session)=>{
     if(event==='SIGNED_OUT'||!session?.user?.id)clearSession();
