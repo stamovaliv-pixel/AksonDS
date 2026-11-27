@@ -1292,8 +1292,6 @@ html[data-theme="dark"] .ak-chat-booking-day.is-selected { color:#fff; }
 .ak-chat-fab.has-unread::after {
   animation: ak-chat-v120-aura 60s ease-in-out infinite !important;
 }
-/* Keep opacity and transform in these keyframes non-important: the animation must
-   override the hidden base state while unread messages are present. */
 @keyframes ak-chat-v120-ring {
   0%, .45% { opacity: 0; transform: rotate(0deg) scale(.94); }
   .6% { opacity: 1; transform: rotate(0deg) scale(1); }
