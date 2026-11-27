@@ -30,7 +30,7 @@
 .ak-chat-fab:active { transform: translateY(-1px) scale(.98); }
 .ak-chat-fab svg { width: 27px; height: 27px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 @keyframes ak-chat-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-@media (prefers-reduced-motion: reduce) { .ak-chat-fab { animation: none; transition: box-shadow .2s ease,filter .2s ease; } .ak-chat-fab::before,.ak-chat-fab::after { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .ak-chat-fab { animation: none; transition: box-shadow .2s ease,filter .2s ease; }  }
 .ak-chat-fab-badge {
   position: absolute; top: 2px; right: 1px; display: inline-flex; min-width: 18px; height: 18px;
   align-items: center; justify-content: center; padding: 0 4px; border: 2px solid #fff; border-radius: 99px;
@@ -100,7 +100,7 @@
 .ak-chat-notice[hidden] { display: none; }
 .ak-chat-message-list { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 10px; overflow: auto; padding: 20px 22px; overscroll-behavior: contain; scroll-behavior: auto; }
 .ak-chat-date-divider { display: flex; align-items: center; gap: 12px; margin: 4px 0 8px; color: var(--color-text-muted,#9aa3b1); font-size: 9px; font-weight: 650; }
-.ak-chat-date-divider::before,.ak-chat-date-divider::after { height: 1px; flex: 1; background: var(--color-border,#e8edf2); content: ''; }
+.ak-chat-date-divider::before,.ak-chat-date-divider::after { height: 1px; flex: 1; background: var(--color-border,#e8edf2); content: ""; }
 .ak-chat-message { position: relative; display: flex; max-width: min(82%,560px); flex-direction: column; align-self: flex-start; padding: 10px 12px 8px; border: 1px solid var(--color-border,#e8edf2); border-radius: 4px 14px 14px 14px; background: var(--color-background,#f8fafc); color: var(--color-text-main,#334155); box-shadow: 0 2px 8px rgba(15,23,42,.025); }
 .ak-chat-message.is-own { align-self: flex-end; border-color: rgba(111,102,221,.14); border-radius: 14px 4px 14px 14px; background: linear-gradient(145deg,rgba(126,108,238,.105),rgba(42,168,183,.07)); }
 .ak-chat-message-top { display: flex; align-items: baseline; gap: 7px; margin-bottom: 5px; }
@@ -241,10 +241,10 @@ html[data-theme="dark"] .ak-chat-slot-marker span { border-color: #18212b; }
 
 /* DockSlot Messenger v1.1 — expanded modal, ambient glow and rich message controls. */
 .ak-chat-fab { isolation:isolate; overflow:visible; background:linear-gradient(145deg,#8b5cf6 0%,#4f46e5 43%,#0891b2 100%); box-shadow:0 10px 28px rgba(79,70,229,.38),0 4px 12px rgba(8,145,178,.24),inset 0 1px 0 rgba(255,255,255,.38); }
-.ak-chat-fab::before,.ak-chat-fab::after { position:absolute; z-index:-1; border-radius:50%; content:''; pointer-events:none; background:conic-gradient(from 0deg,#22d3ee,#6366f1,#d946ef,#fb7185,#f59e0b,#22d3ee); animation:ak-chat-ambient-rotate 60s linear infinite; }
-.ak-chat-fab::before { inset:-4px; filter:blur(1.2px); opacity:.92; }
-.ak-chat-fab::after { inset:-10px; filter:blur(12px); opacity:.68; }
-@keyframes ak-chat-ambient-rotate { 0% { transform:rotate(0deg); } 2.5% { transform:rotate(360deg); } 100% { transform:rotate(360deg); } }
+
+
+
+
 .ak-chat-fab:hover::after { opacity:.92; filter:blur(15px); }
 .ak-chat-fab.has-unread { animation:ak-chat-unread-pulse 2.6s ease-in-out infinite; }
 .ak-chat-fab-badge { z-index:2; }
@@ -272,7 +272,7 @@ html[data-theme="dark"] .ak-chat-slot-marker span { border-color: #18212b; }
 .ak-chat-message-select input { position:absolute; width:1px; height:1px; opacity:0; }
 .ak-chat-message-select span { width:15px; height:15px; border:1.5px solid #aeb8c7; border-radius:5px; background:var(--color-surface,#fff); }
 .ak-chat-message-select input:checked+span { border-color:#7065db; background:#7065db; }
-.ak-chat-message-select input:checked+span::after { display:block; width:7px; height:4px; margin:3px 0 0 2px; border-bottom:2px solid #fff; border-left:2px solid #fff; content:''; transform:rotate(-45deg); }
+.ak-chat-message-select input:checked+span::after { display:block; width:7px; height:4px; margin:3px 0 0 2px; border-bottom:2px solid #fff; border-left:2px solid #fff; content:""; transform:rotate(-45deg); }
 .ak-chat-message-content { display:flex; min-width:0; flex:1; flex-direction:column; }
 .ak-chat-message-top { align-items:center; }
 .ak-chat-message-top button { margin-left:auto; padding:3px 7px; border:1px solid rgba(111,102,221,.17); border-radius:6px; background:rgba(111,102,221,.06); color:#6b61cf; font:650 8px var(--font-main,Arial,sans-serif); cursor:pointer; }
@@ -355,7 +355,7 @@ html[data-theme="dark"] .ak-chat-message-select input:checked+span { border-colo
   .ak-chat-fab { width:58px; height:58px; }
 }
 @media (prefers-reduced-motion:reduce) {
-  .ak-chat-fab::before,.ak-chat-fab::after { animation:none; }
+  
 }
 .ak-chat-load-older { align-self:center; min-height:31px; margin:1px 0 10px; padding:0 13px; border:1px solid var(--color-border,#dfe6ee); border-radius:99px; background:var(--color-surface,#fff); color:var(--color-text-muted,#7b8797); font:650 9px var(--font-main,Arial,sans-serif); cursor:pointer; }
 .ak-chat-load-older:hover:not(:disabled) { border-color:rgba(111,102,221,.32); color:#6a61d2; }
@@ -381,19 +381,10 @@ html[data-theme="dark"] .ak-chat-load-older { border-color:#3a4959; background:#
   background:linear-gradient(145deg,#287f91 0%,#286a9f 55%,#24549a 100%);
   box-shadow:0 8px 24px rgba(37,91,145,.28),0 3px 8px rgba(15,23,42,.16),inset 0 1px 0 rgba(255,255,255,.28);
 }
-.ak-chat-fab::before,.ak-chat-fab::after {
-  content:'';position:absolute;z-index:-1;inset:-7px;border-radius:50%;pointer-events:none;
-  background:conic-gradient(from 0deg,transparent 0 24%,rgba(45,212,191,.95) 37%,rgba(56,189,248,.9) 52%,rgba(37,99,235,.82) 65%,transparent 79%);
-  opacity:0;transform:rotate(0deg);animation:ak-chat-ambient-sweep 60s linear infinite;
-}
-.ak-chat-fab::before { filter:blur(1px); }
-.ak-chat-fab::after { inset:-12px;filter:blur(10px);background:conic-gradient(from 0deg,transparent 0 24%,rgba(45,212,191,.8) 37%,rgba(56,189,248,.76) 52%,rgba(37,99,235,.68) 65%,transparent 79%); }
-@keyframes ak-chat-ambient-sweep {
-  0%,1% { opacity:0;transform:rotate(0deg); }
-  1.3% { opacity:.82;transform:rotate(0deg); }
-  3.8% { opacity:.82;transform:rotate(360deg); }
-  4.3%,100% { opacity:0;transform:rotate(360deg); }
-}
+
+
+
+
 .ak-chat-fab.has-unread { animation:ak-chat-float 3.6s ease-in-out infinite; }
 .ak-chat-fab svg { position:relative;z-index:1;width:25px;height:25px; }
 .ak-chat-fab-badge { z-index:2; }
@@ -426,12 +417,12 @@ html[data-theme="dark"] .ak-chat-load-older { border-color:#3a4959; background:#
 html[data-theme="dark"] .ak-chat-reaction-trigger,html[data-theme="dark"] .ak-chat-reaction-menu { border-color:#3a4959;background:#18232f;color:#dbe4ef; }
 @media (max-width:600px) {
   .ak-chat-fab { width:54px;height:54px; }
-  .ak-chat-fab::before,.ak-chat-fab::after { animation:ak-chat-ambient-sweep 60s linear infinite; }
+  
   .ak-chat-reaction-menu { right:0; }
 }
 @media (prefers-reduced-motion:reduce) {
   .ak-chat-fab,.ak-chat-fab.has-unread { animation:none!important; }
-  .ak-chat-fab::before,.ak-chat-fab::after { animation:none!important;opacity:0!important; }
+  
   .ak-chat-reaction-menu { transition:none; }
 }
 
@@ -446,19 +437,9 @@ html[data-theme="dark"] .ak-chat-reaction-trigger,html[data-theme="dark"] .ak-ch
   isolation:isolate;overflow:visible;animation:none!important;
 }
 .ak-chat-fab svg { width:27px;height:27px;stroke-width:1.8; }
-.ak-chat-fab::before,.ak-chat-fab::after {
-  content:'';position:absolute;z-index:-1;pointer-events:none;border-radius:50%;
-  inset:-12px;opacity:0;transform:rotate(0deg);
-  background:conic-gradient(from 0deg,transparent 0 18%,rgba(45,212,191,.18) 31%,rgba(56,189,248,.28) 47%,rgba(37,99,235,.18) 63%,transparent 78%);
-  filter:blur(10px);animation:ak-chat-soft-ambilight 600s linear infinite;
-}
-.ak-chat-fab::after { inset:-19px;filter:blur(18px);opacity:0;background:radial-gradient(ellipse,rgba(45,212,191,.24) 0%,rgba(56,189,248,.14) 42%,transparent 72%); }
-@keyframes ak-chat-soft-ambilight {
-  0%,.02% { opacity:0;transform:rotate(0deg); }
-  .045% { opacity:.46;transform:rotate(0deg); }
-  .295% { opacity:.46;transform:rotate(360deg); }
-  .32%,100% { opacity:0;transform:rotate(360deg); }
-}
+
+
+
 .ak-chat-fab.has-unread { animation:none!important; }
 .ak-chat-fab-badge { top:0;right:0;transform:translate(75%,-75%);z-index:3; }
 
@@ -507,11 +488,11 @@ html[data-theme="dark"] .ak-chat-search-panel { border-color:#344150;background:
 html[data-theme="dark"] .ak-chat-search-input-wrap input { border-color:#3a4959;background:#111923;color:#e6edf5; }
 @media (max-width:760px) {
   .ak-chat-fab { width:58px;height:58px;right:max(18px,env(safe-area-inset-right));bottom:max(26px,env(safe-area-inset-bottom)); }
-  .ak-chat-fab::before,.ak-chat-fab::after { animation:ak-chat-soft-ambilight 600s linear infinite; }
+  
   .ak-chat-search-panel { padding:8px 9px; }
   .ak-chat-message-menu { right:0; }
 }
-@media (prefers-reduced-motion:reduce) { .ak-chat-fab::before,.ak-chat-fab::after { animation:none!important;opacity:0!important; } }
+@media (prefers-reduced-motion:reduce) {  }
 
 .ak-chat-message-top .ak-chat-message-menu-trigger { margin-left:auto;padding:0;border:0;background:transparent;box-shadow:none;font-size:19px;letter-spacing:1px; }
 .ak-chat-message-top .ak-chat-message-menu-trigger:hover,.ak-chat-message-top .ak-chat-message-menu-trigger:focus-visible { border:0;background:rgba(120,135,155,.10); }
@@ -670,21 +651,10 @@ html[data-theme="dark"] .ak-chat-reaction-menu {
 }
 
 /* v1.6 ambient light: a brighter, soft red-to-blue halo beneath the launcher, once every ten minutes. */
-.ak-chat-fab::before {
-  background:conic-gradient(from 0deg,transparent 0 15%,rgba(239,68,68,.34) 27%,rgba(59,130,246,.43) 44%,rgba(37,99,235,.30) 61%,transparent 79%)!important;
-  filter:blur(11px)!important;
-}
-.ak-chat-fab::after {
-  background:radial-gradient(ellipse,rgba(239,68,68,.19) 0%,rgba(59,130,246,.22) 35%,rgba(37,99,235,.13) 55%,transparent 74%)!important;
-  filter:blur(19px)!important;
-}
-@keyframes ak-chat-soft-ambilight {
-  0%,.02% { opacity:0;transform:rotate(0deg); }
-  .045% { opacity:.60;transform:rotate(0deg); }
-  .295% { opacity:.60;transform:rotate(360deg); }
-  .32%,100% { opacity:0;transform:rotate(360deg); }
-}
-@media(max-width:760px){.ak-chat-fab::before,.ak-chat-fab::after{animation:ak-chat-soft-ambilight 600s linear infinite!important;}}
+
+
+
+@media(max-width:760px){}
 
 
 /* DockSlot Messenger v1.7 — compact, clean message actions menu. */
@@ -731,15 +701,8 @@ html[data-theme="dark"] .ak-chat-menu-item-icon { color:#a7b2c2!important; }
 
 /* DockSlot Messenger v1.8 — one-minute ambient sweep, 40% brighter.
    The sweep keeps its 1.5-second rotation while the idle interval is 60 seconds. */
-.ak-chat-fab::before,.ak-chat-fab::after {
-  animation:ak-chat-soft-ambilight 60s linear infinite!important;
-}
-@keyframes ak-chat-soft-ambilight {
-  0%,.35% { opacity:0;transform:rotate(0deg); }
-  .5% { opacity:.644;transform:rotate(0deg); }
-  3% { opacity:.644;transform:rotate(360deg); }
-  3.35%,100% { opacity:0;transform:rotate(360deg); }
-}
+
+
 
 
 /* DockSlot Messenger v1.9 — hover actions, per-message read receipts and slot-linked entry point. */
@@ -786,33 +749,10 @@ html[data-theme="dark"] .ak-chat-read-info-row strong { color:#e6edf5; }
     #4b5fa2 100%) !important;
   background-size: 170% 170% !important;
 }
-.ak-chat-fab::before,
-.ak-chat-fab::after {
-  animation: ak-chat-soft-ambilight-v110 60s linear infinite !important;
-}
-.ak-chat-fab::before {
-  background: conic-gradient(from 0deg,
-    transparent 0 15%,
-    rgba(239,68,68,.76) 27%,
-    rgba(59,130,246,.97) 44%,
-    rgba(37,99,235,.68) 61%,
-    transparent 79%) !important;
-  filter: blur(11px) !important;
-}
-.ak-chat-fab::after {
-  background: radial-gradient(ellipse,
-    rgba(239,68,68,.43) 0%,
-    rgba(59,130,246,.50) 35%,
-    rgba(37,99,235,.29) 55%,
-    transparent 74%) !important;
-  filter: blur(19px) !important;
-}
-@keyframes ak-chat-soft-ambilight-v110 {
-  0%, .35% { opacity: 0; transform: rotate(0deg); }
-  .5% { opacity: 1; transform: rotate(0deg); }
-  3% { opacity: 1; transform: rotate(360deg); }
-  3.35%, 100% { opacity: 0; transform: rotate(360deg); }
-}
+
+
+
+
 .ak-chat-fab.has-unread { animation: none !important; }
 
 /* Keep message bubbles readable: about the width of the reference green box,
@@ -909,7 +849,7 @@ html[data-theme="dark"] .ak-chat-booking-discuss-popover button { color:#e6edf5;
 }
 @media (max-width:420px) { .ak-chat-message { min-width:min(200px,94%) !important; } }
 @media (prefers-reduced-motion:reduce) {
-  .ak-chat-fab::before,.ak-chat-fab::after,.ak-chat-booking-discuss-popover { animation:none !important; }
+  .ak-chat-booking-discuss-popover { animation:none !important; }
   .ak-chat-message-list { scroll-behavior:auto !important; }
 }
 
@@ -973,7 +913,7 @@ html[data-theme="dark"] .ak-chat-picker-shortcuts{border-color:#344150;}
   background:var(--color-surface,#fff)!important; box-shadow:0 1px 4px rgba(15,23,42,.08)!important; transition:background .12s ease,border-color .12s ease,transform .12s ease!important;
 }
 .ak-chat-message-select input:checked+span { border-color:#7166df!important; background:#7166df!important; box-shadow:0 2px 7px rgba(113,102,223,.22)!important; }
-.ak-chat-message-select input:checked+span::after { display:block!important; width:7px!important; height:4px!important; margin:4px 0 0 3px!important; border-bottom:2px solid #fff!important; border-left:2px solid #fff!important; content:''!important; transform:rotate(-45deg)!important; }
+.ak-chat-message-select input:checked+span::after { display:block!important; width:7px!important; height:4px!important; margin:4px 0 0 3px!important; border-bottom:2px solid #fff!important; border-left:2px solid #fff!important; content:""!important; transform:rotate(-45deg)!important; }
 .ak-chat-message-select input:focus-visible+span { outline:3px solid rgba(113,102,223,.18)!important; outline-offset:2px!important; }
 .ak-chat-message.is-selected { border-color:rgba(113,102,223,.58)!important; box-shadow:0 0 0 2px rgba(113,102,223,.10),0 2px 8px rgba(15,23,42,.035)!important; }
 .ak-chat-forward-selection-bar { display:flex; min-height:48px; align-items:center; gap:9px; padding:7px 18px; border-top:1px solid var(--color-border,#e2e8f0); background:rgba(111,102,221,.055); }
@@ -999,7 +939,7 @@ html[data-theme="dark"] .ak-chat-forward-selection-bar { border-color:#344150; b
 .ak-chat-fab-symbol { position:absolute;inset:0;margin:auto;width:27px;height:27px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round; }
 .ak-chat-fab-ds-mark { position:absolute;left:50%;top:50%;width:13px;height:13px;object-fit:contain;transform:translate(-50%,-53%);filter:brightness(0) invert(1);pointer-events:none; }
 .ak-chat-fab-badge { top:0!important;right:0!important;transform:translate(85%,-85%)!important; }
-.ak-chat-fab::before,.ak-chat-fab::after { opacity:0;animation:none!important; }
+
 .ak-chat-fab.has-unread::before,.ak-chat-fab.has-unread::after {
   opacity:0;
   animation:ak-chat-unread-ambilight-v116 60s linear infinite !important;
@@ -1017,14 +957,7 @@ html[data-theme="dark"] .ak-chat-forward-selection-bar { border-color:#344150; b
   background:radial-gradient(ellipse at 42% 56%,rgba(239,68,68,.36) 0%,rgba(250,204,21,.32) 20%,rgba(34,197,94,.30) 38%,rgba(56,189,248,.34) 56%,rgba(99,102,241,.28) 70%,transparent 82%) !important;
   filter:blur(20px) saturate(1.45) !important;
 }
-@keyframes ak-chat-unread-ambilight-v116 {
-  0%,.35% { opacity:0;transform:rotate(0deg) scale(.94); }
-  .6% { opacity:.92;transform:rotate(0deg) scale(1.03); }
-  1.9% { opacity:.88;transform:rotate(432deg) scale(1.12); }
-  3.2% { opacity:.82;transform:rotate(864deg) scale(.91); }
-  5% { opacity:0;transform:rotate(1080deg) scale(1.06); }
-  100% { opacity:0;transform:rotate(1080deg) scale(1.06); }
-}
+
 .ak-chat-booking-calendar[hidden] { display:none !important; }
 .ak-chat-booking-calendar {
   display:flex;flex-direction:column;gap:7px;padding:9px 10px 8px;margin:0 0 6px;
@@ -1117,57 +1050,9 @@ html[data-theme="dark"] .ak-chat-booking-day.is-selected { color:#fff; }
   width: 13.5px !important;
   height: 13.5px !important;
 }
-.ak-chat-fab::before,
-.ak-chat-fab::after {
-  content: '' !important;
-  position: absolute !important;
-  z-index: -1 !important;
-  inset: -3px !important;
-  padding: 2.3px !important;
-  border: 0 !important;
-  border-radius: 50% !important;
-  pointer-events: none !important;
-  opacity: 0;
-  transform: rotate(0deg);
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg 224deg,
-    rgba(56,189,248,.12) 238deg,
-    rgba(56,189,248,.96) 251deg,
-    rgba(99,102,241,1) 270deg,
-    rgba(192,132,252,1) 289deg,
-    rgba(244,114,182,.98) 308deg,
-    rgba(248,113,113,1) 326deg,
-    rgba(250,204,21,.98) 343deg,
-    rgba(45,212,191,.96) 354deg,
-    transparent 360deg
-  ) !important;
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0) !important;
-  -webkit-mask-composite: xor !important;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0) !important;
-  mask-composite: exclude !important;
-  animation: none !important;
-}
-.ak-chat-fab::before {
-  filter: saturate(1.3) brightness(1.08) !important;
-}
-.ak-chat-fab::after {
-  inset: -6px !important;
-  padding: 3px !important;
-  filter: blur(7px) saturate(1.45) brightness(1.12) !important;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg 220deg,
-    rgba(56,189,248,.72) 246deg,
-    rgba(99,102,241,.78) 270deg,
-    rgba(192,132,252,.86) 291deg,
-    rgba(244,114,182,.82) 310deg,
-    rgba(248,113,113,.88) 329deg,
-    rgba(250,204,21,.82) 346deg,
-    rgba(45,212,191,.78) 356deg,
-    transparent 360deg
-  ) !important;
-}
+
+
+
 .ak-chat-fab.has-unread::before,
 .ak-chat-fab.has-unread::after {
   opacity: 0;
@@ -1179,24 +1064,8 @@ html[data-theme="dark"] .ak-chat-booking-day.is-selected { color:#fff; }
 .ak-chat-fab.has-unread::after {
   animation-name: ak-chat-google-ring-glow-v118 !important;
 }
-@keyframes ak-chat-google-ring-v118 {
-  0%, .35% { opacity: 0; transform: rotate(0deg); }
-  .6% { opacity: .98; transform: rotate(0deg); }
-  1.7% { opacity: 1; transform: rotate(432deg); filter: saturate(1.5) brightness(1.25); }
-  2.9% { opacity: .96; transform: rotate(864deg); filter: saturate(1.7) brightness(1.35); }
-  4.6% { opacity: .88; transform: rotate(1080deg); filter: saturate(1.4) brightness(1.18); }
-  5% { opacity: 0; transform: rotate(1080deg); }
-  100% { opacity: 0; transform: rotate(1080deg); }
-}
-@keyframes ak-chat-google-ring-glow-v118 {
-  0%, .35% { opacity: 0; transform: rotate(0deg) scale(.98); }
-  .6% { opacity: .72; transform: rotate(0deg) scale(1); }
-  1.7% { opacity: .82; transform: rotate(432deg) scale(1.08); }
-  2.9% { opacity: .72; transform: rotate(864deg) scale(1.13); }
-  4.6% { opacity: .62; transform: rotate(1080deg) scale(1.04); }
-  5% { opacity: 0; transform: rotate(1080deg) scale(1.02); }
-  100% { opacity: 0; transform: rotate(1080deg) scale(1.02); }
-}
+
+
 @media (max-width: 760px) {
   .ak-chat-fab.has-unread::before,
   .ak-chat-fab.has-unread::after {
@@ -1232,84 +1101,19 @@ html[data-theme="dark"] .ak-chat-booking-day.is-selected { color:#fff; }
   isolation: isolate;
   overflow: visible !important;
 }
-.ak-chat-fab::before,
-.ak-chat-fab::after {
-  content: '' !important;
-  position: absolute !important;
-  z-index: -1 !important;
-  display: block !important;
-  border: 0 !important;
-  border-radius: 50% !important;
-  pointer-events: none !important;
-  opacity: 0;
-  animation: none !important;
-  will-change: transform, opacity, filter;
-}
+
 /* Fine, saturated perimeter — its transparent centre is larger than the button. */
-.ak-chat-fab::before {
-  inset: -8px !important;
-  padding: 4px !important;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg 218deg,
-    rgba(34,211,238,.28) 232deg,
-    #22d3ee 246deg,
-    #3b82f6 263deg,
-    #6366f1 280deg,
-    #a855f7 296deg,
-    #ec4899 312deg,
-    #fb7185 328deg,
-    #fbbf24 344deg,
-    #2dd4bf 356deg,
-    transparent 360deg
-  ) !important;
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0) !important;
-  -webkit-mask-composite: xor !important;
-  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0) !important;
-  mask-composite: exclude !important;
-  filter: saturate(1.55) brightness(1.28) !important;
-  transform-origin: center;
-}
+
 /* Wide, soft aura. Its clear central area is deliberately larger than the button. */
-.ak-chat-fab::after {
-  inset: -20px !important;
-  padding: 0 !important;
-  background: radial-gradient(ellipse at center,
-    transparent 0 68%,
-    rgba(34,211,238,.28) 72%,
-    rgba(59,130,246,.36) 77%,
-    rgba(139,92,246,.38) 83%,
-    rgba(236,72,153,.32) 89%,
-    rgba(251,191,36,.22) 94%,
-    transparent 100%
-  ) !important;
-  filter: blur(13px) saturate(1.65) brightness(1.32) !important;
-  transform-origin: center;
-}
+
 .ak-chat-fab.has-unread::before {
   animation: ak-chat-v120-ring 60s linear infinite !important;
 }
 .ak-chat-fab.has-unread::after {
   animation: ak-chat-v120-aura 60s ease-in-out infinite !important;
 }
-@keyframes ak-chat-v120-ring {
-  0%, .45% { opacity: 0; transform: rotate(0deg) scale(.94); }
-  .6% { opacity: 1; transform: rotate(0deg) scale(1); }
-  1.65% { opacity: 1; transform: rotate(432deg) scale(1.09); filter: saturate(1.75) brightness(1.42); }
-  2.8% { opacity: .98; transform: rotate(864deg) scale(1.16); filter: saturate(1.9) brightness(1.5); }
-  4.55% { opacity: .9; transform: rotate(1080deg) scale(1.04); filter: saturate(1.6) brightness(1.3); }
-  5% { opacity: 0; transform: rotate(1080deg) scale(1); }
-  100% { opacity: 0; transform: rotate(1080deg) scale(1); }
-}
-@keyframes ak-chat-v120-aura {
-  0%, .45% { opacity: 0; transform: rotate(0deg) scale(.92); }
-  .6% { opacity: .82; transform: rotate(0deg) scale(1); }
-  1.65% { opacity: .96; transform: rotate(432deg) scale(1.13); }
-  2.8% { opacity: .9; transform: rotate(864deg) scale(1.23); }
-  4.55% { opacity: .76; transform: rotate(1080deg) scale(1.06); }
-  5% { opacity: 0; transform: rotate(1080deg) scale(1); }
-  100% { opacity: 0; transform: rotate(1080deg) scale(1); }
-}
+
+
 @media (prefers-reduced-motion: reduce) {
   .ak-chat-fab.has-unread::before,
   .ak-chat-fab.has-unread::after {
