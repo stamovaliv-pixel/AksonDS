@@ -378,18 +378,26 @@ document.addEventListener('DOMContentLoaded', () => {
       await refreshData(shouldRefreshThread, shouldForceBottom);
     }, 140);
   };
-  const startPolling = () => { window.clearInterval(pollTimer); pollTimer = window.setInterval(() => queueRefreshData(isOpen),45000); };
+  const startPolling = () => { window.clearInterval(pollTimer); pollTimer = window.setInterval(() => queueRefreshData(false),45000); };
   const setupRealtime = () => {
     if (!sb.channel || realtimeChannel) return;
     realtimeChannel = sb.channel(`dockslot-chat-${user.id}`)
       .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_messages'},(payload)=>{
-        const isNewActiveMessage = payload?.eventType === 'INSERT'
-          && isOpen
-          && String(payload?.new?.conversation_id || '') === String(selectedConversationId || '');
-        queueRefreshData(isOpen, isNewActiveMessage);
+        const changedConversationId = payload?.new?.conversation_id || payload?.old?.conversation_id || '';
+        const affectsActiveThread = isOpen && String(changedConversationId) === String(selectedConversationId || '');
+        const isNewActiveMessage = payload?.eventType === 'INSERT' && affectsActiveThread;
+        // Changes in another conversation refresh only previews and unread counters.
+        // Active-thread UPDATE/DELETE events still reconcile the thread immediately.
+        queueRefreshData(affectsActiveThread, isNewActiveMessage);
       })
-      .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_message_reads'},()=>queueRefreshData(isOpen))
-      .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_attachments'},()=>queueRefreshData(isOpen))
+      .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_message_reads'},()=>{
+        if (isOpen) void syncActiveReadReceipts();
+        queueRefreshData(false);
+      })
+      .on('postgres_changes',{event:'*',schema:'public',table:'dockslot_chat_attachments'},()=>{
+        if (isOpen) void syncActiveAttachments();
+        queueRefreshData(false);
+      })
       .subscribe((status)=>{ if(status==='CHANNEL_ERROR'||status==='TIMED_OUT') console.warn('[DockSlot chat] Realtime unavailable; polling remains active.'); });
   };
 
@@ -452,12 +460,65 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!conversations.some((c)=>c.id===selectedConversationId)) selectedConversationId = conversations.find((c)=>c.kind==='general')?.id || conversations[0]?.id || null;
       setBadge(Array.from(unreadByConversation.values()).reduce((sum,n)=>sum+n,0));
       renderConversationList();
-      if (refreshThread && isOpen) { if(selectedConversationId) await loadSelectedMessages({preserveHistory:true,forceBottom:forceThreadBottom}); else await renderSelectedConversation(); }
+      const activeLatestChanged = currentActiveLatestId !== previousActiveLatestId;
+      if (isOpen && (refreshThread || activeLatestChanged)) {
+        if (selectedConversationId) await loadSelectedMessages({preserveHistory:true,forceBottom:forceThreadBottom || activeLatestChanged});
+        else await renderSelectedConversation();
+      }
       updateBookingMarkers();
     } catch(error) {
       console.warn('[DockSlot chat] Data refresh failed:',error?.message||error);
       if(isOpen && !$('akChatMessageList')?.querySelector('.ak-chat-message')) $('akChatMessageList').innerHTML=`<div class="ak-chat-error">Не удалось загрузить переписку. ${escapeHtml(error?.message||'Проверьте подключение и права доступа.')}</div>`;
     } finally { loading=false; }
+  };
+
+  const syncActiveReadReceipts = async () => {
+    const conversationId = selectedConversationId;
+    if (!isOpen || !conversationId) return;
+    const ids = messages.filter((message) => String(message.conversation_id) === String(conversationId) && !message.client_pending).map((message) => message.id);
+    if (!ids.length) return;
+    try {
+      const { data, error } = await sb.from('dockslot_chat_message_reads')
+        .select('message_id,user_id,read_at').in('message_id', ids);
+      if (error) throw error;
+      if (!isOpen || selectedConversationId !== conversationId) return;
+      const activeIds = new Set(ids.map(String));
+      reads = [...reads.filter((row) => !activeIds.has(String(row.message_id))), ...(data || [])];
+      renderMessages();
+    } catch (error) {
+      console.warn('[DockSlot chat] Read receipts refresh failed:', error?.message || error);
+    }
+  };
+
+  const syncActiveAttachments = async () => {
+    const conversationId = selectedConversationId;
+    if (!isOpen || !conversationId) return;
+    const activeMessages = messages.filter((message) => String(message.conversation_id) === String(conversationId) && !message.client_pending);
+    const ids = activeMessages.map((message) => message.id);
+    if (!ids.length) return;
+    try {
+      const { data, error } = await sb.from('dockslot_chat_attachments')
+        .select('id,message_id,storage_path,file_name,mime_type,file_size').in('message_id', ids);
+      if (error) throw error;
+      if (!isOpen || selectedConversationId !== conversationId) return;
+      const activeIdSet = new Set(ids.map(String));
+      const freshRows = data || [];
+      const freshIds = new Set(freshRows.map((row) => String(row.id)));
+      const oldActive = attachments.filter((row) => activeIdSet.has(String(row.message_id)));
+      attachments = [...attachments.filter((row) => !activeIdSet.has(String(row.message_id))), ...freshRows];
+      const added = freshRows.filter((row) => !oldActive.some((old) => String(old.id) === String(row.id)) || !signedFiles.has(row.id));
+      await Promise.all(added.map(async (attachment) => {
+        try {
+          const { data: link, error: linkError } = await sb.storage.from('dockslot-chat-files').createSignedUrl(attachment.storage_path, 3600);
+          if (!linkError && link?.signedUrl) signedFiles.set(attachment.id, link.signedUrl);
+        } catch (_) { /* metadata remains visible if signing temporarily fails */ }
+      }));
+      // Remove stale signed URLs for attachments deleted from the active thread.
+      oldActive.forEach((row) => { if (!freshIds.has(String(row.id))) signedFiles.delete(row.id); });
+      if (isOpen && selectedConversationId === conversationId) renderMessages();
+    } catch (error) {
+      console.warn('[DockSlot chat] Attachments refresh failed:', error?.message || error);
+    }
   };
 
   const setBadge = (count) => {
@@ -643,6 +704,8 @@ document.addEventListener('DOMContentLoaded', () => {
     updateForwardSelectionBar();
     if(observedTailMessage&&messageTailObserver){messageTailObserver.unobserve(observedTailMessage);observedTailMessage=null;}
     if(!messages.length){list.innerHTML='<div class="ak-chat-empty"><div class="ak-chat-empty-icon">✦</div><strong>Начните разговор</strong><span>Отправьте сообщение, фото или документ.</span></div>';return;}
+    const existingMessageNodes = new Map([...list.querySelectorAll('.ak-chat-message[data-message-id]')]
+      .map((node) => [String(node.dataset.messageId), node]));
     list.replaceChildren();
     if(hasOlderMessages){const olderButton=document.createElement('button');olderButton.type='button';olderButton.id='akChatLoadOlder';olderButton.className='ak-chat-load-older';olderButton.disabled=olderMessagesLoading;olderButton.textContent=olderMessagesLoading?'Загрузка…':'Загрузить более ранние сообщения';list.appendChild(olderButton);}
     let previousDay='';
@@ -685,6 +748,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<div class="ak-chat-read-info-row"><strong>${escapeHtml(displayName(id))}</strong><time>${readAt?escapeHtml(fmtDateTime(readAt)):'Не прочитано'}</time></div>`;
       }).join(''):'<div class="ak-chat-read-info-empty">Отметки о прочтении пока не поступили.</div>';
       const readInfoMenu=own&&!message.client_pending?`<button type="button" role="menuitem" class="ak-chat-message-menu-item" data-chat-read-info-toggle="${escapeHtml(message.id)}"><span>Информация о прочтении</span></button><div class="ak-chat-read-info" hidden>${receiptHtml}</div>`:'';
+      const renderSignature = JSON.stringify({
+        message, isSelected, forwardingSelectionMode, sender, senderRole, linked,
+        files: fileRows.map((file) => ({...file, signedUrl: signedFiles.get(file.id) || ''})),
+        readRows, receiptReaderIds, receiptHtml
+      });
+      const existingNode = existingMessageNodes.get(String(message.id));
+      if (existingNode && existingNode.dataset.renderSignature === renderSignature) {
+        list.appendChild(existingNode);
+        return;
+      }
       const editAction=own?`<button type="button" role="menuitem" class="ak-chat-message-menu-item" data-chat-edit="${escapeHtml(message.id)}" ${canEdit?'':'disabled title="Редактирование доступно в течение 10 минут после отправки."'}><span class="ak-chat-menu-item-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m4 16.5-.8 4.3 4.3-.8L19.8 7.7a2.1 2.1 0 0 0-3-3L4 16.5Z"/><path d="m15.4 6.1 3 3"/></svg></span><span>Редактировать</span></button>`:'';
       const messageMenu=message.client_pending?'':`<div class="ak-chat-message-menu-wrap"><button type="button" class="ak-chat-message-menu-trigger" data-chat-message-menu-toggle aria-label="Действия с сообщением" title="Действия">⋯</button><div class="ak-chat-message-menu" role="menu">${readInfoMenu}<button type="button" role="menuitem" class="ak-chat-message-menu-item" data-chat-forward="${escapeHtml(message.id)}"><span class="ak-chat-menu-item-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="m20 4-9 9"/><path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5"/></svg></span><span>Переслать</span></button>${editAction}</div></div>`;
       const selectionControl=forwardingSelectionMode
@@ -699,6 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ${fileHtml?`<div class="ak-chat-message-attachments">${fileHtml}</div>`:''}
           <div class="ak-chat-message-bottom"><time>${escapeHtml(fmtTime(message.created_at))}</time>${edited}${status}</div>
         </div>`;
+      bubble.dataset.renderSignature = renderSignature;
       list.appendChild(bubble);
     });
     updateForwardSelectionBar();
