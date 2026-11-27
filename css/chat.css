@@ -1127,8 +1127,8 @@ html[data-theme="dark"] .ak-chat-booking-day.is-selected { color:#fff; }
   border: 0 !important;
   border-radius: 50% !important;
   pointer-events: none !important;
-  opacity: 0 !important;
-  transform: rotate(0deg) !important;
+  opacity: 0;
+  transform: rotate(0deg);
   background: conic-gradient(
     from 0deg,
     transparent 0deg 224deg,
@@ -1170,7 +1170,7 @@ html[data-theme="dark"] .ak-chat-booking-day.is-selected { color:#fff; }
 }
 .ak-chat-fab.has-unread::before,
 .ak-chat-fab.has-unread::after {
-  opacity: 0 !important;
+  opacity: 0;
   animation: ak-chat-google-ring-v118 60s linear infinite !important;
 }
 .ak-chat-fab.has-unread::before {
@@ -1241,7 +1241,7 @@ html[data-theme="dark"] .ak-chat-booking-day.is-selected { color:#fff; }
   border: 0 !important;
   border-radius: 50% !important;
   pointer-events: none !important;
-  opacity: 0 !important;
+  opacity: 0;
   animation: none !important;
   will-change: transform, opacity, filter;
 }
@@ -1292,23 +1292,25 @@ html[data-theme="dark"] .ak-chat-booking-day.is-selected { color:#fff; }
 .ak-chat-fab.has-unread::after {
   animation: ak-chat-v120-aura 60s ease-in-out infinite !important;
 }
+/* Keep opacity and transform in these keyframes non-important: the animation must
+   override the hidden base state while unread messages are present. */
 @keyframes ak-chat-v120-ring {
-  0%, .45% { opacity: 0 !important; transform: rotate(0deg) scale(.94); }
-  .6% { opacity: 1 !important; transform: rotate(0deg) scale(1); }
-  1.65% { opacity: 1 !important; transform: rotate(432deg) scale(1.09); filter: saturate(1.75) brightness(1.42); }
-  2.8% { opacity: .98 !important; transform: rotate(864deg) scale(1.16); filter: saturate(1.9) brightness(1.5); }
-  4.55% { opacity: .9 !important; transform: rotate(1080deg) scale(1.04); filter: saturate(1.6) brightness(1.3); }
-  5% { opacity: 0 !important; transform: rotate(1080deg) scale(1); }
-  100% { opacity: 0 !important; transform: rotate(1080deg) scale(1); }
+  0%, .45% { opacity: 0; transform: rotate(0deg) scale(.94); }
+  .6% { opacity: 1; transform: rotate(0deg) scale(1); }
+  1.65% { opacity: 1; transform: rotate(432deg) scale(1.09); filter: saturate(1.75) brightness(1.42); }
+  2.8% { opacity: .98; transform: rotate(864deg) scale(1.16); filter: saturate(1.9) brightness(1.5); }
+  4.55% { opacity: .9; transform: rotate(1080deg) scale(1.04); filter: saturate(1.6) brightness(1.3); }
+  5% { opacity: 0; transform: rotate(1080deg) scale(1); }
+  100% { opacity: 0; transform: rotate(1080deg) scale(1); }
 }
 @keyframes ak-chat-v120-aura {
-  0%, .45% { opacity: 0 !important; transform: rotate(0deg) scale(.92); }
-  .6% { opacity: .82 !important; transform: rotate(0deg) scale(1); }
-  1.65% { opacity: .96 !important; transform: rotate(432deg) scale(1.13); }
-  2.8% { opacity: .9 !important; transform: rotate(864deg) scale(1.23); }
-  4.55% { opacity: .76 !important; transform: rotate(1080deg) scale(1.06); }
-  5% { opacity: 0 !important; transform: rotate(1080deg) scale(1); }
-  100% { opacity: 0 !important; transform: rotate(1080deg) scale(1); }
+  0%, .45% { opacity: 0; transform: rotate(0deg) scale(.92); }
+  .6% { opacity: .82; transform: rotate(0deg) scale(1); }
+  1.65% { opacity: .96; transform: rotate(432deg) scale(1.13); }
+  2.8% { opacity: .9; transform: rotate(864deg) scale(1.23); }
+  4.55% { opacity: .76; transform: rotate(1080deg) scale(1.06); }
+  5% { opacity: 0; transform: rotate(1080deg) scale(1); }
+  100% { opacity: 0; transform: rotate(1080deg) scale(1); }
 }
 @media (prefers-reduced-motion: reduce) {
   .ak-chat-fab.has-unread::before,
